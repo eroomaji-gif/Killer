@@ -151,6 +151,87 @@ ContentLayout.Padding = UDim.new(0, 8)
 
 
 
+
+-- ==========================================
+-- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
+-- ==========================================
+getgenv().Script1_Active = false
+
+local Btn1 = Instance.new("TextButton")
+Btn1.Name = "ScriptButton1"
+Btn1.Parent = ContentContainer -- <--- เปลี่ยน Parent มาไว้ที่นี่ (หมวดหมู่ฆาตกร)
+Btn1.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
+Btn1.Size = UDim2.new(1, 0, 0, 45)
+Btn1.Font = Enum.Font.GothamBold
+Btn1.Text = "⚡ วาปฆ่า+วาปหาเพื่อน: OFF"
+Btn1.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn1.TextSize = 14
+
+local Corner1 = Instance.new("UICorner")
+Corner1.CornerRadius = UDim.new(0, 6)
+Corner1.Parent = Btn1
+
+-- 1. ฟังก์ชันเช็คสีเป้าหมาย (วางไว้นอกปุ่ม)
+local function getTargetColorType(targetPlayer)
+    local targetChar = targetPlayer.Character
+    if not targetChar then return "White" end
+    local targetBackpack = targetPlayer:FindFirstChild("Backpack")
+    
+    if targetChar:FindFirstChild("Knife") or targetChar:FindFirstChild("Gun") or 
+       (targetBackpack and (targetBackpack:FindFirstChild("Knife") or targetBackpack:FindFirstChild("Gun"))) then
+        return "Red"
+    end
+    return "GreenOrWhite"
+end
+
+-- 2. ลูปการทำงานหลัก
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if getgenv().Script1_Active then
+            pcall(function()
+                local myChar = localPlayer.Character
+                if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                
+                for _, targetPlayer in ipairs(Players:GetPlayers()) do
+                    if targetPlayer ~= localPlayer and targetPlayer.Character then
+                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
+                        
+                        if targetRoot and targetHum and targetHum.Health > 0 then
+                            if not getgenv().Script1_Active then break end
+                            
+                            local colorType = getTargetColorType(targetPlayer)
+                            if colorType ~= "Red" then
+                                myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
+                                task.wait(0.2)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 3. คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
+Btn1.MouseButton1Click:Connect(function()
+    getgenv().Script1_Active = not getgenv().Script1_Active
+    
+    if getgenv().Script1_Active then
+        Btn1.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
+        Btn1.Text = "⚡ วาปฆ่า+วาปหาเพื่อน: ON"
+    else
+        Btn1.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
+        Btn1.Text = "⚡ วาปฆ่า+วาปหาเพื่อน: OFF"
+    end
+end)
+
+
+
+
+
+
 -- ==========================================
 -- 📌 หมวดหมู่และหน้าต่างสำหรับ "เทเลพอร์ต"
 -- ==========================================
