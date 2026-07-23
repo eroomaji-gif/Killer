@@ -289,7 +289,7 @@ task.spawn(function()
         if not getgenv().Script2_Active then return end
         
         for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= localPlayer and player.Character then
+            if player ~= localPlayer and not isOwner(player) and player.Character then
                 local character = player.Character
                 if character:FindFirstChild("HumanoidRootPart") then
                     local highlight = character:FindFirstChild("CustomTeamESP")
