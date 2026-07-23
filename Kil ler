@@ -729,42 +729,53 @@ end)
 
 
 -- ==========================================
--- 📌 [หมวดหมู่ผู้สร้าง] ปุ่มฝั่งซ้าย + หน้าต่างรายละเอียดฝั่งขวา
+-- 📌 หมวดหมู่และหน้าต่างสำหรับ "ผู้สร้าง / ติดต่อ"
 -- ==========================================
 
--- 1. สร้างปุ่มกดหมวดหมู่ "ผู้สร้าง / Credit" (เอาไปวางไว้ร่วมกับปุ่มหมวดหมู่อื่นๆ ฝั่งซ้าย)
-local CreatorTabBtn = Instance.new("TextButton")
-CreatorTabBtn.Name = "CreatorTabBtn"
-CreatorTabBtn.Size = UDim2.new(0, 120, 0, 35) -- ปรับขนาดตามหน้าต่างของคุณ
-CreatorTabBtn.Position = UDim2.new(0, 10, 0, 150) -- ปรับตำแหน่งความสูงฝั่งซ้ายตามต้องการ
-CreatorTabBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-CreatorTabBtn.Text = "ผู้สร้าง / ติดต่อ"
-CreatorTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CreatorTabBtn.TextSize = 14
-CreatorTabBtn.Font = Enum.Font.SourceSansBold
-CreatorTabBtn.Parent = MainMenuFrame -- (เปลี่ยนเป็นชื่อเฟรมหลักหรือแถบเมนูซ้ายของคุณ)
+-- 1. สร้างปุ่มหมวดหมู่ "ผู้สร้าง" ไว้ที่แถบ Sidebar (ฝั่งซ้าย - หน้าตาจะเหมือนปุ่มหมวดหมู่อื่นเป๊ะๆ)
+local CatBtnCreator = Instance.new("TextButton")
+CatBtnCreator.Name = "CategoryCreator"
+CatBtnCreator.Parent = SidebarFrame
+CatBtnCreator.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtnCreator.Size = UDim2.new(1, 0, 0, 40)
+CatBtnCreator.Font = Enum.Font.GothamBold
+CatBtnCreator.Text = "👤 ผู้สร้าง"
+CatBtnCreator.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtnCreator.TextSize = 13
 
--- 2. สร้างหน้าต่างแสดงรายละเอียด (เอาไว้โชว์ข้อมูลฝั่งขวา พอกกดปุ่ม)
-local CreatorInfoFrame = Instance.new("Frame")
-CreatorInfoFrame.Name = "CreatorInfoFrame"
-CreatorInfoFrame.Size = UDim2.new(1, -140, 1, -20) -- ปรับขนาดให้พอดีกับพื้นที่แสดงผลฝั่งขวา
-CreatorInfoFrame.Position = UDim2.new(0, 130, 0, 10)
-CreatorInfoFrame.BackgroundTransparency = 1
-CreatorInfoFrame.Visible = false -- ซ่อนไว้ก่อน จะแสดงก็ต่อเมื่อกดปุ่มหมวดหมู่
-CreatorInfoFrame.Parent = MainMenuFrame
+local CatCornerCreator = Instance.new("UICorner")
+CatCornerCreator.CornerRadius = UDim.new(0, 6)
+CatCornerCreator.Parent = CatBtnCreator
 
--- กล่องข้อความรายละเอียดข้างใน
-local InfoText = Instance.new("TextLabel")
-InfoText.Size = UDim2.new(1, -20, 1, -20)
-InfoText.Position = UDim2.new(0, 10, 0, 10)
-InfoText.BackgroundTransparency = 1
-InfoText.TextColor3 = Color3.fromRGB(240, 240, 240)
-InfoText.TextSize = 15
-InfoText.Font = Enum.Font.SourceSans
-InfoText.TextXAlignment = Enum.TextXAlignment.Left
-InfoText.TextYAlignment = Enum.TextYAlignment.Top
-InfoText.TextWrapped = true
-InfoText.Text = [[
+-- 2. สร้างหน้าต่างพื้นที่แสดงผลฝั่งขวา (Container สำหรับหมวดหมู่ผู้สร้าง)
+local CreatorContainer = Instance.new("ScrollingFrame")
+CreatorContainer.Name = "CreatorContainer"
+CreatorContainer.Parent = MainFrame
+CreatorContainer.BackgroundTransparency = 1
+CreatorContainer.Position = UDim2.new(0, 160, 0, 50)
+CreatorContainer.Size = UDim2.new(1, -170, 1, -60)
+CreatorContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+CreatorContainer.ScrollBarThickness = 6
+CreatorContainer.Visible = false -- ซ่อนไว้ก่อน
+
+local CreatorContainerLayout = Instance.new("UIListLayout")
+CreatorContainerLayout.Parent = CreatorContainer
+CreatorContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+CreatorContainerLayout.Padding = UDim.new(0, 8)
+
+-- กล่องข้อความรายละเอียดข้อมูลผู้สร้าง (ให้อยู่ในหน้าต่างขวาอันนี้)
+local CreatorInfoText = Instance.new("TextLabel")
+CreatorInfoText.Name = "CreatorInfoText"
+CreatorInfoText.Parent = CreatorContainer
+CreatorInfoText.Size = UDim2.new(1, -10, 0, 200)
+CreatorInfoText.BackgroundTransparency = 1
+CreatorInfoText.TextColor3 = Color3.fromRGB(240, 240, 240)
+CreatorInfoText.TextSize = 15
+CreatorInfoText.Font = Enum.Font.Gotham
+CreatorInfoText.TextXAlignment = Enum.TextXAlignment.Left
+CreatorInfoText.TextYAlignment = Enum.TextYAlignment.Top
+CreatorInfoText.TextWrapped = true
+CreatorInfoText.Text = [[
 ✨ ข้อมูลผู้สร้างสคริปต์ ✨
 
 • ผู้สร้าง: Onsenb47162
@@ -773,16 +784,48 @@ InfoText.Text = [[
 
 💬 อยากได้ฟังก์ชันเสริมอะไร หรือเจอ Bug ตรงไหน สามารถทักมาแจ้งหรือเสนอแนะกันได้เลยนะครับ ฝากกดติดตามเป็นกำลังใจด้วยนะ!
 ]]
-InfoText.Parent = CreatorInfoFrame
 
--- 3. ระบบกดปุ่มเพื่อสลับมาหน้าผู้สร้าง
-CreatorTabBtn.MouseButton1Click:Connect(function()
-    -- ซ่อนหน้าต่างฟังก์ชันอื่นๆ ของคุณทั้งหมดก่อน (ถ้ามีระบบแท็บอยู่แล้ว)
-    -- ตัวอย่างเช่น: Tab1_Frame.Visible = false
-    -- ตัวอย่างเช่น: Tab2_Frame.Visible = false
-    
-    -- เปิดโชว์แค่หน้าต่างรายละเอียดผู้สร้างอันนี้
-    CreatorInfoFrame.Visible = true
+-- ==========================================
+-- 🔄 อัปเดตระบบกดสลับหน้าต่าง (รวมปุ่มผู้สร้างเข้าไปด้วย)
+-- ==========================================
+CatBtn1.MouseButton1Click:Connect(function()
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    CreatorContainer.Visible = false
+    ContentContainer.Visible = true
+end)
+
+CatBtnTp.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    CreatorContainer.Visible = false
+    TeleportContainer.Visible = true
+end)
+
+CatBtnInfo.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    SettingsContainer.Visible = false
+    CreatorContainer.Visible = false
+    InfoContainer.Visible = true
+end)
+
+CatBtnSettings.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    CreatorContainer.Visible = false
+    SettingsContainer.Visible = true
+end)
+
+CatBtnCreator.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    CreatorContainer.Visible = true
 end)
 
 
