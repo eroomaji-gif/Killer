@@ -231,6 +231,98 @@ end)
 
 
 
+-- ==========================================
+-- 📌 [ปุ่มที่ 2] เปิดมองทะลุ (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
+-- ==========================================
+getgenv().Script2_Active = false
+
+local Btn2 = Instance.new("TextButton")
+Btn2.Name = "ScriptButton2"
+Btn2.Parent = ContentContainer -- <--- เปลี่ยน Parent มาไว้ที่นี่ (หมวดหมู่ฆาตกร)
+Btn2.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
+Btn2.Size = UDim2.new(1, 0, 0, 45)
+Btn2.Font = Enum.Font.GothamBold
+Btn2.Text = "👁️ เปิดมองทะลุ: OFF"
+Btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn2.TextSize = 14
+
+local Corner2 = Instance.new("UICorner")
+Corner2.CornerRadius = UDim.new(0, 6)
+Corner2.Parent = Btn2
+
+-- ฟังก์ชันเช็คสี ESP นอกปุ่ม
+local function getESPColor(player)
+    if player.Team and player.Team == localPlayer.Team then
+        return Color3.fromRGB(0, 255, 0) -- สีเขียว (พวกเดียวกัน)
+    end
+    
+    local character = player.Character
+    if character then
+        local backpack = player:FindFirstChild("Backpack")
+        if character:FindFirstChild("Knife") or character:FindFirstChild("Gun") or 
+           (backpack and (backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Gun"))) then
+            return Color3.fromRGB(255, 0, 0) -- สีแดง (อันตราย/ฆาตกร)
+        end
+    end
+    return Color3.fromRGB(255, 255, 255) -- สีขาว (ทั่วไป)
+end
+
+-- ลูปการทำงาน ESP
+task.spawn(function()
+    getgenv().ActiveHighlights = {}
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if not getgenv().Script2_Active then return end
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character then
+                local character = player.Character
+                if character:FindFirstChild("HumanoidRootPart") then
+                    local highlight = character:FindFirstChild("CustomTeamESP")
+                    if not highlight then
+                        highlight = Instance.new("Highlight")
+                        highlight.Name = "CustomTeamESP"
+                        highlight.Adornee = character
+                        highlight.OutlineTransparency = 0
+                        highlight.FillTransparency = 0.4
+                        highlight.Parent = character
+                        table.insert(getgenv().ActiveHighlights, highlight)
+                    end
+                    
+                    local targetColor = getESPColor(player)
+                    highlight.FillColor = targetColor
+                    highlight.OutlineColor = targetColor
+                end
+            end
+        end
+    end)
+end)
+
+Btn2.MouseButton1Click:Connect(function()
+    getgenv().Script2_Active = not getgenv().Script2_Active
+    
+    if getgenv().Script2_Active then
+        Btn2.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
+        Btn2.Text = "👁️ เปิดมองทะลุ: ON"
+    else
+        Btn2.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
+        Btn2.Text = "👁️ เปิดมองทะลุ: OFF"
+        
+        -- ล้างค่าแสง ESP ออกเมื่อปิดสคริปต์
+        for _, highlight in pairs(getgenv().ActiveHighlights or {}) do
+            if highlight and highlight.Parent then
+                highlight:Destroy()
+            end
+        end
+        getgenv().ActiveHighlights = {}
+    end
+end)
+
+
+
+
+
+
+
 
 -- ==========================================
 -- 📌 หมวดหมู่และหน้าต่างสำหรับ "เทเลพอร์ต"
@@ -275,6 +367,104 @@ TpContainerLayout.Padding = UDim.new(0, 8)
 -- ตัวอย่าง:
 -- local BtnHome = Instance.new("TextButton")
 -- BtnHome.Parent = TeleportContainer
+
+
+
+
+-- ==========================================
+-- 📌 [ปุ่มที่ 5] เทเลพอร์ตกลับบ้าน (ย้ายมาใส่ในหมวดหมู่เทเลพอร์ต)
+-- ==========================================
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local Btn5 = Instance.new("TextButton")
+Btn5.Name = "ScriptButton5"
+Btn5.Parent = TeleportContainer -- <--- เปลี่ยน Parent มาไว้ที่นี่ (หมวดหมู่เทเลพอร์ต)
+Btn5.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
+Btn5.Size = UDim2.new(1, 0, 0, 45)
+Btn5.Font = Enum.Font.GothamBold
+Btn5.Text = "🏡 เทเลพอร์ตกลับบ้าน"
+Btn5.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn5.TextSize = 14
+
+local Corner5 = Instance.new("UICorner")
+Corner5.CornerRadius = UDim.new(0, 6)
+Corner5.Parent = Btn5
+
+Btn5.MouseButton1Click:Connect(function()
+    local character = localPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        -- พิกัดบ้านที่คุณให้มา (เซ็ต Y สูงขึ้นนิดหน่อย +3 กันตัวละครจมพื้น)
+        local homePosition = Vector3.new(-7.17, 266.55 + 3, -4.11)
+        
+        character.HumanoidRootPart.CFrame = CFrame.new(homePosition)
+        
+        Btn5.Text = "✅ กลับบ้านสำเร็จ!"
+        task.wait(1.5)
+        Btn5.Text = "🏡 เทเลพอร์ตกลับบ้าน"
+    end
+end)
+
+
+
+
+
+-- ==========================================
+-- 📌 [ปุ่มที่ 3] วาปไปหน้าประตู (ย้ายมาใส่ในหมวดหมู่เทเลพอร์ต)
+-- ==========================================
+local Btn3 = Instance.new("TextButton")
+Btn3.Name = "ScriptButton3"
+Btn3.Parent = TeleportContainer -- <--- เปลี่ยน Parent มาไว้ที่นี่ (หมวดหมู่เทเลพอร์ต)
+Btn3.BackgroundColor3 = Color3.fromRGB(50, 120, 200) -- สีฟ้า (กดสั่งทีเดียว)
+Btn3.Size = UDim2.new(1, 0, 0, 45)
+Btn3.Font = Enum.Font.GothamBold
+Btn3.Text = "🚪 วาปไปหน้าประตู"
+Btn3.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn3.TextSize = 14
+
+local Corner3 = Instance.new("UICorner")
+Corner3.CornerRadius = UDim.new(0, 6)
+Corner3.Parent = Btn3
+
+-- ฟังก์ชันค้นหาประตูทางออก
+local function findKillerExitDoor()
+    local bestTarget = nil
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local nameLower = string.lower(obj.Name)
+            if string.find(nameLower, "exit") or string.find(nameLower, "escape") or string.find(nameLower, "door") or string.find(nameLower, "gate") or string.find(nameLower, "win") then
+                if obj.Transparency < 1 then
+                    bestTarget = obj
+                    if string.find(nameLower, "exit") or string.find(nameLower, "escape") then
+                        return obj
+                    end
+                end
+            end
+        end
+    end
+    return bestTarget
+end
+
+Btn3.MouseButton1Click:Connect(function()
+    pcall(function()
+        local myChar = localPlayer.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        
+        local targetDoor = findKillerExitDoor()
+        if targetDoor then
+            myChar.HumanoidRootPart.CFrame = targetDoor.CFrame + Vector3.new(0, 3, 0)
+            print("[Escape] วาบมาที่ประตูทางออกสำเร็จ!")
+        else
+            print("[Error] ยังไม่พบประตูทางออก หรือยังไม่ถึงเวลาเปิด")
+        end
+    end)
+end)
+
+
+
+
+
+
 
 
 -- ==========================================
