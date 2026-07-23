@@ -796,6 +796,65 @@ end)
 
 
 -- ==========================================
+-- 📌 [หมวดหมู่ผู้สร้าง] ปุ่มฝั่งซ้าย + หน้าต่างรายละเอียดฝั่งขวา
+-- ==========================================
+
+-- 1. สร้างปุ่มกดหมวดหมู่ "ผู้สร้าง / Credit" (เอาไปวางไว้ร่วมกับปุ่มหมวดหมู่อื่นๆ ฝั่งซ้าย)
+local CreatorTabBtn = Instance.new("TextButton")
+CreatorTabBtn.Name = "CreatorTabBtn"
+CreatorTabBtn.Size = UDim2.new(0, 120, 0, 35) -- ปรับขนาดตามหน้าต่างของคุณ
+CreatorTabBtn.Position = UDim2.new(0, 10, 0, 150) -- ปรับตำแหน่งความสูงฝั่งซ้ายตามต้องการ
+CreatorTabBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+CreatorTabBtn.Text = "ผู้สร้าง / ติดต่อ"
+CreatorTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CreatorTabBtn.TextSize = 14
+CreatorTabBtn.Font = Enum.Font.SourceSansBold
+CreatorTabBtn.Parent = MainMenuFrame -- (เปลี่ยนเป็นชื่อเฟรมหลักหรือแถบเมนูซ้ายของคุณ)
+
+-- 2. สร้างหน้าต่างแสดงรายละเอียด (เอาไว้โชว์ข้อมูลฝั่งขวา พอกกดปุ่ม)
+local CreatorInfoFrame = Instance.new("Frame")
+CreatorInfoFrame.Name = "CreatorInfoFrame"
+CreatorInfoFrame.Size = UDim2.new(1, -140, 1, -20) -- ปรับขนาดให้พอดีกับพื้นที่แสดงผลฝั่งขวา
+CreatorInfoFrame.Position = UDim2.new(0, 130, 0, 10)
+CreatorInfoFrame.BackgroundTransparency = 1
+CreatorInfoFrame.Visible = false -- ซ่อนไว้ก่อน จะแสดงก็ต่อเมื่อกดปุ่มหมวดหมู่
+CreatorInfoFrame.Parent = MainMenuFrame
+
+-- กล่องข้อความรายละเอียดข้างใน
+local InfoText = Instance.new("TextLabel")
+InfoText.Size = UDim2.new(1, -20, 1, -20)
+InfoText.Position = UDim2.new(0, 10, 0, 10)
+InfoText.BackgroundTransparency = 1
+InfoText.TextColor3 = Color3.fromRGB(240, 240, 240)
+InfoText.TextSize = 15
+InfoText.Font = Enum.Font.SourceSans
+InfoText.TextXAlignment = Enum.TextXAlignment.Left
+InfoText.TextYAlignment = Enum.TextYAlignment.Top
+InfoText.TextWrapped = true
+InfoText.Text = [[
+✨ ข้อมูลผู้สร้างสคริปต์ ✨
+
+• ผู้สร้าง: Onsenb47162
+• ช่องทางติดตาม / แจ้งปัญหา:
+  - TikTok: ซาดีน่า(ช่องหลัก)
+
+💬 อยากได้ฟังก์ชันเสริมอะไร หรือเจอ Bug ตรงไหน สามารถทักมาแจ้งหรือเสนอแนะกันได้เลยนะครับ ฝากกดติดตามเป็นกำลังใจด้วยนะ!
+]]
+InfoText.Parent = CreatorInfoFrame
+
+-- 3. ระบบกดปุ่มเพื่อสลับมาหน้าผู้สร้าง
+CreatorTabBtn.MouseButton1Click:Connect(function()
+    -- ซ่อนหน้าต่างฟังก์ชันอื่นๆ ของคุณทั้งหมดก่อน (ถ้ามีระบบแท็บอยู่แล้ว)
+    -- ตัวอย่างเช่น: Tab1_Frame.Visible = false
+    -- ตัวอย่างเช่น: Tab2_Frame.Visible = false
+    
+    -- เปิดโชว์แค่หน้าต่างรายละเอียดผู้สร้างอันนี้
+    CreatorInfoFrame.Visible = true
+end)
+
+
+
+-- ==========================================
 -- 📂 ระบบกดสลับหน้าต่างหมวดหมู่ซ้าย-ขวา
 -- ==========================================
 
