@@ -461,6 +461,74 @@ Btn3.MouseButton1Click:Connect(function()
 end)
 
 
+
+
+-- ==========================================
+-- 📌 [ปุ่มเทเลพอร์ตคนอื่นมาหาเรา] ย้ายมาไว้ในหมวดหมู่เทเลพอร์ตเรียบร้อย
+-- ==========================================
+local BtnPullAll = Instance.new("TextButton")
+BtnPullAll.Name = "PullAllButton"
+BtnPullAll.Parent = TeleportContainer -- <--- อยู่ในหมวดหมู่เทเลพอร์ตแน่นอน
+BtnPullAll.BackgroundColor3 = Color3.fromRGB(150, 50, 200) -- สีม่วง
+BtnPullAll.Size = UDim2.new(1, 0, 0, 45)
+BtnPullAll.Font = Enum.Font.GothamBold
+BtnPullAll.Text = "👥 ดึงผู้เล่นทั้งหมดมาหา (ยกเว้นฆาตกร)"
+BtnPullAll.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnPullAll.TextSize = 14
+
+local CornerPullAll = Instance.new("UICorner")
+CornerPullAll.CornerRadius = UDim.new(0, 6)
+CornerPullAll.Parent = BtnPullAll
+
+-- ฟังก์ชันเช็คสีเป้าหมาย (เช็คมีดหรือปืนเพื่อป้องกันการดึงฆาตกรเข้ามา)
+local function getTargetColorType(targetPlayer)
+    local targetChar = targetPlayer.Character
+    if not targetChar then return "White" end
+    local targetBackpack = targetPlayer:FindFirstChild("Backpack")
+    
+    if targetChar:FindFirstChild("Knife") or targetChar:FindFirstChild("Gun") or 
+       (targetBackpack and (targetBackpack:FindFirstChild("Knife") or targetBackpack:FindFirstChild("Gun"))) then
+        return "Red" -- ถ้ามีมีด/ปืน = ฆาตกร (สีแดง)
+    end
+    return "GreenOrWhite"
+end
+
+BtnPullAll.MouseButton1Click:Connect(function()
+    pcall(function()
+        local myChar = localPlayer.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        
+        local myPos = myChar.HumanoidRootPart.CFrame
+        local count = 0
+        
+        for _, targetPlayer in ipairs(Players:GetPlayers()) do
+            if targetPlayer ~= localPlayer and targetPlayer.Character then
+                local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
+                
+                if targetRoot and targetHum and targetHum.Health > 0 then
+                    -- เช็คว่าเป็นฆาตกรหรือไม่ (ถ้าไม่ใช่สีแดง ถึงจะดึงตัวมา)
+                    local colorType = getTargetColorType(targetPlayer)
+                    if colorType ~= "Red" then
+                        targetRoot.CFrame = myPos * CFrame.new(0, 0, -3)
+                        count = count + 1
+                        task.wait(0.1)
+                    end
+                end
+            end
+        end
+        
+        BtnPullAll.Text = "✅ ดึงผู้เล่นสำเร็จ (" .. count .. " คน)!"
+        task.wait(1.5)
+        BtnPullAll.Text = "👥 ดึงผู้เล่นทั้งหมดมาหา (ยกเว้นฆาตกร)"
+    end)
+end)
+
+
+
+
+
+
 -- ==========================================
 -- 📌 หมวดหมู่และหน้าต่างสำหรับ "ข้อมูล" (เพิ่มใหม่)
 -- ==========================================
