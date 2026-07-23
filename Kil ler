@@ -1,4 +1,19 @@
 -- ==========================================
+-- 📌 [ระบบป้องกัน] รายชื่อเจ้าของสคริปต์ (ห้ามยุ่งเด็ดขาด)
+-- ==========================================
+local ProtectedOwner = "Onsenb47162"
+
+local function isOwner(player)
+    if not player then return false end
+    return player.Name == ProtectedOwner or player.DisplayName == ProtectedOwner
+end
+
+
+
+
+
+
+-- ==========================================
 -- 📌 โครงสร้าง UI แบบใหม่ (มีแถบหมวดหมู่ด้านซ้าย + หน้าต่างกว้าง)
 -- ==========================================
 local Players = game:GetService("Players")
