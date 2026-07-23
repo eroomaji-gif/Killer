@@ -694,58 +694,50 @@ SettingsContainerLayout.Padding = UDim.new(0, 8)
 
 
 -- ==========================================
--- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ดับเบิ้ลจั้ม (กระโดดกลางอากาศ)
+-- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip)
 -- ==========================================
-getgenv().DoubleJump_Active = false
+getgenv().Noclip_Active = false
 
-local BtnDoubleJump = Instance.new("TextButton")
-BtnDoubleJump.Name = "DoubleJumpButton"
-BtnDoubleJump.Parent = SettingsContainer -- <--- ให้อยู่ในหมวดหมู่ตั้งค่า
-BtnDoubleJump.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
-BtnDoubleJump.Size = UDim2.new(1, 0, 0, 45)
-BtnDoubleJump.Font = Enum.Font.GothamBold
-BtnDoubleJump.Text = "🦘 ดับเบิ้ลจั้ม: OFF"
-BtnDoubleJump.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnDoubleJump.TextSize = 14
+local BtnNoclip = Instance.new("TextButton")
+BtnNoclip.Name = "NoclipButton"
+BtnNoclip.Parent = SettingsContainer -- <--- ให้อยู่ในหมวดหมู่ตั้งค่า
+BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
+BtnNoclip.Size = UDim2.new(1, 0, 0, 45)
+BtnNoclip.Font = Enum.Font.GothamBold
+BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
+BtnNoclip.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnNoclip.TextSize = 14
 
-local CornerDoubleJump = Instance.new("UICorner")
-CornerDoubleJump.CornerRadius = UDim.new(0, 6)
-CornerDoubleJump.Parent = BtnDoubleJump
+local CornerNoclip = Instance.new("UICorner")
+CornerNoclip.CornerRadius = UDim.new(0, 6)
+CornerNoclip.Parent = BtnNoclip
 
--- ระบบการทำงาน Double Jump
-local UserInputService = game:GetService("UserInputService")
-local canDoubleJump = false
-local hasDoubleJumped = false
+-- ระบบการทำงาน Noclip (เดินทะลุกำแพงและวัตถุ)
+local RunService = game:GetService("RunService")
 
-UserInputService.JumpRequest:Connect(function()
-    if not getgenv().DoubleJump_Active then return end
+RunService.Stepped:Connect(function()
+    if not getgenv().Noclip_Active then return end
     
     local character = localPlayer.Character
-    if not character then return end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    
-    local state = humanoid:GetState()
-    
-    if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed then
-        canDoubleJump = true
-        hasDoubleJumped = false
-    elseif canDoubleJump and not hasDoubleJumped and state == Enum.HumanoidStateType.Freefall then
-        hasDoubleJumped = true
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    if character then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
+            end
+        end
     end
 end)
 
 -- คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
-BtnDoubleJump.MouseButton1Click:Connect(function()
-    getgenv().DoubleJump_Active = not getgenv().DoubleJump_Active
+BtnNoclip.MouseButton1Click:Connect(function()
+    getgenv().Noclip_Active = not getgenv().Noclip_Active
     
-    if getgenv().DoubleJump_Active then
-        BtnDoubleJump.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
-        BtnDoubleJump.Text = "🦘 ดับเบิ้ลจั้ม: ON"
+    if getgenv().Noclip_Active then
+        BtnNoclip.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
+        BtnNoclip.Text = "👻 ทะลุกำแพง: ON"
     else
-        BtnDoubleJump.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
-        BtnDoubleJump.Text = "🦘 ดับเบิ้ลจั้ม: OFF"
+        BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
+        BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
     end
 end)
 
