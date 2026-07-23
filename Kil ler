@@ -645,6 +645,83 @@ end)
 
 
 
+-- ==========================================
+-- 📌 หมวดหมู่และหน้าต่างสำหรับ "ตั้งค่า" (เพิ่มใหม่)
+-- ==========================================
+
+-- 1. สร้างปุ่มหมวดหมู่ "ตั้งค่า" ไว้ที่แถบ Sidebar (ฝั่งซ้าย)
+local CatBtnSettings = Instance.new("TextButton")
+CatBtnSettings.Name = "CategorySettings"
+CatBtnSettings.Parent = SidebarFrame
+CatBtnSettings.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtnSettings.Size = UDim2.new(1, 0, 0, 40)
+CatBtnSettings.Font = Enum.Font.GothamBold
+CatBtnSettings.Text = "⚙️ ตั้งค่า"
+CatBtnSettings.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtnSettings.TextSize = 13
+
+local CatCornerSettings = Instance.new("UICorner")
+CatCornerSettings.CornerRadius = UDim.new(0, 6)
+CatCornerSettings.Parent = CatBtnSettings
+
+-- 2. สร้างหน้าต่างพื้นที่เก็บปุ่ม (Container สำหรับหมวดหมู่ตั้งค่า)
+local SettingsContainer = Instance.new("ScrollingFrame")
+SettingsContainer.Name = "SettingsContainer"
+SettingsContainer.Parent = MainFrame
+SettingsContainer.BackgroundTransparency = 1
+SettingsContainer.Position = UDim2.new(0, 160, 0, 50)
+SettingsContainer.Size = UDim2.new(1, -170, 1, -60)
+SettingsContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+SettingsContainer.ScrollBarThickness = 6
+SettingsContainer.Visible = false -- ซ่อนไว้ก่อน
+
+local SettingsContainerLayout = Instance.new("UIListLayout")
+SettingsContainerLayout.Parent = SettingsContainer
+SettingsContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SettingsContainerLayout.Padding = UDim.new(0, 8)
+
+-- ==========================================
+-- 📌 [จุดที่ 4] เอาปุ่มฟังก์ชันหมวดหมู่ "ตั้งค่า" มาใส่ไว้ที่นี่
+-- (เช่น ปุ่มรีเซ็ต UI, ปุ่มปรับแต่งธีม ฯลฯ)
+-- ให้กำหนด Parent ของปุ่มพวกนี้เป็น "SettingsContainer"
+-- ==========================================
+-- ตัวอย่าง:
+-- local BtnConfig = Instance.new("TextButton")
+-- BtnConfig.Parent = SettingsContainer
+
+
+-- 3. อัปเดตระบบกดสลับหน้าต่าง (เพิ่มหมวดหมู่ "ตั้งค่า" เข้าไปในระบบคลิก)
+CatBtn1.MouseButton1Click:Connect(function()
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    ContentContainer.Visible = true
+end)
+
+CatBtnTp.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    TeleportContainer.Visible = true
+end)
+
+CatBtnInfo.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    SettingsContainer.Visible = false
+    InfoContainer.Visible = true
+end)
+
+CatBtnSettings.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = true
+end)
+
+
+
+
 
 -- ==========================================
 -- 📂 ระบบกดสลับหน้าต่างหมวดหมู่ซ้าย-ขวา
