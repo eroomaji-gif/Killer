@@ -461,7 +461,69 @@ Btn3.MouseButton1Click:Connect(function()
 end)
 
 
+-- ==========================================
+-- 📌 หมวดหมู่และหน้าต่างสำหรับ "ข้อมูล" (เพิ่มใหม่)
+-- ==========================================
 
+-- 1. สร้างปุ่มหมวดหมู่ "ข้อมูล" ไว้ที่แถบ Sidebar (ฝั่งซ้าย)
+local CatBtnInfo = Instance.new("TextButton")
+CatBtnInfo.Name = "CategoryInfo"
+CatBtnInfo.Parent = SidebarFrame
+CatBtnInfo.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtnInfo.Size = UDim2.new(1, 0, 0, 40)
+CatBtnInfo.Font = Enum.Font.GothamBold
+CatBtnInfo.Text = "📊 ข้อมูล"
+CatBtnInfo.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtnInfo.TextSize = 13
+
+local CatCornerInfo = Instance.new("UICorner")
+CatCornerInfo.CornerRadius = UDim.new(0, 6)
+CatCornerInfo.Parent = CatBtnInfo
+
+-- 2. สร้างหน้าต่างพื้นที่เก็บปุ่ม (Container สำหรับหมวดหมู่ข้อมูล)
+local InfoContainer = Instance.new("ScrollingFrame")
+InfoContainer.Name = "InfoContainer"
+InfoContainer.Parent = MainFrame
+InfoContainer.BackgroundTransparency = 1
+InfoContainer.Position = UDim2.new(0, 160, 0, 50)
+InfoContainer.Size = UDim2.new(1, -170, 1, -60)
+InfoContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+InfoContainer.ScrollBarThickness = 6
+InfoContainer.Visible = false -- ซ่อนไว้ก่อน
+
+local InfoContainerLayout = Instance.new("UIListLayout")
+InfoContainerLayout.Parent = InfoContainer
+InfoContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+InfoContainerLayout.Padding = UDim.new(0, 8)
+
+-- ==========================================
+-- 📌 [จุดที่ 3] เอาปุ่มฟังก์ชันหมวดหมู่ "ข้อมูล" มาใส่ไว้ที่นี่
+-- (เช่น ปุ่มเช็คพิกัดปัจจุบัน, ปุ่มดูสถานะ ฯลฯ)
+-- ให้กำหนด Parent ของปุ่มพวกนี้เป็น "InfoContainer"
+-- ==========================================
+-- ตัวอย่าง:
+-- local BtnCheck = Instance.new("TextButton")
+-- BtnCheck.Parent = InfoContainer
+
+
+-- 3. อัปเดตระบบกดสลับหน้าต่าง (ให้รองรับการกดเปิดหมวดหมู่ "ข้อมูล")
+CatBtn1.MouseButton1Click:Connect(function()
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    ContentContainer.Visible = true
+end)
+
+CatBtnTp.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    InfoContainer.Visible = false
+    TeleportContainer.Visible = true
+end)
+
+CatBtnInfo.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = true
+end)
 
 
 
