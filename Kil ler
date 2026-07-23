@@ -209,7 +209,8 @@ task.spawn(function()
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    if targetPlayer ~= localPlayer and targetPlayer.Character then
+                    -- 🛡️ ป้องกันไม่ให้สคริปต์วิ่งหรือเทเลพอร์ตมาหาเจ้าของสคริปต์ (Onsenb47162)
+                    if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
                         local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                         local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
                         
@@ -228,6 +229,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 -- 3. คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
 Btn1.MouseButton1Click:Connect(function()
