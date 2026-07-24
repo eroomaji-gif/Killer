@@ -935,92 +935,127 @@ end)
 
 
 -- ==========================================
--- 📌 [ปุ่มตั้งค่า] ป้องกันกับดัก (Anti-Trap) + ระบบจำค่า (Auto-Save)
+-- 📌 [ปุ่มตั้งค่า] ESP กับดัก (Trap ESP) + ระบบจำค่า (Auto-Save)
 -- ==========================================
-getgenv().AntiTrap_Active = false
+getgenv().TrapESP_Active = false
 
--- ชื่อไฟล์สำหรับเก็บบันทึกสถานะกันกับดัก
-local saveTrapFile = "FlexibleMenu_AntiTrapSetting.txt"
+-- ชื่อไฟล์สำหรับเก็บบันทึกสถานะ ESP กับดัก
+local saveESPTrapFile = "FlexibleMenu_TrapESPSetting.txt"
 
 -- 1. โหลดค่าที่เคยบันทึกไว้ครั้งก่อน
 pcall(function()
-    if isfile and isfile(saveTrapFile) then
-        local content = readfile(saveTrapFile)
+    if isfile and isfile(saveESPTrapFile) then
+        local content = readfile(saveESPTrapFile)
         if content == "true" then
-            getgenv().AntiTrap_Active = true
+            getgenv().TrapESP_Active = true
         else
-            getgenv().AntiTrap_Active = false
+            getgenv().TrapESP_Active = false
         end
     end
 end)
 
-local BtnAntiTrap = Instance.new("TextButton")
-BtnAntiTrap.Name = "AntiTrapButton"
-BtnAntiTrap.Parent = SettingsContainer -- ⚙️ ให้อยู่ในหมวดหมู่ตั้งค่า
-BtnAntiTrap.Size = UDim2.new(1, 0, 0, 45)
-BtnAntiTrap.Font = Enum.Font.GothamBold
-BtnAntiTrap.TextSize = 14
-BtnAntiTrap.TextColor3 = Color3.fromRGB(255, 255, 255)
+local BtnTrapESP = Instance.new("TextButton")
+BtnTrapESP.Name = "TrapESPButton"
+BtnTrapESP.Parent = SettingsContainer -- ⚙️ ให้อยู่ในหมวดหมู่ตั้งค่า
+BtnTrapESP.Size = UDim2.new(1, 0, 0, 45)
+BtnTrapESP.Font = Enum.Font.GothamBold
+BtnTrapESP.TextSize = 14
+BtnTrapESP.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 -- อัปเดตสีและข้อความเริ่มต้นตามสถานะที่จำได้
-if getgenv().AntiTrap_Active then
-    BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
-    BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: ON"
+if getgenv().TrapESP_Active then
+    BtnTrapESP.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
+    BtnTrapESP.Text = "🪤 ESP กับดัก: ON"
 else
-    BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
-    BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: OFF"
+    BtnTrapESP.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
+    BtnTrapESP.Text = "🪤 ESP กับดัก: OFF"
 end
 
-local CornerAntiTrap = Instance.new("UICorner")
-CornerAntiTrap.CornerRadius = UDim.new(0, 6)
-CornerAntiTrap.Parent = BtnAntiTrap
+local CornerTrapESP = Instance.new("UICorner")
+CornerTrapESP.CornerRadius = UDim.new(0, 6)
+CornerTrapESP.Parent = BtnTrapESP
 
--- ระบบทำงาน: คอยสแกนและทำลายการทำงานของกับดักรอบตัวตลอดเวลา
-local RunService = game:GetService("RunService")
+-- ฟังก์ชันสร้างกล่อง ESP (Highlight) รอบตัวกับดัก
+local activeHighlights = {}
 
-RunService.Heartbeat:Connect(function()
-    if not getgenv().AntiTrap_Active then return end
+local function addTrapESP(object)
+    if not object:IsA("BasePart") then return end
+    
+    -- ป้องกันการสร้างซ้ำ
+    if activeHighlights[object] then return end
     
     pcall(function()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            -- เช็คชื่อวัตถุที่มีคำว่ากับดัก (คุณสามารถเพิ่มคำค้นหาภาษาอังกฤษอื่นๆ ได้ถ้าเกมใช้ชื่ออื่น)
-            local nameL = string.lower(obj.Name)
-            if string.find(nameL, "trap") or string.find(nameL, "beartrap") or string.find(nameL, "snare") or string.find(nameL, "spike") then
-                if obj:IsA("BasePart") then
-                    -- ปิดการชนและการสัมผัส เพื่อให้เราเดินเหยียบผ่านได้แบบเนียนๆ ไม่ติดล็อก
-                    obj.CanCollide = false
-                    obj.CanTouch = false
-                end
-                
-                -- ลบตัวดักจับการสัมผัส (TouchInterest) ทิ้งทันที เพื่อไม่ให้มันส่งสัญญาณมาล็อกตัวเรา
-                local touchInterest = obj:FindFirstChild("TouchInterest")
-                if touchInterest then
-                    touchInterest:Destroy()
-                end
-            end
-        end
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "TrapHighlight"
+        highlight.Adornee = object
+        highlight.Parent = object
+        highlight.FillColor = Color3.fromRGB(255, 50, 50) -- สีแดงเตือนภัย
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- ขอบสีขาว
+        highlight.FillTransparency = 0.4
+        
+        activeHighlights[object] = highlight
     end)
+end
+
+local function removeTrapESP(object)
+    if activeHighlights[object] then
+        pcall(function()
+            activeHighlights[object]:Destroy()
+        end)
+        activeHighlights[object] = nil
+    end
+end
+
+-- ระบบคอยเช็คจับตากับดักที่ถูกวางขึ้นมาใหม่แบบไม่กระตุก (เช็คเฉพาะตอนมีวัตถุเพิ่มเข้ามา)
+workspace.DescendantAdded:Connect(function(obj)
+    if not getgenv().TrapESP_Active then return end
+    local nameL = string.lower(obj.Name)
+    if string.find(nameL, "trap") or string.find(nameL, "beartrap") or string.find(nameL, "snare") or string.find(nameL, "spike") then
+        if obj:IsA("BasePart") then
+            addTrapESP(obj)
+        end
+    end
 end)
 
--- กดปุ่มเพื่อสลับเปิด/ปิด และบันทึกค่าลงไฟล์อัตโนมัติ
-BtnAntiTrap.MouseButton1Click:Connect(function()
-    getgenv().AntiTrap_Active = not getgenv().AntiTrap_Active
+workspace.DescendantRemoving:Connect(function(obj)
+    removeTrapESP(obj)
+end)
+
+-- ปุ่มกดเปิด/ปิด และบันทึกค่าลงไฟล์
+BtnTrapESP.MouseButton1Click:Connect(function()
+    getgenv().TrapESP_Active = not getgenv().TrapESP_Active
     
     pcall(function()
         if writefile then
-            writefile(saveTrapFile, tostring(getgenv().AntiTrap_Active))
+            writefile(saveESPTrapFile, tostring(getgenv().TrapESP_Active))
         end
     end)
     
-    if getgenv().AntiTrap_Active then
-        BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: ON"
+    if getgenv().TrapESP_Active then
+        BtnTrapESP.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnTrapESP.Text = "🪤 ESP กับดัก: ON"
+        
+        -- สแกนรอบเดียวตอนเปิด เพื่อแสดงผลกับดักที่มีอยู่แล้วในแมพ
+        pcall(function()
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                local nameL = string.lower(obj.Name)
+                if string.find(nameL, "trap") or string.find(nameL, "beartrap") or string.find(nameL, "snare") or string.find(nameL, "spike") then
+                    if obj:IsA("BasePart") then
+                        addTrapESP(obj)
+                    end
+                end
+            end
+        end)
     else
-        BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: OFF"
+        BtnTrapESP.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnTrapESP.Text = "🪤 ESP กับดัก: OFF"
+        
+        -- ลบ ESP ทั้งหมดทิ้งตอนปิด
+        for obj, _ in pairs(activeHighlights) do
+            removeTrapESP(obj)
+        end
     end
 end)
-
 
 
 
