@@ -34,23 +34,26 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.DisplayOrder = 9999
 
--- 1. ปุ่มเปิด/ปิดหน้าต่างเมนู (เล็ก)
-local ToggleButton = Instance.new("TextButton")
+
+
+-- 1. ปุ่มเปิด/ปิดหน้าต่างเมนู (สี่เหลี่ยมจัตุรัสเล็กๆ พร้อมรูปภาพ)
+local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ScreenGui
 ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ToggleButton.BackgroundTransparency = 0.2
 ToggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
-ToggleButton.Size = UDim2.new(0, 110, 0, 40)
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Text = "🗃️เมนู"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 14
+ToggleButton.Size = UDim2.new(0, 45, 0, 45)
 ToggleButton.Active = true
 ToggleButton.Draggable = true
+ToggleButton.Image = "rbxassetid://127530647227098"
 
 local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(0, 8)
 ToggleCorner.Parent = ToggleButton
+
+
+
 
 -- 2. หน้าต่างหลัก (สี่เหลี่ยมใหญ่ขึ้น - ปรับความกว้างเป็น 550)
 local MainFrame = Instance.new("Frame")
