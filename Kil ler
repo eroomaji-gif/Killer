@@ -528,7 +528,7 @@ end)
 -- ==========================================
 local Btn3 = Instance.new("TextButton")
 Btn3.Name = "ScriptButton3"
-Btn3.Parent = Container
+Btn3.Parent = TeleportContainer
 Btn3.BackgroundColor3 = Color3.fromRGB(50, 120, 200) -- สีฟ้า (กดสั่งทีเดียว)
 Btn3.Position = UDim2.new(0, 0, 0, 120)
 Btn3.Size = UDim2.new(1, 0, 0, 45)
