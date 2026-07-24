@@ -452,6 +452,53 @@ BtnFly.MouseButton1Click:Connect(function()
 end)
 
 
+-- ==========================================
+-- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip)
+-- ==========================================
+getgenv().Noclip_Active = false
+
+local BtnNoclip = Instance.new("TextButton")
+BtnNoclip.Name = "NoclipButton"
+BtnNoclip.Parent = ContentContainer -- <--- ให้อยู่ในหมวดหมู่ตั้งค่า
+BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
+BtnNoclip.Size = UDim2.new(1, 0, 0, 45)
+BtnNoclip.Font = Enum.Font.GothamBold
+BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
+BtnNoclip.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnNoclip.TextSize = 14
+
+local CornerNoclip = Instance.new("UICorner")
+CornerNoclip.CornerRadius = UDim.new(0, 6)
+CornerNoclip.Parent = BtnNoclip
+
+-- ระบบการทำงาน Noclip (เดินทะลุกำแพงและวัตถุ)
+local RunService = game:GetService("RunService")
+
+RunService.Stepped:Connect(function()
+    if not getgenv().Noclip_Active then return end
+    
+    local character = localPlayer.Character
+    if character then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
+BtnNoclip.MouseButton1Click:Connect(function()
+    getgenv().Noclip_Active = not getgenv().Noclip_Active
+    
+    if getgenv().Noclip_Active then
+        BtnNoclip.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
+        BtnNoclip.Text = "👻 ทะลุกำแพง: ON"
+    else
+        BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
+        BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
+    end
+end)
 
 
 
@@ -866,60 +913,6 @@ SettingsContainerLayout.Padding = UDim.new(0, 8)
 -- ตัวอย่าง:
 -- local BtnConfig = Instance.new("TextButton")
 -- BtnConfig.Parent = SettingsContainer
-
-
-
-
-
--- ==========================================
--- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip)
--- ==========================================
-getgenv().Noclip_Active = false
-
-local BtnNoclip = Instance.new("TextButton")
-BtnNoclip.Name = "NoclipButton"
-BtnNoclip.Parent = SettingsContainer -- <--- ให้อยู่ในหมวดหมู่ตั้งค่า
-BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
-BtnNoclip.Size = UDim2.new(1, 0, 0, 45)
-BtnNoclip.Font = Enum.Font.GothamBold
-BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
-BtnNoclip.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnNoclip.TextSize = 14
-
-local CornerNoclip = Instance.new("UICorner")
-CornerNoclip.CornerRadius = UDim.new(0, 6)
-CornerNoclip.Parent = BtnNoclip
-
--- ระบบการทำงาน Noclip (เดินทะลุกำแพงและวัตถุ)
-local RunService = game:GetService("RunService")
-
-RunService.Stepped:Connect(function()
-    if not getgenv().Noclip_Active then return end
-    
-    local character = localPlayer.Character
-    if character then
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide == true then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
--- คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
-BtnNoclip.MouseButton1Click:Connect(function()
-    getgenv().Noclip_Active = not getgenv().Noclip_Active
-    
-    if getgenv().Noclip_Active then
-        BtnNoclip.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
-        BtnNoclip.Text = "👻 ทะลุกำแพง: ON"
-    else
-        BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
-        BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
-    end
-end)
-
-
 
 
 
