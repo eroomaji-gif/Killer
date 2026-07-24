@@ -1,4 +1,33 @@
 -- ==========================================
+-- 🛡️ [เลเยอร์ที่ 1] ระบบรันดักหน้าสุด: ตรวจสอบชื่อช่องก่อนเริ่มรันสคริปต์
+-- ==========================================
+do
+    local Players = game:GetService("Players")
+    local localPlayer = Players.LocalPlayer
+    local CorrectChannel = "ซาดีน่า" -- ชื่อช่องที่คุณต้องการ
+
+    -- หน้าต่างถามชื่อช่องเด้งขึ้นมาก่อนเพื่อน
+    local success, result = pcall(function()
+        return game:GetService("CoreGui"):PromptInput("กรุณาใส่ชื่อช่องที่นำสคริปต์นี้มา:", "พิมพ์ชื่อช่องตรงนี้...")
+    end)
+
+    -- ถ้าพิมพ์ผิด หรือกด cancels / ชื่อไม่ตรง ให้ดีดออกทันที
+    if not success or not result or string.lower(string.gsub(result, "%s+", "")) ~= string.lower(string.gsub(CorrectChannel, "%s+", "")) then
+        pcall(function()
+            localPlayer:Kick("\n[ ❌ ป้องกันการขโมยสคริปต์ ]\n\nชื่อช่องไม่ถูกต้อง!\n\n💡 กรุณาไปเอามาจากช่องจริงเถอะครับ!")
+        end)
+        return -- ตัดจบการทำงานทันที ไม่ให้สคริปต์หลักรันต่อ
+    end
+end
+
+
+
+
+
+
+
+
+-- ==========================================
 -- 📌 [ระบบป้องกัน] รายชื่อเจ้าของสคริปต์ (ห้ามยุ่งเด็ดขาด)
 -- ==========================================
 local ProtectedOwner = "Onsenb47162"
