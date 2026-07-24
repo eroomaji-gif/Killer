@@ -724,6 +724,59 @@ BtnCoord.MouseButton1Click:Connect(function()
 end)
 
 
+-- ==========================================
+-- 📌 [ปุ่มพิเศษ] เปิด SimpleSpy (จำกัดสิทธิ์เฉพาะผู้พัฒนา: Onsenb47162)
+-- ==========================================
+local BtnSpy = Instance.new("TextButton")
+BtnSpy.Name = "SimpleSpyButton"
+BtnSpy.Parent = InfoContainer -- 📂 ให้ไปโผล่ในหมวดหมู่ข้อมูล
+BtnSpy.BackgroundColor3 = Color3.fromRGB(120, 50, 200) -- สีม่วงโดดเด่น
+BtnSpy.Size = UDim2.new(1, 0, 0, 45)
+BtnSpy.Font = Enum.Font.GothamBold
+BtnSpy.Text = "📦 เปิด SimpleSpy (Dev Only)"
+BtnSpy.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnSpy.TextSize = 14
+
+local CornerSpy = Instance.new("UICorner")
+CornerSpy.CornerRadius = UDim.new(0, 6)
+CornerSpy.Parent = BtnSpy
+
+-- ฟังก์ชันเช็คสิทธิ์ (ใช้ตัวแปร ProtectedOwner ที่คุณตั้งไว้ด้านบนสุดของสคริปต์)
+local function checkOwnerPermission()
+    if localPlayer.Name == ProtectedOwner or localPlayer.DisplayName == ProtectedOwner then
+        return true
+    end
+    return false
+end
+
+-- ระบบกดปุ่ม
+BtnSpy.MouseButton1Click:Connect(function()
+    -- เช็คว่าเป็นคุณ (Onsenb47162) หรือไม่[span_1](start_span)[span_1](end_span)
+    if checkOwnerPermission() then
+        BtnSpy.Text = "⏳ กำลังโหลด SimpleSpy..."
+        
+        -- รันโค้ด SimpleSpy ของจริง
+        local success, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpy.lua"))()
+        end)
+        
+        if success then
+            BtnSpy.Text = "✅ เปิด SimpleSpy สำเร็จ!"
+            task.wait(2)
+            BtnSpy.Text = "📦 เปิด SimpleSpy (Dev Only)"
+        else
+            BtnSpy.Text = "❌ โหลดไม่สำเร็จ (เช็คเน็ต/Executor)"
+            warn("SimpleSpy Error: " .. tostring(err))
+            task.wait(2)
+            BtnSpy.Text = "📦 เปิด SimpleSpy (Dev Only)"
+        end
+    else
+        -- ถ้าคนอื่นแอบมากด จะไม่มีผลและขึ้นเตือน
+        BtnSpy.Text = "⛔ คุณไม่มีสิทธิ์ใช้งานฟังก์ชันนี้!"
+        task.wait(2)
+        BtnSpy.Text = "📦 เปิด SimpleSpy (Dev Only)"
+    end
+end)
 
 
 
