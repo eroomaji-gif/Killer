@@ -1168,6 +1168,97 @@ CatBtnCreator.MouseButton1Click:Connect(function()
 end)
 
 
+-- ==========================================
+-- หมวดหมู่และหน้าต่างสำหรับ "ดูสถานะ / ข้อมูลเซิร์ฟเวอร์" (สร้างใหม่)
+-- ==========================================
+
+-- 1. สร้างปุ่มหมวดหมู่ใหม่ไว้ที่แถบ Sidebar (ฝั่งซ้าย - จะต่อคิวอยู่ล่างสุดตามโครงสร้างของคุณ)
+local CatBtnNew = Instance.new("TextButton")
+CatBtnNew.Name = "CategoryNewStatus"
+CatBtnNew.Parent = SidebarFrame
+CatBtnNew.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtnNew.Size = UDim2.new(1, 0, 0, 40)
+CatBtnNew.Font = Enum.Font.GothamBold
+CatBtnNew.Text = "📊 ดูสถานะ" -- เปลี่ยนชื่อหัวข้อตรงนี้ได้ตามใจชอบ
+CatBtnNew.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtnNew.TextSize = 13
+
+local CatCornerNew = Instance.new("UICorner")
+CatCornerNew.CornerRadius = UDim.new(0, 6)
+CatCornerNew.Parent = CatBtnNew
+
+-- 2. สร้างหน้าต่างพื้นที่เก็บปุ่ม (Container สำหรับหมวดหมู่ใหม่นี้)
+local NewContainer = Instance.new("ScrollingFrame")
+NewContainer.Name = "NewStatusContainer"
+NewContainer.Parent = MainFrame
+NewContainer.BackgroundTransparency = 1
+NewContainer.Position = UDim2.new(0, 160, 0, 50)
+NewContainer.Size = UDim2.new(1, -170, 1, -60)
+NewContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+NewContainer.ScrollBarThickness = 6
+NewContainer.Visible = false -- ซ่อนไว้ก่อน
+
+local NewContainerLayout = Instance.new("UIListLayout")
+NewContainerLayout.Parent = NewContainer
+NewContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+NewContainerLayout.Padding = UDim.new(0, 8)
+
+-- ==========================================
+-- 📌 [จุดเอาปุ่มฟังก์ชันมาใส่]
+-- ให้กำหนด Parent ของปุ่มฟังก์ชันในหมวดหมู่นี้เป็น "NewContainer"
+-- ==========================================
+
+
+-- 3. อัปเดตระบบกดสลับหน้าจอ (เพิ่มหมวดหมู่ใหม่นี้เข้าไปในทุกปุ่มกด เพื่อให้สลับหน้าไปมาได้ถูกต้อง)
+CatBtn1.MouseButton1Click:Connect(function()
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    NewContainer.Visible = false
+    ContentContainer.Visible = true
+end)
+
+CatBtnTp.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    NewContainer.Visible = false
+    TeleportContainer.Visible = true
+end)
+
+CatBtnInfo.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    SettingsContainer.Visible = false
+    NewContainer.Visible = false
+    InfoContainer.Visible = true
+end)
+
+CatBtnSettings.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = true
+    NewContainer.Visible = false
+    SettingsContainer.Visible = true
+end)
+
+-- ปุ่มของหมวดหมู่ใหม่เอง (กดแล้วเปิดหน้านี้ ปิดหน้าอื่นทั้งหมด)
+CatBtnNew.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    NewContainer.Visible = true
+end)
+
+
+
+
+
+
+
+
+
 
 -- ==========================================
 -- 📂 ระบบกดสลับหน้าต่างหมวดหมู่ซ้าย-ขวา
