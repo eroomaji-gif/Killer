@@ -934,6 +934,94 @@ end)
 
 
 
+-- ==========================================
+-- 📌 [ปุ่มตั้งค่า] ป้องกันกับดัก (Anti-Trap) + ระบบจำค่า (Auto-Save)
+-- ==========================================
+getgenv().AntiTrap_Active = false
+
+-- ชื่อไฟล์สำหรับเก็บบันทึกสถานะกันกับดัก
+local saveTrapFile = "FlexibleMenu_AntiTrapSetting.txt"
+
+-- 1. โหลดค่าที่เคยบันทึกไว้ครั้งก่อน
+pcall(function()
+    if isfile and isfile(saveTrapFile) then
+        local content = readfile(saveTrapFile)
+        if content == "true" then
+            getgenv().AntiTrap_Active = true
+        else
+            getgenv().AntiTrap_Active = false
+        end
+    end
+end)
+
+local BtnAntiTrap = Instance.new("TextButton")
+BtnAntiTrap.Name = "AntiTrapButton"
+BtnAntiTrap.Parent = SettingsContainer -- ⚙️ ให้อยู่ในหมวดหมู่ตั้งค่า
+BtnAntiTrap.Size = UDim2.new(1, 0, 0, 45)
+BtnAntiTrap.Font = Enum.Font.GothamBold
+BtnAntiTrap.TextSize = 14
+BtnAntiTrap.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- อัปเดตสีและข้อความเริ่มต้นตามสถานะที่จำได้
+if getgenv().AntiTrap_Active then
+    BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
+    BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: ON"
+else
+    BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
+    BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: OFF"
+end
+
+local CornerAntiTrap = Instance.new("UICorner")
+CornerAntiTrap.CornerRadius = UDim.new(0, 6)
+CornerAntiTrap.Parent = BtnAntiTrap
+
+-- ระบบทำงาน: คอยสแกนและทำลายการทำงานของกับดักรอบตัวตลอดเวลา
+local RunService = game:GetService("RunService")
+
+RunService.Heartbeat:Connect(function()
+    if not getgenv().AntiTrap_Active then return end
+    
+    pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            -- เช็คชื่อวัตถุที่มีคำว่ากับดัก (คุณสามารถเพิ่มคำค้นหาภาษาอังกฤษอื่นๆ ได้ถ้าเกมใช้ชื่ออื่น)
+            local nameL = string.lower(obj.Name)
+            if string.find(nameL, "trap") or string.find(nameL, "beartrap") or string.find(nameL, "snare") or string.find(nameL, "spike") then
+                if obj:IsA("BasePart") then
+                    -- ปิดการชนและการสัมผัส เพื่อให้เราเดินเหยียบผ่านได้แบบเนียนๆ ไม่ติดล็อก
+                    obj.CanCollide = false
+                    obj.CanTouch = false
+                end
+                
+                -- ลบตัวดักจับการสัมผัส (TouchInterest) ทิ้งทันที เพื่อไม่ให้มันส่งสัญญาณมาล็อกตัวเรา
+                local touchInterest = obj:FindFirstChild("TouchInterest")
+                if touchInterest then
+                    touchInterest:Destroy()
+                end
+            end
+        end
+    end)
+end)
+
+-- กดปุ่มเพื่อสลับเปิด/ปิด และบันทึกค่าลงไฟล์อัตโนมัติ
+BtnAntiTrap.MouseButton1Click:Connect(function()
+    getgenv().AntiTrap_Active = not getgenv().AntiTrap_Active
+    
+    pcall(function()
+        if writefile then
+            writefile(saveTrapFile, tostring(getgenv().AntiTrap_Active))
+        end
+    end)
+    
+    if getgenv().AntiTrap_Active then
+        BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: ON"
+    else
+        BtnAntiTrap.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnAntiTrap.Text = "🪤 ป้องกันกับดัก: OFF"
+    end
+end)
+
+
 
 
 -- ==========================================
