@@ -757,7 +757,7 @@ BtnSpy.MouseButton1Click:Connect(function()
         
         -- รันโค้ด SimpleSpy ของจริง
         local success, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpy.lua"))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/exxtremestuffs/SimpleSpySource/master/SimpleSpy.lua"))()
         end)
         
         if success then
