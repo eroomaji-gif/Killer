@@ -262,59 +262,6 @@ local function applyFullBright()
             atmosphere.Haze = 0
         end
     end)
-end
-
-local function restoreLighting()
-    pcall(function()
-        Lighting.ClockTime = originalSettings.ClockTime
-        Lighting.Brightness = originalSettings.Brightness
-        Lighting.GlobalShadows = originalSettings.GlobalShadows
-        Lighting.FogEnd = originalSettings.FogEnd
-        
-        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-        if atmosphere and originalSettings.Atmosphere then
-            atmosphere.Density = originalSettings.Atmosphere.Density
-            atmosphere.Haze = originalSettings.Atmosphere.Haze
-        end
-    end)
-end
-
--- ถ้าเปิดค้างไว้ตั้งแต่ตอนรันสคริปต์ ให้แสดงผลทันที
-if getgenv().FullBright_Active then
-    applyFullBright()
-end
-
--- ลูปคอยรักษาสภาพแสงไม่ให้เกมเปลี่ยนกลับเองตอนเปลี่ยนแมพ
-RunService.RenderStepped:Connect(function()
-    if getgenv().FullBright_Active then
-        applyFullBright()
-    end
-end)
-
--- กดปุ่มเพื่อสลับเปิด/ปิด และบันทึกค่าลงไฟล์อัตโนมัติ
-BtnBright.MouseButton1Click:Connect(function()
-    getgenv().FullBright_Active = not getgenv().FullBright_Active
-    
-    pcall(function()
-        if writefile then
-            writefile(saveBrightFile, tostring(getgenv().FullBright_Active))
-        end
-    end)
-    
-    if getgenv().FullBright_Active then
-        BtnBright.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        BtnBright.Text = "☀️ ลบหมอก/กลางวัน: ON"
-        applyFullBright()
-    else
-        BtnBright.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        BtnBright.Text = "☀️ ลบหมอก/กลางวัน: OFF"
-        restoreLighting()
-    end
-end)
-
-
-
-
 
 
 -- ปุ่มหมวดหมู่ที่ 1 (ฝั่งซ้าย: หมวดหมู่ฆาตกร)
