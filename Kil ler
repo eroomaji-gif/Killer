@@ -1,25 +1,107 @@
 -- ==========================================
--- 🛡️ [เลเยอร์ที่ 1] ระบบรันดักหน้าสุด: ตรวจสอบชื่อช่องก่อนเริ่มรันสคริปต์
+-- 🛡️ [เลเยอร์ที่ 1] ระบบหน้าต่างยืนยันชื่อช่องก่อนรันสคริปต์
 -- ==========================================
-do
+task.spawn(function()
     local Players = game:GetService("Players")
     local localPlayer = Players.LocalPlayer
-    local CorrectChannel = "ซาดีน่า" -- ชื่อช่องที่คุณต้องการ
+    local CorrectChannel = "ซาดีน่า"
 
-    -- หน้าต่างถามชื่อช่องเด้งขึ้นมาก่อนเพื่อน
-    local success, result = pcall(function()
-        return game:GetService("CoreGui"):PromptInput("กรุณาใส่ชื่อช่องที่นำสคริปต์นี้มา:", "พิมพ์ชื่อช่องตรงนี้...")
+    -- สร้าง ScreenGui เฉพาะกิจสำหรับหน้าต่างกรอกรหัสช่อง
+    local LockGui = Instance.new("ScreenGui")
+    LockGui.Name = "ChannelLockGui"
+    LockGui.Parent = localPlayer:WaitForChild("PlayerGui")
+    LockGui.ResetOnSpawn = false
+    LockGui.DisplayOrder = 2000000 -- ให้อยู่บนสุดบังทุกอย่าง
+
+    local Backdrop = Instance.new("Frame")
+    Backdrop.Parent = LockGui
+    Backdrop.Size = UDim2.new(1, 0, 1, 0)
+    Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Backdrop.BackgroundTransparency = 0.5
+
+    local BoxFrame = Instance.new("Frame")
+    BoxFrame.Parent = LockGui
+    BoxFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    BoxFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    BoxFrame.Size = UDim2.new(0, 320, 0, 180)
+    BoxFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 12)
+    Corner.Parent = BoxFrame
+
+    local Title = Instance.new("TextLabel")
+    Title.Parent = BoxFrame
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.GothamBold
+    Title.Text = "🔐 ยืนยันที่มาของสคริปต์"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 16
+
+    local Desc = Instance.new("TextLabel")
+    Desc.Parent = BoxFrame
+    Desc.Position = UDim2.new(0, 15, 0, 45)
+    Desc.Size = UDim2.new(1, -30, 0, 35)
+    Desc.BackgroundTransparency = 1
+    Desc.Font = Enum.Font.Gotham
+    Desc.Text = "กรุณาพิมพ์ชื่อช่องที่นำสคริปต์นี้มา:"
+    Desc.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Desc.TextSize = 13
+    Desc.TextWrapped = true
+
+    local TextBox = Instance.new("TextBox")
+    TextBox.Parent = BoxFrame
+    TextBox.Position = UDim2.new(0, 20, 0, 85)
+    TextBox.Size = UDim2.new(1, -40, 0, 35)
+    TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.PlaceholderText = "พิมพ์ชื่อช่องที่นี่..."
+    TextBox.Text = ""
+    TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TextBox.TextSize = 14
+
+    local TCorner = Instance.new("UICorner")
+    TCorner.CornerRadius = UDim.new(0, 6)
+    TCorner.Parent = TextBox
+
+    local SubmitBtn = Instance.new("TextButton")
+    SubmitBtn.Parent = BoxFrame
+    SubmitBtn.Position = UDim2.new(0, 20, 0, 130)
+    SubmitBtn.Size = UDim2.new(1, -40, 0, 35)
+    SubmitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    SubmitBtn.Font = Enum.Font.GothamBold
+    SubmitBtn.Text = "ยืนยัน"
+    SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SubmitBtn.TextSize = 14
+
+    local SCorner = Instance.new("UICorner")
+    SCorner.CornerRadius = UDim.new(0, 6)
+    SCorner.Parent = SubmitBtn
+
+    -- ตัวแปรเช็คสถานะการกรอก
+    local checked = false
+
+    SubmitBtn.MouseButton1Click:Connect(function()
+        if checked then return end
+        checked = true
+        
+        local userText = TextBox.Text or ""
+        -- เช็คชื่อช่อง (ตัดช่องว่างและแปลงเป็นตัวพิมพ์เล็ก-ใหญ่ให้ตรงกัน)
+        local cleanInput = string.lower(string.gsub(userText, "%s+", ""))
+        local cleanCorrect = string.lower(string.gsub(CorrectChannel, "%s+", ""))
+
+        if cleanInput == cleanCorrect then
+            -- ถ้าพิมพ์ถูก ลบหน้าต่างนี้ทิ้งแล้วให้สคริปต์ทำงานต่อ
+            LockGui:Destroy()
+        else
+            -- ถ้าพิมพ์ผิด เตะออกทันที
+            pcall(function()
+                localPlayer:Kick("\n[ ❌ ป้องกันการขโมยสคริปต์ ]\n\nคุณเอาสคริปต์มาจากไหนเนี่ย? ชื่อช่องไม่ถูกต้อง!\n\n💡 กรุณาไปเอามาจากช่องจริงเถอะครับ!")
+            end)
+        end
     end)
-
-    -- ถ้าพิมพ์ผิด หรือกด cancels / ชื่อไม่ตรง ให้ดีดออกทันที
-    if not success or not result or string.lower(string.gsub(result, "%s+", "")) ~= string.lower(string.gsub(CorrectChannel, "%s+", "")) then
-        pcall(function()
-            localPlayer:Kick("\n[ ❌ ป้องกันการขโมยสคริปต์ ]\n\nชื่อช่องไม่ถูกต้อง!\n\n💡 กรุณาไปเอามาจากช่องจริงเถอะครับ!")
-        end)
-        return -- ตัดจบการทำงานทันที ไม่ให้สคริปต์หลักรันต่อ
-    end
-end
-
+end)
 
 
 
