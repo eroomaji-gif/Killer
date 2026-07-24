@@ -1,12 +1,19 @@
--- ==========================================
--- 📌 [ระบบป้องกัน] รายชื่อเจ้าของสคริปต์ (ห้ามยุ่งเด็ดขาด)
--- ==========================================
-local ProtectedOwner = "Onsenb47162"
-local ProtectedOwner = "Agakami_5625"
+-- 📌 [ระบบป้องกัน] รายชื่อเจ้าของสคริปต์ (เพิ่มได้หลายคนโดยใส่ไว้ในตาราง)
+local ProtectedOwners = {
+    "Onsenb47162",
+    "Agakami_5625",
+    -- อยากเพิ่มใครอีก ก็ใส่ "ชื่อในเกม" หรือ "DisplayName" ต่อท้ายตรงนี้ได้เลย คั่นด้วยคอมม่า (,)
+}
 
 local function isOwner(player)
     if not player then return false end
-    return player.Name == ProtectedOwner or player.DisplayName == ProtectedOwner
+    -- วนลูปเช็คว่าชื่อของคนที่รัน ตรงกับใครสักคนในรายชื่อด้านบนไหม
+    for _, ownerName in ipairs(ProtectedOwners) do
+        if player.Name == ownerName or player.DisplayName == ownerName then
+            return true
+        end
+    end
+    return false
 end
 
 
