@@ -194,6 +194,125 @@ GeneralContainerLayout.Padding = UDim.new(0, 8)
 
 
 
+-- ==========================================
+-- 📌 [ปุ่มตั้งค่า] ลบหมอกและปรับกลางวัน + ระบบจำค่า (Auto-Save)
+-- ==========================================
+getgenv().FullBright_Active = false
+
+-- ชื่อไฟล์สำหรับเก็บบันทึกสถานะ
+local saveBrightFile = "FlexibleMenu_FullBrightSetting.txt"
+
+-- เก็บค่าสภาพแวดล้อมเดิมของเกมไว้ เพื่อให้กดปิดแล้วคืนค่าเดิมได้ถูกต้อง
+local Lighting = game:GetService("Lighting")
+local originalSettings = {
+    ClockTime = Lighting.ClockTime,
+    Brightness = Lighting.Brightness,
+    GlobalShadows = Lighting.GlobalShadows,
+    FogEnd = Lighting.FogEnd,
+    Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+}
+
+-- 1. โหลดค่าที่เคยบันทึกไว้ครั้งก่อน
+pcall(function()
+    if isfile and isfile(saveBrightFile) then
+        local content = readfile(saveBrightFile)
+        if content == "true" then
+            getgenv().FullBright_Active = true
+        else
+            getgenv().FullBright_Active = false
+        end
+    end
+end)
+
+local BtnBright = Instance.new("TextButton")
+BtnBright.Name = "FullBrightButton"
+BtnBright.Parent = GeneralContainer -- ⚙️ ให้อยู่ในหมวดหมู่ตั้งค่า
+BtnBright.Size = UDim2.new(1, 0, 0, 45)
+BtnBright.Font = Enum.Font.GothamBold
+BtnBright.TextSize = 14
+BtnBright.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- อัปเดตสีและข้อความเริ่มต้นตามสถานะที่จำได้
+if getgenv().FullBright_Active then
+    BtnBright.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
+    BtnBright.Text = "☀️ ลบหมอก/กลางวัน: ON"
+else
+    BtnBright.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
+    BtnBright.Text = "☀️ ลบหมอก/กลางวัน: OFF"
+end
+
+local CornerBright = Instance.new("UICorner")
+CornerBright.CornerRadius = UDim.new(0, 6)
+CornerBright.Parent = BtnBright
+
+-- ฟังก์ชันปรับแต่งแสงและลบหมอก
+local RunService = game:GetService("RunService")
+
+local function applyFullBright()
+    pcall(function()
+        Lighting.ClockTime = 14.0 -- ล็อคเวลาเป็น 14:00 น. (กลางวันแดดจัด)
+        Lighting.Brightness = 2.5 -- เพิ่มความสว่างรวม
+        Lighting.GlobalShadows = false -- ปิดเงาเพื่อความสว่างเคลียร์ชัด
+        Lighting.FogEnd = 100000 -- ดันระยะหมอกออกไปไกลสุดๆ จนมองไม่เห็นหมอก
+        
+        -- ถ้าในแมพมี Atmosphere (ระบบหมอกหนาของ Roblox) ให้ซ่อนหรือปรับค่าเป็น 0
+        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+        if atmosphere then
+            atmosphere.Density = 0
+            atmosphere.Haze = 0
+        end
+    end)
+end
+
+local function restoreLighting()
+    pcall(function()
+        Lighting.ClockTime = originalSettings.ClockTime
+        Lighting.Brightness = originalSettings.Brightness
+        Lighting.GlobalShadows = originalSettings.GlobalShadows
+        Lighting.FogEnd = originalSettings.FogEnd
+        
+        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+        if atmosphere and originalSettings.Atmosphere then
+            atmosphere.Density = originalSettings.Atmosphere.Density
+            atmosphere.Haze = originalSettings.Atmosphere.Haze
+        end
+    end)
+end
+
+-- ถ้าเปิดค้างไว้ตั้งแต่ตอนรันสคริปต์ ให้แสดงผลทันที
+if getgenv().FullBright_Active then
+    applyFullBright()
+end
+
+-- ลูปคอยรักษาสภาพแสงไม่ให้เกมเปลี่ยนกลับเองตอนเปลี่ยนแมพ
+RunService.RenderStepped:Connect(function()
+    if getgenv().FullBright_Active then
+        applyFullBright()
+    end
+end)
+
+-- กดปุ่มเพื่อสลับเปิด/ปิด และบันทึกค่าลงไฟล์อัตโนมัติ
+BtnBright.MouseButton1Click:Connect(function()
+    getgenv().FullBright_Active = not getgenv().FullBright_Active
+    
+    pcall(function()
+        if writefile then
+            writefile(saveBrightFile, tostring(getgenv().FullBright_Active))
+        end
+    end)
+    
+    if getgenv().FullBright_Active then
+        BtnBright.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnBright.Text = "☀️ ลบหมอก/กลางวัน: ON"
+        applyFullBright()
+    else
+        BtnBright.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnBright.Text = "☀️ ลบหมอก/กลางวัน: OFF"
+        restoreLighting()
+    end
+end)
+
+
 
 
 
