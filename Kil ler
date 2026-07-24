@@ -63,24 +63,29 @@ ToggleCorner.Parent = ToggleButton
 
 
 
-
-
-
-
--- 2. หน้าต่างหลัก (สี่เหลี่ยมใหญ่ขึ้น - ปรับความกว้างเป็น 550)
-local MainFrame = Instance.new("Frame")
+-- ==========================================
+-- 2. หน้าต่างหลัก (เปลี่ยนเป็น ImageLabel พร้อมปรับความโปร่งใสระดับกลางๆ)
+-- ==========================================
+local MainFrame = Instance.new("ImageLabel")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MainFrame.BackgroundTransparency = 1 -- ซ่อนพื้นหลังเดิม
 MainFrame.Position = UDim2.new(0.05, 0, 0.18, 0)
 MainFrame.Size = UDim2.new(0, 550, 0, 450)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Image = "rbxassetid://75925823414835"
+MainFrame.ImageTransparency = 0.45 -- ปรับความโปร่งใสระดับกลางๆ (0.45 กำลังดี มองเห็นเมนูชัดและเห็นรูปสวยๆ)
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
+
+
+
+
 
 -- แถบหัวข้อด้านบน (Title Bar)
 local TitleBar = Instance.new("TextLabel")
@@ -89,7 +94,7 @@ TitleBar.Parent = MainFrame
 TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  ⚡ Custom Script Menu"
+TitleBar.Text = "  🤪 KTO CRUB "
 TitleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
