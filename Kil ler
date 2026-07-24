@@ -146,6 +146,59 @@ SidebarLayout.Parent = SidebarFrame
 SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
 SidebarLayout.Padding = UDim.new(0, 8)
 
+
+
+
+
+-- ==========================================
+-- 📌 หมวดหมู่และหน้าต่างสำหรับ "ทั่วไป"
+-- ==========================================
+
+-- 1. สร้างปุ่มหมวดหมู่ "เทเลพอร์ต" ไว้ที่แถบ Sidebar (ฝั่งซ้าย)
+local CatBtnTp = Instance.new("TextButton")
+CatBtnTp.Name = "CategoryTeleport"
+CatBtnTp.Parent = SidebarFrame
+CatBtnTp.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtnTp.Size = UDim2.new(1, 0, 0, 40)
+CatBtnTp.Font = Enum.Font.GothamBold
+CatBtnTp.Text = "🌳 ทั่วไป"
+CatBtnTp.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtnTp.TextSize = 13
+
+local CatCornerTp = Instance.new("UICorner")
+CatCornerTp.CornerRadius = UDim.new(0, 6)
+CatCornerTp.Parent = CatBtnTp
+
+-- 2. สร้างหน้าต่างพื้นที่เก็บปุ่ม (Container สำหรับหมวดหมู่เทเลพอร์ต)
+local TeleportContainer = Instance.new("ScrollingFrame")
+TeleportContainer.Name = "ManerContainer"
+TeleportContainer.Parent = MainFrame
+TeleportContainer.BackgroundTransparency = 1
+TeleportContainer.Position = UDim2.new(0, 160, 0, 50)
+TeleportContainer.Size = UDim2.new(1, -170, 1, -60)
+TeleportContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+TeleportContainer.ScrollBarThickness = 6
+TeleportContainer.Visible = false -- ซ่อนไว้ก่อน
+
+local TpContainerLayout = Instance.new("UIListLayout")
+TpContainerLayout.Parent = ManerContainer
+TpContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TpContainerLayout.Padding = UDim.new(0, 8)
+
+-- ==========================================
+-- 📌 [จุดที่ 2] เอาปุ่มฟังก์ชัน "เทเลพอร์ต" ทั้งหมดมาใส่ไว้ที่นี่
+-- (เช่น ปุ่มวาร์ปกลับบ้าน, ปุ่มเช็คพิกัด, ปุ่มวาร์ปไปหาเพื่อน ฯลฯ)
+-- ให้กำหนด Parent ของปุ่มพวกนี้เป็น "TeleportContainer"
+-- ==========================================
+-- ตัวอย่าง:
+-- local BtnHome = Instance.new("TextButton")
+-- BtnHome.Parent = TeleportContainer
+
+
+
+
+
+
 -- ปุ่มหมวดหมู่ที่ 1 (ฝั่งซ้าย: หมวดหมู่ฆาตกร)
 local CatBtn1 = Instance.new("TextButton")
 CatBtn1.Name = "Category1"
