@@ -1066,7 +1066,6 @@ end)
 
 
 
-
 -- ==========================================
 -- 📌 หมวดหมู่และหน้าต่างสำหรับ "ผู้สร้าง / ติดต่อ"
 -- ==========================================
@@ -1166,66 +1165,6 @@ CatBtnCreator.MouseButton1Click:Connect(function()
     SettingsContainer.Visible = false
     CreatorContainer.Visible = true
 end)
-
-
-
--- ==========================================
--- 📌 หมวดหมู่ใหม่: "ปรับแต่ง"
--- ==========================================
-
--- 1. สร้างปุ่มเมนูฝั่งซ้าย
-local CatBtnCustom = Instance.new("TextButton")
-CatBtnCustom.Name = "CategoryCustom"
-CatBtnCustom.Parent = SidebarFrame
-CatBtnCustom.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-CatBtnCustom.Size = UDim2.new(1, 0, 0, 40)
-CatBtnCustom.Font = Enum.Font.GothamBold
-CatBtnCustom.Text = "🛠️ ปรับแต่ง"
-CatBtnCustom.TextColor3 = Color3.fromRGB(255, 255, 255)
-CatBtnCustom.TextSize = 13
-
-local CatCornerCustom = Instance.new("UICorner")
-CatCornerCustom.CornerRadius = UDim.new(0, 6)
-CatCornerCustom.Parent = CatBtnCustom
-
--- 2. สร้างหน้าต่างพื้นที่ว่างฝั่งขวา
-local CustomContainer = Instance.new("ScrollingFrame")
-CustomContainer.Name = "CustomContainer"
-CustomContainer.Parent = MainFrame
-CustomContainer.BackgroundTransparency = 1
-CustomContainer.Position = UDim2.new(0, 160, 0, 50)
-CustomContainer.Size = UDim2.new(1, -170, 1, -60)
-CustomContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
-CustomContainer.ScrollBarThickness = 6
-CustomContainer.Visible = false -- ซ่อนไว้ก่อน
-
-local CustomContainerLayout = Instance.new("UIListLayout")
-CustomContainerLayout.Parent = CustomContainer
-CustomContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
-CustomContainerLayout.Padding = UDim.new(0, 8)
-
-
---------------------------------------------------------------------------------
--- 📍 [จุดสำคัญ] นำสคริปต์ไส้ในของคุณมาวางแทรกไว้ตรงบรรทัดนี้ได้เลยครับ!
--- (และอย่าลืมตั้ง Parent ของปุ่มในสคริปต์คุณให้ชี้ไปที่ CustomContainer)
---------------------------------------------------------------------------------
-
-
--- 3. คำสั่งระบบสลับหน้าจอ (ให้วางไว้ล่างสุดของก้อนนี้เสมอ)
-CatBtnCustom.MouseButton1Click:Connect(function()
-    -- ซ่อนหน้าต่างอื่นๆ ทั้งหมดก่อน
-    GeneralContainer.Visible = false
-    ContentContainer.Visible = false
-    TeleportContainer.Visible = false
-    InfoContainer.Visible = false
-    SettingsContainer.Visible = false
-    CreatorContainer.Visible = false
-    
-    -- เปิดเฉพาะหน้าต่าง "ปรับแต่ง" ฝั่งขวา
-    CustomContainer.Visible = true
-end)
-
-
 
 
 -- ==========================================
