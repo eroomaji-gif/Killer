@@ -338,7 +338,6 @@ end)
 
 
 
-
 -- ==========================================
 -- 📌 [ปุ่มที่ 4] ระบบบิน (Fly) - ฉบับสมบูรณ์ 100%
 -- ==========================================
@@ -394,20 +393,21 @@ BtnFly.MouseButton1Click:Connect(function()
             
             -- ลูปควบคุมการเคลื่อนที่และการหันมุมมองกล้อง
             flyConnection = RunService.RenderStepped:Connect(function()
-    if not getgenv().Script4_FlyToggle or not character or not hrp.Parent then
-        return
-    end
+                if not getgenv().Script4_FlyToggle or not character or not hrp.Parent then
+                    return
+                end
 
-    local camera = workspace.CurrentCamera
+                local camera = workspace.CurrentCamera
 
-    if humanoid and humanoid.MoveDirection.Magnitude > 0 then
-        bv.Velocity = camera.CFrame.LookVector * (fixedSpeed * 10)
-    else
-        bv.Velocity = Vector3.zero
-    end
+                if humanoid then
+                    bv.Velocity = humanoid.MoveDirection * (fixedSpeed * 10)
+                else
+                    bv.Velocity = Vector3.zero
+                end
 
-    bg.CFrame = camera.CFrame
-end)
+                bg.CFrame = camera.CFrame
+            end)
+        end
     else
         BtnFly.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
         BtnFly.Text = "✈️ เปิดระบบบิน: OFF"
@@ -430,6 +430,7 @@ end)
         end
     end
 end)
+
 
 
 
