@@ -2,6 +2,7 @@
 -- 📌 [ระบบป้องกัน] รายชื่อเจ้าของสคริปต์ (ห้ามยุ่งเด็ดขาด)
 -- ==========================================
 local ProtectedOwner = "Onsenb47162"
+local ProtectedOwner = "Agakami_5625"
 
 local function isOwner(player)
     if not player then return false end
