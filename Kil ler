@@ -148,122 +148,6 @@ SidebarLayout.Padding = UDim.new(0, 8)
 
 
 
--- ==========================================
--- 📌 หมวดหมู่และหน้าต่างสำหรับ "ทั่วไป" (วางไว้ก่อนหมวดหมู่ฆาตกร)
--- ==========================================
-
--- 1. สร้างปุ่มหมวดหมู่ "ทั่วไป" ไว้ที่แถบ Sidebar (ฝั่งซ้าย)
-local CatBtnGeneral = Instance.new("TextButton")
-CatBtnGeneral.Name = "CategoryGeneral"
-CatBtnGeneral.Parent = SidebarFrame
-CatBtnGeneral.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-CatBtnGeneral.Size = UDim2.new(1, 0, 0, 40)
-CatBtnGeneral.Font = Enum.Font.GothamBold
-CatBtnGeneral.Text = "🌳 ทั่วไป"
-CatBtnGeneral.TextColor3 = Color3.fromRGB(255, 255, 255)
-CatBtnGeneral.TextSize = 13
-
-local CatCornerGeneral = Instance.new("UICorner")
-CatCornerGeneral.CornerRadius = UDim.new(0, 6)
-CatCornerGeneral.Parent = CatBtnGeneral
-
--- 2. สร้างหน้าต่างพื้นที่เก็บปุ่มฝั่งขวา (Container สำหรับหมวดหมู่ทั่วไป)
-local GeneralContainer = Instance.new("ScrollingFrame")
-GeneralContainer.Name = "GeneralContainer"
-GeneralContainer.Parent = MainFrame
-GeneralContainer.BackgroundTransparency = 1
-GeneralContainer.Position = UDim2.new(0, 160, 0, 50)
-GeneralContainer.Size = UDim2.new(1, -170, 1, -60)
-GeneralContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
-GeneralContainer.ScrollBarThickness = 6
-GeneralContainer.Visible = true -- ให้เปิดหน้าต่างนี้แสดงผลเป็นอันแรกตอนรัน
-
-local GeneralContainerLayout = Instance.new("UIListLayout")
-GeneralContainerLayout.Parent = GeneralContainer -- (แก้ชื่อตัวแปร Parent ให้ตรงกับชื่อ Container ที่สร้างข้างบน)
-GeneralContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
-GeneralContainerLayout.Padding = UDim.new(0, 8)
-
--- ==========================================
--- 📌 [ตัวอย่างการใส่ปุ่มในหมวดหมู่ทั่วไป]
--- (ถ้าต้องการเพิ่มปุ่มอะไรในหมวดหมู่ทั่วไป ให้เปลี่ยน .Parent เป็น GeneralContainer)
--- ==========================================
--- local SampleBtn = Instance.new("TextButton")
--- SampleBtn.Parent = GeneralContainer
--- SampleBtn.Size = UDim2.new(1, 0, 0, 45)
--- SampleBtn.Text = "ตัวอย่างปุ่มทั่วไป"
-
-
-
--- ==========================================
--- 📌 [ปุ่มตั้งค่า] ลบหมอกและปรับกลางวัน + ระบบจำค่า (Auto-Save)
--- ==========================================
-getgenv().FullBright_Active = false
-
--- ชื่อไฟล์สำหรับเก็บบันทึกสถานะ
-local saveBrightFile = "FlexibleMenu_FullBrightSetting.txt"
-
--- เก็บค่าสภาพแวดล้อมเดิมของเกมไว้ เพื่อให้กดปิดแล้วคืนค่าเดิมได้ถูกต้อง
-local Lighting = game:GetService("Lighting")
-local originalSettings = {
-    ClockTime = Lighting.ClockTime,
-    Brightness = Lighting.Brightness,
-    GlobalShadows = Lighting.GlobalShadows,
-    FogEnd = Lighting.FogEnd,
-    Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-}
-
--- 1. โหลดค่าที่เคยบันทึกไว้ครั้งก่อน
-pcall(function()
-    if isfile and isfile(saveBrightFile) then
-        local content = readfile(saveBrightFile)
-        if content == "true" then
-            getgenv().FullBright_Active = true
-        else
-            getgenv().FullBright_Active = false
-        end
-    end
-end)
-
-local BtnBright = Instance.new("TextButton")
-BtnBright.Name = "FullBrightButton"
-BtnBright.Parent = GeneralContainer -- ⚙️ ให้อยู่ในหมวดหมู่ตั้งค่า
-BtnBright.Size = UDim2.new(1, 0, 0, 45)
-BtnBright.Font = Enum.Font.GothamBold
-BtnBright.TextSize = 14
-BtnBright.TextColor3 = Color3.fromRGB(255, 255, 255)
-
--- อัปเดตสีและข้อความเริ่มต้นตามสถานะที่จำได้
-if getgenv().FullBright_Active then
-    BtnBright.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
-    BtnBright.Text = "☀️ ลบหมอก/กลางวัน: ON"
-else
-    BtnBright.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
-    BtnBright.Text = "☀️ ลบหมอก/กลางวัน: OFF"
-end
-
-local CornerBright = Instance.new("UICorner")
-CornerBright.CornerRadius = UDim.new(0, 6)
-CornerBright.Parent = BtnBright
-
--- ฟังก์ชันปรับแต่งแสงและลบหมอก
-local RunService = game:GetService("RunService")
-
-local function applyFullBright()
-    pcall(function()
-        Lighting.ClockTime = 14.0 -- ล็อคเวลาเป็น 14:00 น. (กลางวันแดดจัด)
-        Lighting.Brightness = 2.5 -- เพิ่มความสว่างรวม
-        Lighting.GlobalShadows = false -- ปิดเงาเพื่อความสว่างเคลียร์ชัด
-        Lighting.FogEnd = 100000 -- ดันระยะหมอกออกไปไกลสุดๆ จนมองไม่เห็นหมอก
-        
-        -- ถ้าในแมพมี Atmosphere (ระบบหมอกหนาของ Roblox) ให้ซ่อนหรือปรับค่าเป็น 0
-        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-        if atmosphere then
-            atmosphere.Density = 0
-            atmosphere.Haze = 0
-        end
-    end)
-
-
 -- ปุ่มหมวดหมู่ที่ 1 (ฝั่งซ้าย: หมวดหมู่ฆาตกร)
 local CatBtn1 = Instance.new("TextButton")
 CatBtn1.Name = "Category1"
@@ -1031,6 +915,128 @@ SettingsContainerLayout.Padding = UDim.new(0, 8)
 -- ตัวอย่าง:
 -- local BtnConfig = Instance.new("TextButton")
 -- BtnConfig.Parent = SettingsContainer
+
+
+
+
+-- ==========================================
+-- 📌 [ปุ่มตั้งค่า] ลบหมอกและปรับกลางวัน + ระบบจำค่า (Auto-Save)
+-- ==========================================
+getgenv().FullBright_Active = false
+
+-- ชื่อไฟล์สำหรับเก็บบันทึกสถานะ
+local saveBrightFile = "FlexibleMenu_FullBrightSetting.txt"
+
+-- เก็บค่าสภาพแวดล้อมเดิมของเกมไว้ เพื่อให้กดปิดแล้วคืนค่าเดิมได้ถูกต้อง
+local Lighting = game:GetService("Lighting")
+local originalSettings = {
+    ClockTime = Lighting.ClockTime,
+    Brightness = Lighting.Brightness,
+    GlobalShadows = Lighting.GlobalShadows,
+    FogEnd = Lighting.FogEnd,
+    Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+}
+
+-- 1. โหลดค่าที่เคยบันทึกไว้ครั้งก่อน
+pcall(function()
+    if isfile and isfile(saveBrightFile) then
+        local content = readfile(saveBrightFile)
+        if content == "true" then
+            getgenv().FullBright_Active = true
+        else
+            getgenv().FullBright_Active = false
+        end
+    end
+end)
+
+local BtnBright = Instance.new("TextButton")
+BtnBright.Name = "FullBrightButton"
+BtnBright.Parent = SettingsContainer -- ⚙️ ให้อยู่ในหมวดหมู่ตั้งค่า
+BtnBright.Size = UDim2.new(1, 0, 0, 45)
+BtnBright.Font = Enum.Font.GothamBold
+BtnBright.TextSize = 14
+BtnBright.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- อัปเดตสีและข้อความเริ่มต้นตามสถานะที่จำได้
+if getgenv().FullBright_Active then
+    BtnBright.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
+    BtnBright.Text = "☀️ ลบหมอก/กลางวัน: ON"
+else
+    BtnBright.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
+    BtnBright.Text = "☀️ ลบหมอก/กลางวัน: OFF"
+end
+
+local CornerBright = Instance.new("UICorner")
+CornerBright.CornerRadius = UDim.new(0, 6)
+CornerBright.Parent = BtnBright
+
+-- ฟังก์ชันปรับแต่งแสงและลบหมอก
+local RunService = game:GetService("RunService")
+
+local function applyFullBright()
+    pcall(function()
+        Lighting.ClockTime = 14.0 -- ล็อคเวลาเป็น 14:00 น. (กลางวันแดดจัด)
+        Lighting.Brightness = 2.5 -- เพิ่มความสว่างรวม
+        Lighting.GlobalShadows = false -- ปิดเงาเพื่อความสว่างเคลียร์ชัด
+        Lighting.FogEnd = 100000 -- ดันระยะหมอกออกไปไกลสุดๆ จนมองไม่เห็นหมอก
+        
+        -- ถ้าในแมพมี Atmosphere (ระบบหมอกหนาของ Roblox) ให้ซ่อนหรือปรับค่าเป็น 0
+        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+        if atmosphere then
+            atmosphere.Density = 0
+            atmosphere.Haze = 0
+        end
+    end)
+end
+
+local function restoreLighting()
+    pcall(function()
+        Lighting.ClockTime = originalSettings.ClockTime
+        Lighting.Brightness = originalSettings.Brightness
+        Lighting.GlobalShadows = originalSettings.GlobalShadows
+        Lighting.FogEnd = originalSettings.FogEnd
+        
+        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+        if atmosphere and originalSettings.Atmosphere then
+            atmosphere.Density = originalSettings.Atmosphere.Density
+            atmosphere.Haze = originalSettings.Atmosphere.Haze
+        end
+    end)
+end
+
+-- ถ้าเปิดค้างไว้ตั้งแต่ตอนรันสคริปต์ ให้แสดงผลทันที
+if getgenv().FullBright_Active then
+    applyFullBright()
+end
+
+-- ลูปคอยรักษาสภาพแสงไม่ให้เกมเปลี่ยนกลับเองตอนเปลี่ยนแมพ
+RunService.RenderStepped:Connect(function()
+    if getgenv().FullBright_Active then
+        applyFullBright()
+    end
+end)
+
+-- กดปุ่มเพื่อสลับเปิด/ปิด และบันทึกค่าลงไฟล์อัตโนมัติ
+BtnBright.MouseButton1Click:Connect(function()
+    getgenv().FullBright_Active = not getgenv().FullBright_Active
+    
+    pcall(function()
+        if writefile then
+            writefile(saveBrightFile, tostring(getgenv().FullBright_Active))
+        end
+    end)
+    
+    if getgenv().FullBright_Active then
+        BtnBright.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnBright.Text = "☀️ ลบหมอก/กลางวัน: ON"
+        applyFullBright()
+    else
+        BtnBright.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnBright.Text = "☀️ ลบหมอก/กลางวัน: OFF"
+        restoreLighting()
+    end
+end)
+
 
 
 
