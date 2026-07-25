@@ -597,62 +597,7 @@ end)
 
 
 
--- ==========================================
--- 📌 ระบบวาปด่วนไปหาลูกแก้วทันที (กดปุ๊บไปปั๊บ ไม่ต้องรอจังหวะ)
--- ==========================================
-local BtnInstantOrb = Instance.new("TextButton")
-BtnInstantOrb.Name = "InstantOrbButton"
-BtnInstantOrb.Parent = targetContainer -- ใช้ Container หมวดตั้งค่าเดิมของคุณ
-BtnInstantOrb.BackgroundColor3 = Color3.fromRGB(200, 100, 20)
-BtnInstantOrb.Size = UDim2.new(1, 0, 0, 45)
-BtnInstantOrb.Font = Enum.Font.GothamBold
-BtnInstantOrb.Text = "⚡ วาปด่วนไปหาลูกแก้วทันที (ทันที)"
-BtnInstantOrb.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnInstantOrb.TextSize = 14
 
-local CornerInstant = Instance.new("UICorner")
-CornerInstant.CornerRadius = UDim.new(0, 6)
-CornerInstant.Parent = BtnInstantOrb
-
-BtnInstantOrb.MouseButton1Click:Connect(function()
-    pcall(function()
-        local myChar = localPlayer.Character
-        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-        local myRoot = myChar.HumanoidRootPart
-
-        local targetOrb = nil
-
-        -- กวาดหาพาร์ทที่เป็นลูกแก้วหรือจุดแสงทันทีแบบไม่สนเงื่อนไขซับซ้อน
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                local nameLower = string.lower(obj.Name)
-                
-                -- ตัดพวกประตูหรือกำแพงออก เพื่อให้พุ่งไปโดนตัวลูกแก้วจริงๆ
-                local isNotDoor = not string.find(nameLower, "door") and 
-                                  not string.find(nameLower, "wall")
-
-                local isOrb = string.find(nameLower, "orb") or 
-                              string.find(nameLower, "ball") or 
-                              string.find(nameLower, "glow") or 
-                              string.find(nameLower, "core") or
-                              string.find(nameLower, "light")
-
-                if isNotDoor and isOrb and obj:FindFirstChild("TouchInterest") then
-                    targetOrb = obj
-                    break -- เจอตัวแรกพุ่งไปทันทีแบบไม่รอช้า
-                end
-            end
-        end
-
-        -- ถ้าเจอเป้าหมาย สั่งวาปพุ่งไปทับทันทีในเสี้ยววินาที
-        if targetOrb then
-            myRoot.CFrame = targetOrb.CFrame + Vector3.new(0, 1, 0)
-            print("⚡ [Instant Teleport] วาปพุ่งไปหาลูกแก้วสำเร็จทันที!")
-        else
-            print("⚠️ ไม่พบลูกแก้วในระยะ หรือยังไม่ได้สปอนขึ้นมาในแมพ")
-        end
-    end)
-end)
 
 
 
