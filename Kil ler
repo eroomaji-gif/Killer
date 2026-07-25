@@ -1304,3 +1304,72 @@ task.spawn(function()
         end)
     end
 end)
+
+
+
+
+
+-- รันเบื้องหลังแบบอัตโนมัติทันที
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+local function setupDoubleJump(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    local rootPart = char:WaitForChild("HumanoidRootPart")
+    
+    local hasDoubleJumped = false
+    local airPart = nil
+
+    local function createAirPlatform()
+        if airPart then airPart:Destroy() end
+        
+        airPart = Instance.new("Part")
+        airPart.Size = Vector3.new(4, 0.5, 4)
+        airPart.Position = rootPart.Position - Vector3.new(0, 3.5, 0)
+        airPart.Anchored = true
+        airPart.CanCollide = true
+        airPart.Transparency = 1 -- ล่องหนมองไม่เห็น
+        airPart.Parent = workspace
+        
+        task.delay(0.3, function()
+            if airPart then
+                airPart:Destroy()
+                airPart = nil
+            end
+        end)
+    end
+
+    -- ดักจับจังหวะการกระโดดกลางอากาศเงียบๆ
+    humanoid.StateChanged:Connect(function(oldState, newState)
+        if newState == Enum.HumanoidStateType.Jumping then
+            hasDoubleJumped = false
+        elseif newState == Enum.HumanoidStateType.Freefall then
+            local connection
+            connection = UserInputService.JumpRequest:Connect(function()
+                if not hasDoubleJumped and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+                    hasDoubleJumped = true
+                    createAirPlatform()
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    if connection then connection:Disconnect() end
+                end
+            end)
+            
+            local landedConn
+            landedConn = humanoid.StateChanged:Connect(function(_, currState)
+                if currState == Enum.HumanoidStateType.Running then
+                    hasDoubleJumped = false
+                    if connection then connection:Disconnect() end
+                    if landedConn then landedConn:Disconnect() end
+                end
+            end)
+        end
+    end)
+end
+
+-- รองรับกรณีตัวละครตายแล้วเกิดใหม่ (รีเซ็ตระบบให้อัตโนมัติ)
+if player.Character then
+    setupDoubleJump(player.Character)
+end
+player.CharacterAdded:Connect(setupDoubleJump)
