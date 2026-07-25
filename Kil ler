@@ -231,7 +231,10 @@ local function getTargetColorType(targetPlayer)
     return "GreenOrWhite"
 end
 
--- 2. ลูปการทำงานหลัก (เพิ่มเงื่อนไข Swivels และบล็อก Lobby)
+
+
+
+-- 2. ลูปการทำงานหลัก (ปรับปรุงการเช็คชื่อทีมให้ยืดหยุ่นขึ้น)
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -241,7 +244,6 @@ task.spawn(function()
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    -- 🛡️ ป้องกันไม่ให้สคริปต์วิ่งหรือเทเลพอร์ตมาหาเจ้าของสคริปต์
                     if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
                         local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                         local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
@@ -253,21 +255,25 @@ task.spawn(function()
                             local colorType = getTargetColorType(targetPlayer)
                             if colorType ~= "Red" then
                                 
-                                -- เช็คเงื่อนไขทีม Swivels และ Lobby
                                 local isSwivels = false
                                 local isInLobby = false
                                 
                                 if targetPlayer.Team then
-                                    local teamName = string.lower(targetPlayer.Team.Name)
-                                    if string.find(teamName, "swivels") then
+                                    local teamName = tostring(targetPlayer.Team.Name)
+                                    local teamNameLower = string.lower(teamName)
+                                    
+                                    -- ปรินท์เช็คชื่อทีมใน F9 (ช่วยให้รู้ชื่อทีมที่แท้จริง)
+                                    -- print("Player Team:", teamName)
+                                    
+                                    if string.find(teamNameLower, "swivels") then
                                         isSwivels = true
                                     end
-                                    if string.find(teamName, "lobby") then
+                                    if string.find(teamNameLower, "lobby") or string.find(teamNameLower, "ใน") then
                                         isInLobby = true
                                     end
                                 end
                                 
-                                -- ❌ เงื่อนไขบังคับ: ต้องอยู่กลุ่ม Swivels และห้ามอยู่กลุ่ม Lobby เด็ดขาด
+                                -- เงื่อนไข: ถ้าเป็น Swivels และไม่ได้อยู่ใน Lobby ถึงจะวาป
                                 if isSwivels and not isInLobby then
                                     myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
                                     task.wait(0.2)
@@ -280,6 +286,10 @@ task.spawn(function()
         end
     end
 end)
+
+
+
+
 
 -- 3. คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
 Btn1.MouseButton1Click:Connect(function()
