@@ -606,7 +606,7 @@ BtnOrbWin.Parent = TeleportContainer
 BtnOrbWin.BackgroundColor3 = Color3.fromRGB(220, 150, 30)
 BtnOrbWin.Size = UDim2.new(1, 0, 0, 45)
 BtnOrbWin.Font = Enum.Font.GothamBold
-BtnOrbWin.Text = "✨ สุ่มวาปไปที่ลูกแก้วชัยชนะ (ตัวจริง)"
+BtnOrbWin.Text = "✨ วาปเข้าประตู (ตัวจริง)"
 BtnOrbWin.TextColor3 = Color3.fromRGB(255, 255, 255)
 BtnOrbWin.TextSize = 14
 
