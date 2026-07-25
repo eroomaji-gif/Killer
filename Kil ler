@@ -596,66 +596,130 @@ end)
 
 
 
-
 -- ==========================================
--- 📌 ฟังก์ชันสุ่มเทเลพอร์ตไปที่ "พาร์ทเส้นชัย / จุดตัดสินชนะ"
+-- 📌 ปุ่มระบบวนลูป 3 สถานะ (1. เปิด ESP -> 2. ปริ้นท์ชื่อพาร์ท -> 3. ปิด)
 -- ==========================================
-local BtnWinGoal = Instance.new("TextButton")
-BtnWinGoal.Name = "WinGoalButton"
-BtnWinGoal.Parent = TeleportContainer
-BtnWinGoal.BackgroundColor3 = Color3.fromRGB(40, 150, 90)
-BtnWinGoal.Size = UDim2.new(1, 0, 0, 45)
-BtnWinGoal.Font = Enum.Font.GothamBold
-BtnWinGoal.Text = "🏁 วาปไปเส้นชัย (จุดชนะเกม)"
-BtnWinGoal.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnWinGoal.TextSize = 14
+getgenv().PortalMode_State = 0 -- 0 = ปิด, 1 = เปิด ESP, 2 = ปริ้นท์ชื่อพาร์ท
 
-local CornerWinGoal = Instance.new("UICorner")
-CornerWinGoal.CornerRadius = UDim.new(0, 6)
-CornerWinGoal.Parent = BtnWinGoal
+local BtnLoopState = Instance.new("TextButton")
+BtnLoopState.Name = "LoopStateButton"
+BtnLoopState.Parent = TeleportContainer
+BtnLoopState.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+BtnLoopState.Size = UDim2.new(1, 0, 0, 45)
+BtnLoopState.Font = Enum.Font.GothamBold
+BtnLoopState.Text = "🔄 ระบบประตู: [ ปิดอยู่ ]"
+BtnLoopState.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnLoopState.TextSize = 14
 
-BtnWinGoal.MouseButton1Click:Connect(function()
-    pcall(function()
-        local myChar = localPlayer.Character
-        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-        local myRoot = myChar.HumanoidRootPart
+local CornerLoop = Instance.new("UICorner")
+CornerLoop.CornerRadius = UDim.new(0, 6)
+CornerLoop.Parent = BtnLoopState
 
-        local winGoals = {}
+local activeHighlight = nil
 
-        -- กวาดหาพาร์ทใน Workspace ที่ทำหน้าที่เป็นเส้นชัยหรือจุดจบเกม
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                local nameLower = string.lower(obj.Name)
-                
-                -- เจาะจงหาคำที่เกี่ยวข้องกับเส้นชัย ชัยชนะ หรือจุดจบเกมโดยตรง
-                local isGoalPart = string.find(nameLower, "win") or 
-                                   string.find(nameLower, "goal") or 
-                                   string.find(nameLower, "finish") or 
-                                   string.find(nameLower, "end") or
-                                   string.find(nameLower, "complete")
+local function clearESP()
+    if activeHighlight then
+        activeHighlight:Destroy()
+        activeHighlight = nil
+    end
+end
 
-                -- ต้องมี TouchInterest (ระบบสัมผัสเพื่อส่งสัญญาณกลับบ้าน/ล็อบบี้) และไม่ใช่ตัวเราเอง
-                if isGoalPart and obj:FindFirstChild("TouchInterest") and not obj:IsDescendantOf(myChar) then
-                    local targetPos = obj.Position
-                    local distFromPlayer = (targetPos - myRoot.Position).Magnitude
-                    
-                    -- เช็คระยะให้อยู่ในแมพ (ไม่หลุดโลก)
-                    if distFromPlayer <= 1000 and targetPos.Y > -50 then
-                        table.insert(winGoals, targetPos)
+-- ลูปเช็คสำหรับโหมด ESP (สถานะที่ 1)
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if getgenv().PortalMode_State == 1 then
+            pcall(function()
+                clearESP()
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if getgenv().PortalMode_State ~= 1 then break end
+                    if obj:IsA("BasePart") then
+                        local nameLower = string.lower(obj.Name)
+                        local isTarget = string.find(nameLower, "win") or 
+                                         string.find(nameLower, "goal") or 
+                                         string.find(nameLower, "finish") or 
+                                         string.find(nameLower, "exit") or 
+                                         string.find(nameLower, "portal")
+
+                        if isTarget and obj:FindFirstChild("TouchInterest") then
+                            -- สร้างกรอบ ESP สีเขียวครอบเป้าหมาย
+                            local highlight = Instance.new("Highlight")
+                            highlight.Name = "LoopESP"
+                            highlight.Adornee = obj
+                            highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                            highlight.FillTransparency = 0.4
+                            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            highlight.Parent = obj
+                            activeHighlight = highlight
+                            break -- เจอตัวแรกจับทำ ESP ทันที
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ฟังก์ชันเมื่อกดปุ่ม (สลับสถานะวนลูป 0 -> 1 -> 2 -> 0)
+BtnLoopState.MouseButton1Click:Connect(function()
+    getgenv().PortalMode_State = getgenv().PortalMode_State + 1
+
+    if getgenv().PortalMode_State == 1 then
+        -- สเต็ปที่ 1: เปิด ESP
+        BtnLoopState.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        BtnLoopState.Text = "👁️ สถานะ: [ 1. เปิด ESP แล้ว ]"
+        print("🟢 [สถานะ 1] เปิดระบบ ESP ค้นหาประตูแล้ว เดินไปดูได้เลย!")
+
+    elseif getgenv().PortalMode_State == 2 then
+        -- สเต็ปที่ 2: ปริ้นท์ชื่อพาร์ทตัวจริงครั้งเดียวจบ
+        BtnLoopState.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+        BtnLoopState.Text = "🖨️ สถานะ: [ 2. ปริ้นท์ชื่อพาร์ท ]"
+        
+        pcall(function()
+            local myChar = localPlayer.Character
+            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+            local myRoot = myChar.HumanoidRootPart
+
+            local found = false
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    local nameLower = string.lower(obj.Name)
+                    local isTarget = string.find(nameLower, "win") or 
+                                     string.find(nameLower, "goal") or 
+                                     string.find(nameLower, "finish") or 
+                                     string.find(nameLower, "exit") or 
+                                     string.find(nameLower, "portal")
+
+                    if isTarget and obj:FindFirstChild("TouchInterest") then
+                        local dist = (obj.Position - myRoot.Position).Magnitude
+                        if dist <= 300 then
+                            print("-----------------------------------------")
+                            print("🎯 [สถานะ 2] เจอพาร์ทประตูที่ถูกต้องแล้ว!")
+                            print("👉 ชื่อจริง (Name): " .. obj.Name)
+                            print("👉 พาธเต็ม (Path): " .. obj:GetFullName())
+                            print("-----------------------------------------")
+                            found = true
+                            break
+                        end
                     end
                 end
             end
-        end
+            if not found then
+                print("⚠️ [สถานะ 2] ไม่พบพาร์ทในระยะใกล้ ลองเดินไปใกล้ประตูแล้วกดใหม่อีกครั้ง")
+            end
+        end)
 
-        -- ถ้าเจอพาร์ทเส้นชัย ให้สุ่มวาปไปพุ่งชนทันทีเพื่อให้เกมพาเด้งกลับล็อบบี้และชนะ
-        if #winGoals > 0 then
-            local randomIndex = math.random(1, #winGoals)
-            local targetPos = winGoals[randomIndex]
-            
-            myRoot.CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))
-        end
-    end)
+    else
+        -- สเต็ปที่ 3 (รีเซ็ตกลับเป็น 0): ปิดการทำงานและล้างค่าทั้งหมด
+        getgenv().PortalMode_State = 0
+        BtnLoopState.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+        BtnLoopState.Text = "🔄 ระบบประตู: [ ปิดอยู่ ]"
+        clearESP()
+        print("🔴 [สถานะ 0] ปิดการทำงานและเคลียร์ระบบทั้งหมดแล้ว")
+    end
 end)
+
+
 
 
 
