@@ -287,7 +287,7 @@ Btn2.Parent = ContentContainer -- <--- เปลี่ยน Parent มาไว
 Btn2.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
 Btn2.Size = UDim2.new(1, 0, 0, 45)
 Btn2.Font = Enum.Font.GothamBold
-Btn2.Text = "👁️ เปิดมองทะลุ: OFF"
+Btn2.Text = "👁️ ตาเทพเจ้า: OFF"
 Btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
 Btn2.TextSize = 14
 
@@ -347,10 +347,10 @@ Btn2.MouseButton1Click:Connect(function()
     
     if getgenv().Script2_Active then
         Btn2.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
-        Btn2.Text = "👁️ เปิดมองทะลุ: ON"
+        Btn2.Text = "👁️ ตาเทพเจ้า: ON"
     else
         Btn2.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
-        Btn2.Text = "👁️ เปิดมองทะลุ: OFF"
+        Btn2.Text = "👁️ ตาตาเทพพระเจ้า: OFF"
         
         -- ล้างค่าแสง ESP ออกเมื่อปิดสคริปต์
         for _, highlight in pairs(getgenv().ActiveHighlights or {}) do
