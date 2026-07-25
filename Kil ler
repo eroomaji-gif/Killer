@@ -857,6 +857,97 @@ end)
 
 
 
+-- ==========================================
+-- 📌 [ปุ่มตั้งค่า] เพิ่มความเร็วเดิน (WalkSpeed) + ระบบจำค่าอัตโนมัติ
+-- ==========================================
+getgenv().SpeedSetting_Active = false
+
+-- ชื่อไฟล์สำหรับเก็บบันทึกสถานะความเร็ว
+local saveSpeedSettingFile = "FlexibleMenu_SpeedCustomSetting.txt"
+
+-- โหลดค่าที่เคยบันทึกไว้ครั้งก่อน
+pcall(function()
+    if isfile and isfile(saveSpeedSettingFile) then
+        local content = readfile(saveSpeedSettingFile)
+        if content == "true" then
+            getgenv().SpeedSetting_Active = true
+        else
+            getgenv().SpeedSetting_Active = false
+        end
+    end
+end)
+
+local BtnSpeedSetting = Instance.new("TextButton")
+BtnSpeedSetting.Name = "SpeedSettingButton"
+BtnSpeedSetting.Parent = SettingsContainer -- ⚙️ ให้อยู่ในหมวดหมู่ตั้งค่า
+BtnSpeedSetting.Size = UDim2.new(1, 0, 0, 45)
+BtnSpeedSetting.Font = Enum.Font.GothamBold
+BtnSpeedSetting.TextSize = 14
+BtnSpeedSetting.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- อัปเดตสีและข้อความเริ่มต้นตามสถานะที่จำได้
+if getgenv().SpeedSetting_Active then
+    BtnSpeedSetting.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
+    BtnSpeedSetting.Text = "⚡ วิ่งไว (Speed 50): ON"
+else
+    BtnSpeedSetting.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
+    BtnSpeedSetting.Text = "⚡ วิ่งไว (Speed 50): OFF"
+end
+
+local CornerSpeedSetting = Instance.new("UICorner")
+CornerSpeedSetting.CornerRadius = UDim.new(0, 6)
+CornerSpeedSetting.Parent = BtnSpeedSetting
+
+-- ลูปคอยรักษาระดับความเร็วไม่ให้โดนรีเซ็ต
+local RunService = game:GetService("RunService")
+RunService.Heartbeat:Connect(function()
+    if getgenv().SpeedSetting_Active then
+        pcall(function()
+            local character = localPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.WalkSpeed ~= 50 then
+                    humanoid.WalkSpeed = 50
+                end
+            end
+        end)
+    end
+end)
+
+-- กดปุ่มเพื่อสลับเปิด/ปิด และบันทึกค่าลงไฟล์อัตโนมัติ
+BtnSpeedSetting.MouseButton1Click:Connect(function()
+    getgenv().SpeedSetting_Active = not getgenv().SpeedSetting_Active
+    
+    pcall(function()
+        if writefile then
+            writefile(saveSpeedSettingFile, tostring(getgenv().SpeedSetting_Active))
+        end
+    end)
+    
+    if getgenv().SpeedSetting_Active then
+        BtnSpeedSetting.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnSpeedSetting.Text = "⚡ วิ่งไว (Speed 50): ON"
+    else
+        BtnSpeedSetting.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnSpeedSetting.Text = "⚡ วิ่งไว (Speed 50): OFF"
+        
+        -- คืนค่าความเร็วปกติเมื่อปิด
+        pcall(function()
+            local character = localPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = 16
+                end
+            end
+        end)
+    end
+end)
+
+
+
+
+
 -- 3. อัปเดตระบบกดสลับหน้าต่าง (เพิ่มหมวดหมู่ "ตั้งค่า" เข้าไปในระบบคลิก)
 CatBtn1.MouseButton1Click:Connect(function()
     TeleportContainer.Visible = false
