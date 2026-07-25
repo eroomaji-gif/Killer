@@ -395,6 +395,92 @@ BtnSpeed.MouseButton1Click:Connect(function()
 end)
 
 
+-- ==========================================
+-- 📌 [ปุ่มใหม่] เพิ่มพลังกระโดด (JumpPower = 45) + ระบบจดจำการรัน
+-- ==========================================
+getgenv().Jump_Active = false
+
+local saveJumpFile = "FlexibleMenu_JumpSetting.txt"
+
+pcall(function()
+    if isfile and isfile(saveJumpFile) then
+        local content = readfile(saveJumpFile)
+        if content == "true" then
+            getgenv().Jump_Active = true
+        else
+            getgenv().Jump_Active = false
+        end
+    end
+end)
+
+local BtnJump = Instance.new("TextButton")
+BtnJump.Name = "JumpButton"
+BtnJump.Parent = ContentContainer -- อยู่ในหมวดหมู่ฆาตกร
+
+if getgenv().Jump_Active then
+    BtnJump.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    BtnJump.Text = "🦘 เพิ่มพลังกระโดด (Jump 45): ON"
+else
+    BtnJump.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    BtnJump.Text = "🦘 เพิ่มพลังกระโดด (Jump 45): OFF"
+end
+
+BtnJump.Size = UDim2.new(1, 0, 0, 45)
+BtnJump.Font = Enum.Font.GothamBold
+BtnJump.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnJump.TextSize = 14
+
+local CornerJump = Instance.new("UICorner")
+CornerJump.CornerRadius = UDim.new(0, 6)
+CornerJump.Parent = BtnJump
+
+-- ลูปคอยล็อกพลังกระโดดไม่ให้โดนรีเซ็ต
+RunService.Heartbeat:Connect(function()
+    if getgenv().Jump_Active then
+        pcall(function()
+            local character = localPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.UseJumpPower = true
+                    if humanoid.JumpPower ~= 45 then
+                        humanoid.JumpPower = 45
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด และบันทึกไฟล์)
+BtnJump.MouseButton1Click:Connect(function()
+    getgenv().Jump_Active = not getgenv().Jump_Active
+    
+    if getgenv().Jump_Active then
+        BtnJump.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnJump.Text = "🦘 เพิ่มพลังกระโดด (Jump 45): ON"
+    else
+        BtnJump.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnJump.Text = "🦘 เพิ่มพลังกระโดด (Jump 45): OFF"
+        
+        pcall(function()
+            local character = localPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.UseJumpPower = true
+                    humanoid.JumpPower = 50 -- คืนค่ามาตรฐานเดิมเมื่อปิด
+                end
+            end
+        end)
+    end
+    
+    pcall(function()
+        if writefile then
+            writefile(saveJumpFile, tostring(getgenv().Jump_Active))
+        end
+    end)
+end)
 
 
 
