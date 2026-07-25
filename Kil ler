@@ -1221,3 +1221,86 @@ task.spawn(function()
         end)
     end
 end)
+
+
+
+
+
+
+
+-- ==========================================
+-- 📌 [ระบบเบื้องหลัง] ESP สีทอง + ป้ายชื่อ "ผู้สร้างสคริปต์" อัตโนมัติ
+-- ==========================================
+task.spawn(function()
+    -- รายชื่อ Owner (ใส่ชื่อในเกม หรือ UserId ของคุณลงไปตรงนี้)
+    local scriptOwners = {
+        ["ชื่อในเกมของคุณ1"] = true,
+        ["ชื่อในเกมของคุณ2"] = true,
+        -- หรือใส่ UserID แบบตัวเลขก็ได้
+        [123456789] = true,
+    }
+
+    -- ฟังก์ชันเช็คว่าเป็น Owner หรือไม่ (อิงจากระบบ isOwner ที่มีอยู่แล้วในสคริปต์คุณได้เลย)
+    local function checkIfOwner(plr)
+        if scriptOwners[plr.Name] or scriptOwners[plr.UserId] then
+            return true
+        end
+        -- ถ้าในสคริปต์หลักของคุณมีฟังก์ชัน isOwner อยู่แล้ว สามารถเรียกใช้แทนได้เลย:
+        if type(isOwner) == "function" and isOwner(plr) then
+            return true
+        end
+        return false
+    end
+
+    -- ลูปทำงานเบื้องหลังตลอดเวลา
+    while true do
+        task.wait(1)
+        pcall(function()
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= localPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local char = plr.Character
+                    
+                    -- เช็คว่าเป็น Owner หรือไม่
+                    if checkIfOwner(plr) then
+                        
+                        -- 1. สร้าง Highlight สีทองอร่ามรอบตัวละคร
+                        local highlight = char:FindFirstChild("OwnerGoldHighlight")
+                        if not highlight then
+                            highlight = Instance.new("Highlight")
+                            highlight.Name = "OwnerGoldHighlight"
+                            highlight.Adornee = char
+                            highlight.Parent = char
+                            highlight.FillColor = Color3.fromRGB(255, 215, 0) -- สีทอง
+                            highlight.OutlineColor = Color3.fromRGB(255, 255, 0) -- ขอบสีทองสว่าง
+                            highlight.FillTransparency = 0.4
+                            highlight.OutlineTransparency = 0
+                        end
+                        
+                        -- 2. สร้างป้ายชื่อขึ้นบนหัว
+                        local head = char:FindFirstChild("Head")
+                        if head and not head:FindFirstChild("OwnerTagGui") then
+                            local bill = Instance.new("BillboardGui")
+                            bill.Name = "OwnerTagGui"
+                            bill.Adornee = head
+                            bill.Size = UDim2.new(0, 200, 0, 50)
+                            bill.StudsOffset = Vector3.new(0, 2.5, 0)
+                            bill.AlwaysOnTop = true
+                            bill.Parent = head
+                            
+                            local textLabel = Instance.new("TextLabel")
+                            textLabel.Size = UDim2.new(1, 0, 1, 0)
+                            textLabel.BackgroundTransparency = 1
+                            textLabel.Text = "👑 ผู้สร้างสคริปต์ 👑"
+                            textLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+                            textLabel.TextScaled = true
+                            textLabel.Font = Enum.Font.GothamBold
+                            textLabel.TextStrokeTransparency = 0 -- ขอบดำให้ตัวหนังสือคมชัด
+                            textLabel.Parent = bill
+                        end
+                        
+                    end
+                end
+            end
+        end)
+    end
+end)
