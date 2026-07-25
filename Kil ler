@@ -1,9 +1,198 @@
-ริปต์
-        for _, highliเปลี่ยน Parent เป็น ContentContainer)
+-- 📌 [ระบบป้องกัน] รายชื่อเจ้าของสคริปต์ (เพิ่มได้หลายคนโดยใส่ไว้ในตาราง)
+local ProtectedOwners = {
+    "Onsenb47162",
+    "Agakami_5625",
+    -- อยากเพิ่มใครอีก ก็ใส่ "ชื่อในเกม" หรือ "DisplayName" ต่อท้ายตรงนี้ได้เลย คั่นด้วยคอมม่า (,)
+}
+
+local function isOwner(player)
+    if not player then return false end
+    -- วนลูปเช็คว่าชื่อของคนที่รัน ตรงกับใครสักคนในรายชื่อด้านบนไหม
+    for _, ownerName in ipairs(ProtectedOwners) do
+        if player.Name == ownerName or player.DisplayName == ownerName then
+            return true
+        end
+    end
+    return false
+end
+
+
+
+
+
+-- ==========================================
+-- 📌 โครงสร้าง UI แบบใหม่ (มีแถบหมวดหมู่ด้านซ้าย + หน้าต่างกว้าง)
+-- ==========================================
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- ลบ UI เก่าทิ้งก่อน (ถ้ามี)
+local oldGui = playerGui:FindFirstChild("FlexibleMenuGui")
+if oldGui then
+    oldGui:Destroy()
+end
+
+-- สร้าง ScreenGui หลัก
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FlexibleMenuGui"
+ScreenGui.Parent = playerGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 9999
+
+
+
+
+-- 1. ปุ่มเปิด/ปิดหน้าต่างเมนู (สี่เหลี่ยมจัตุรัสเล็กๆ พร้อมรูปภาพ)
+local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ToggleButton.BackgroundTransparency = 0.2
+ToggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+ToggleButton.Size = UDim2.new(0, 45, 0, 45)
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+ToggleButton.Image = "rbxassetid://75925823414835"
+
+-- บังคับโหลดภาพ (Force Preload)
+task.spawn(function()
+    pcall(function()
+        game:GetService("ContentProvider"):PreloadAsync({ToggleButton})
+    end)
+end)
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleButton
+
+
+
+
+-- ==========================================
+-- 2. หน้าต่างหลัก (เปลี่ยนเป็น ImageLabel พร้อมปรับความโปร่งใสระดับกลางๆ)
+-- ==========================================
+local MainFrame = Instance.new("ImageLabel")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MainFrame.BackgroundTransparency = 1 -- ซ่อนพื้นหลังเดิม
+MainFrame.Position = UDim2.new(0.05, 0, 0.18, 0)
+MainFrame.Size = UDim2.new(0, 550, 0, 450)
+MainFrame.Visible = false
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Image = "rbxassetid://75925823414835"
+MainFrame.ImageTransparency = 0.45 -- ปรับความโปร่งใสระดับกลางๆ (0.45 กำลังดี มองเห็นเมนูชัดและเห็นรูปสวยๆ)
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+
+
+
+
+-- แถบหัวข้อด้านบน (Title Bar)
+local TitleBar = Instance.new("TextLabel")
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Font = Enum.Font.GothamBold
+TitleBar.Text = "  🤪 KTO CRUB "
+TitleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleBar.TextSize = 15
+TitleBar.TextXAlignment = Enum.TextXAlignment.Left
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = TitleBar
+
+-- ปุ่มปิดหน้าต่าง (กากบาท X)
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = TitleBar
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseButton.Position = UDim2.new(1, -45, 0.5, -15)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 14
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseButton
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- ==========================================
+-- 📂 3. ระบบแบ่งสัดส่วน (ซ้าย: หมวดหมู่ | ขวา: พื้นที่ปุ่มฟังก์ชัน)
+-- ==========================================
+
+-- 3.1 แถบหมวดหมู่ฝั่งซ้าย (Sidebar แคบๆ)
+local SidebarFrame = Instance.new("ScrollingFrame")
+SidebarFrame.Name = "SidebarFrame"
+SidebarFrame.Parent = MainFrame
+SidebarFrame.BackgroundTransparency = 1
+SidebarFrame.Position = UDim2.new(0, 10, 0, 50)
+SidebarFrame.Size = UDim2.new(0, 140, 1, -60)
+SidebarFrame.CanvasSize = UDim2.new(0, 0, 0, 300)
+SidebarFrame.ScrollBarThickness = 4
+
+local SidebarLayout = Instance.new("UIListLayout")
+SidebarLayout.Parent = SidebarFrame
+SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SidebarLayout.Padding = UDim.new(0, 8)
+
+
+
+
+-- ปุ่มหมวดหมู่ที่ 1 (ฝั่งซ้าย: หมวดหมู่ฆาตกร)
+local CatBtn1 = Instance.new("TextButton")
+CatBtn1.Name = "Category1"
+CatBtn1.Parent = SidebarFrame
+CatBtn1.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtn1.Size = UDim2.new(1, 0, 0, 40)
+CatBtn1.Font = Enum.Font.GothamBold
+CatBtn1.Text = "🔪 ฆาตกร"
+CatBtn1.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtn1.TextSize = 13
+
+local CatCorner1 = Instance.new("UICorner")
+CatCorner1.CornerRadius = UDim.new(0, 6)
+CatCorner1.Parent = CatBtn1
+
+
+-- 3.2 พื้นที่แสดงปุ่มฟังก์ชันฝั่งขวา (Container สำหรับหมวดหมู่ฆาตกร)
+local ContentContainer = Instance.new("ScrollingFrame")
+ContentContainer.Name = "ContentContainer"
+ContentContainer.Parent = MainFrame
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Position = UDim2.new(0, 160, 0, 50)
+ContentContainer.Size = UDim2.new(1, -170, 1, -60)
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+ContentContainer.ScrollBarThickness = 6
+ContentContainer.Visible = true -- เปิดหน้าต่างนี้เป็นค่าเริ่มต้น
+
+local ContentLayout = Instance.new("UIListLayout")
+ContentLayout.Parent = ContentContainer
+ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ContentLayout.Padding = UDim.new(0, 8)
+
+-- ==========================================
+-- 📌 [จุดที่ 1] เอาปุ่มฟังก์ชันหมวดหมู่ "ฆาตกร" มาใส่ไว้ที่นี่
+-- (เช่น ปุ่มสปีด, ปุ่มบิน, ปุ่ม God Mode หรือปุ่มเดิมให้เปลี่ยน Parent เป็น ContentContainer)
 -- ==========================================
 -- local Container = ContentContainer -- (ใช้ชื่อนี้เป็น Parent ของปุ่มฆาตกรเดิมได้เลย)
-
-
 
 
 
