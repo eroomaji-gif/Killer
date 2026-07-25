@@ -725,84 +725,82 @@ end)
 
 
 
-
 -- ==========================================
--- 📌 ฟังก์ชันออโต้ฟาร์มเก็บเหรียญ (แก้ปัญหาพุ่งเข้าตู้ / กรองตู้แบบเด็ดขาด)
+-- 📌 ระบบออโต้ฟาร์มความเร็วสูง (รอบเดียวจบ + บล็อกฆาตกร + ดีดกลับที่เดิม)
 -- ==========================================
-getgenv().AutoFarmCoins_Active = false
+local BtnSuperFarm = Instance.new("TextButton")
+BtnSuperFarm.Name = "SuperFastFarmButton"
+BtnSuperFarm.Parent = TeleportContainer
+BtnSuperFarm.BackgroundColor3 = Color3.fromRGB(200, 120, 30)
+BtnSuperFarm.Size = UDim2.new(1, 0, 0, 45)
+BtnSuperFarm.Font = Enum.Font.GothamBold
+BtnSuperFarm.Text = "⚡ ออโต้ฟาร์มด่วน (รอบเดียว + บล็อกฆาตกร)"
+BtnSuperFarm.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnSuperFarm.TextSize = 14
 
-local BtnAutoFarm = Instance.new("TextButton")
-BtnAutoFarm.Name = "AutoFarmCoinsButton"
-BtnAutoFarm.Parent = TeleportContainer
-BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-BtnAutoFarm.Size = UDim2.new(1, 0, 0, 45)
-BtnAutoFarm.Font = Enum.Font.GothamBold
-BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (แก้ตู้): OFF"
-BtnAutoFarm.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnAutoFarm.TextSize = 14
+local CornerSuper = Instance.new("UICorner")
+CornerSuper.CornerRadius = UDim.new(0, 6)
+CornerSuper.Parent = BtnSuperFarm
 
-local CornerAutoFarm = Instance.new("UICorner")
-CornerAutoFarm.CornerRadius = UDim.new(0, 6)
-CornerAutoFarm.Parent = BtnAutoFarm
+BtnSuperFarm.MouseButton1Click:Connect(function()
+    pcall(function()
+        local myChar = localPlayer.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        local myRoot = myChar.HumanoidRootPart
+        
+        -- 1. บันทึกตำแหน่งเดิมของเราไว้ก่อนเริ่มฟาร์ม เพื่อจะได้ดีดกลับมาที่เดิมเป๊ะๆ
+        local originalCFrame = myRoot.CFrame
 
-task.spawn(function()
-    while true do
-        task.wait(0.3)
-        if getgenv().AutoFarmCoins_Active then
-            pcall(function()
-                local myChar = localPlayer.Character
-                if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-                local myRoot = myChar.HumanoidRootPart
+        print("⚡ [AutoFarm] เริ่มต้นกวาดเก็บเหรียญรอบเดียวด้วยความเร็วสูงสุด...")
+        local collectedCount = 0
 
-                for _, obj in ipairs(workspace:GetDescendants()) do
-                    if not getgenv().AutoFarmCoins_Active then break end
-                    
-                    if obj:IsA("BasePart") then
-                        local nameLower = string.lower(obj.Name)
-                        
-                        -- 🛑 1. กรองตู้และสิ่งกีดขวางแบบเข้มงวดที่สุด (เพิ่มคำว่า locker, cabinet, metal, prop ออกให้หมด)
-                        local isLockerOrBuilding = string.find(nameLower, "locker") or 
-                                                  string.find(nameLower, "cabinet") or 
-                                                  string.find(nameLower, "chest") or 
-                                                  string.find(nameLower, "box") or 
-                                                  string.find(nameLower, "exit") or 
-                                                  string.find(nameLower, "portal") or 
-                                                  string.find(nameLower, "door") or
-                                                  string.find(nameLower, "wall") or
-                                                  string.find(nameLower, "floor") or
-                                                  string.find(nameLower, "part") -- ป้องกันคำว่า Part ธรรมดาที่ชอบสลับกัน
-                        
-                        -- 🛑 2. เช็คขนาดพาร์ท (Size): ตู้หรือกำแพงมักจะมีขนาดใหญ่เกินกว่าเหรียญ ถ้าอันไหนสูงหรือกว้างเกินไป ให้ตัดทิ้งทันที
-                        local isTooBig = obj.Size.X > 5 or obj.Size.Y > 5 or obj.Size.Z > 5
-
-                        -- ✅ 3. เงื่อนไขที่ถูกต้อง: ต้องไม่ใช่ตู้/ไม่ใช่ของใหญ่ และต้องมี TouchInterest สำหรับเก็บของจริง
-                        if not isLockerOrBuilding and not isTooBig and obj:FindFirstChild("TouchInterest") and not obj:IsDescendantOf(myChar) then
-                            
-                            local distance = (obj.Position - myRoot.Position).Magnitude
-                            if distance <= 400 then
-                                -- วาปไปเก็บเฉพาะจุดเล็กๆ ที่ถูกต้อง
-                                myRoot.CFrame = obj.CFrame + Vector3.new(0, 1, 0)
-                                task.wait(0.25)
-                            end
-                        end
+        -- 2. วนลูปหากลุ่มเป้าหมายทั้งหมดใน Workspace ทีเดียวจบ
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                local nameLower = string.lower(obj.Name)
+                
+                -- 🛑 [ระบบบล็อกฆาตกร / ผู้เล่นคนอื่น]: เช็คว่าพาร์ทนี้เป็นของคนอื่นหรืออยู่ในตัวผู้เล่นไหม ถ้าใช่ ห้ามแตะเด็ดขาด!
+                local isPlayerPart = false
+                for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+                    if player.Character and obj:IsDescendantOf(player.Character) then
+                        isPlayerPart = true
+                        break
                     end
                 end
-            end)
+
+                -- กรองตู้ สิ่งก่อสร้าง และพาร์ทของคนอื่นออก
+                local isInvalid = string.find(nameLower, "locker") or 
+                                  string.find(nameLower, "cabinet") or 
+                                  string.find(nameLower, "chest") or 
+                                  string.find(nameLower, "door") or 
+                                  string.find(nameLower, "wall") or
+                                  string.find(nameLower, "floor")
+
+                local isTooBig = obj.Size.X > 5 or obj.Size.Y > 5 or obj.Size.Z > 5
+
+                -- ✅ เงื่อนไขเก็บจริง: ต้องไม่ใช่ผู้เล่น (ไม่โดนฆาตกรดัก), ไม่ใช่ตู้, ไม่ใหญ่เกินไป และมี TouchInterest
+                if not isPlayerPart and not isInvalid and not isTooBig and obj:FindFirstChild("TouchInterest") then
+                    
+                    -- วาปไปเก็บพาร์ทนั้นทันทีแบบเร็วที่สุด (ความเร็วสูงรอบเดียวจบ)
+                    myRoot.CFrame = obj.CFrame + Vector3.new(0, 1, 0)
+                    collectedCount = collectedCount + 1
+                    
+                    -- หน่วงเวลาน้อยที่สุดเท่าที่เกมจะรับไหว เพื่อให้ระบบเซิร์ฟเวอร์นับว่าเก็บแล้ว
+                    task.wait(0.05) 
+                end
+            end
         end
-    end
-end)
 
-BtnAutoFarm.MouseButton1Click:Connect(function()
-    getgenv().AutoFarmCoins_Active = not getgenv().AutoFarmCoins_Active
-    if getgenv().AutoFarmCoins_Active then
-        BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (แก้ตู้): ON"
-    else
-        BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (แก้ตู้): OFF"
-    end
-end)
+        -- 3. เก็บเสร็จปุ๊บ ดีดตัวกลับมาที่จุดตั้งต้นเดิมทันทีอย่างไร้รอยต่อ!
+        myRoot.CFrame = originalCFrame
 
+        if collectedCount > 0 then
+            print("✨ [AutoFarm] ฟาร์มสำเร็จ! เก็บไปทั้งหมด " .. collectedCount .. " ชิ้น และกลับมาที่เดิมเรียบร้อย")
+        else
+            print("⚠️ [AutoFarm] ไม่พบไอเทมที่สามารถเก็บได้ในระยะนี้ ระบบหยุดทำงานทันทีเพื่อความปลอดภัย")
+        end
+    end)
+end)
 
 
 
