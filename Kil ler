@@ -668,7 +668,7 @@ end)
 
 
 -- ==========================================
--- 📌 ฟังก์ชันออโต้ฟาร์มเก็บเหรียญ (กรองตู้และประตูชัยชนะออกเรียบร้อย)
+-- 📌 ฟังก์ชันออโต้ฟาร์มเก็บเหรียญ (แก้ปัญหาพุ่งเข้าตู้ / กรองตู้แบบเด็ดขาด)
 -- ==========================================
 getgenv().AutoFarmCoins_Active = false
 
@@ -678,7 +678,7 @@ BtnAutoFarm.Parent = TeleportContainer
 BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 BtnAutoFarm.Size = UDim2.new(1, 0, 0, 45)
 BtnAutoFarm.Font = Enum.Font.GothamBold
-BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (ปลอดภัย): OFF"
+BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (แก้ตู้): OFF"
 BtnAutoFarm.TextColor3 = Color3.fromRGB(255, 255, 255)
 BtnAutoFarm.TextSize = 14
 
@@ -701,21 +701,27 @@ task.spawn(function()
                     if obj:IsA("BasePart") then
                         local nameLower = string.lower(obj.Name)
                         
-                        -- 🛑 1. ระบบบล็อก (Blacklist): ถ้าเจอชื่อเหล่านี้ ให้ข้ามทันที ห้ามวาปไปเด็ดขาด!
-                        local isBlocked = string.find(nameLower, "locker") or 
-                                          string.find(nameLower, "chest") or 
-                                          string.find(nameLower, "box") or 
-                                          string.find(nameLower, "exit") or 
-                                          string.find(nameLower, "portal") or 
-                                          string.find(nameLower, "door") or
-                                          string.find(nameLower, "wall")
+                        -- 🛑 1. กรองตู้และสิ่งกีดขวางแบบเข้มงวดที่สุด (เพิ่มคำว่า locker, cabinet, metal, prop ออกให้หมด)
+                        local isLockerOrBuilding = string.find(nameLower, "locker") or 
+                                                  string.find(nameLower, "cabinet") or 
+                                                  string.find(nameLower, "chest") or 
+                                                  string.find(nameLower, "box") or 
+                                                  string.find(nameLower, "exit") or 
+                                                  string.find(nameLower, "portal") or 
+                                                  string.find(nameLower, "door") or
+                                                  string.find(nameLower, "wall") or
+                                                  string.find(nameLower, "floor") or
+                                                  string.find(nameLower, "part") -- ป้องกันคำว่า Part ธรรมดาที่ชอบสลับกัน
                         
-                        -- ✅ 2. ถ้าไม่ใช่ของที่ถูกบล็อก และมีระบบสัมผัส (TouchInterest) สำหรับเก็บเหรียญ
-                        if not isBlocked and obj:FindFirstChild("TouchInterest") and not obj:IsDescendantOf(myChar) then
+                        -- 🛑 2. เช็คขนาดพาร์ท (Size): ตู้หรือกำแพงมักจะมีขนาดใหญ่เกินกว่าเหรียญ ถ้าอันไหนสูงหรือกว้างเกินไป ให้ตัดทิ้งทันที
+                        local isTooBig = obj.Size.X > 5 or obj.Size.Y > 5 or obj.Size.Z > 5
+
+                        -- ✅ 3. เงื่อนไขที่ถูกต้อง: ต้องไม่ใช่ตู้/ไม่ใช่ของใหญ่ และต้องมี TouchInterest สำหรับเก็บของจริง
+                        if not isLockerOrBuilding and not isTooBig and obj:FindFirstChild("TouchInterest") and not obj:IsDescendantOf(myChar) then
                             
                             local distance = (obj.Position - myRoot.Position).Magnitude
                             if distance <= 45 then
-                                -- วาปไปเหยียบเฉพาะจุดเก็บเหรียญที่ปลอดภัย
+                                -- วาปไปเก็บเฉพาะจุดเล็กๆ ที่ถูกต้อง
                                 myRoot.CFrame = obj.CFrame + Vector3.new(0, 1, 0)
                                 task.wait(0.25)
                             end
@@ -731,12 +737,13 @@ BtnAutoFarm.MouseButton1Click:Connect(function()
     getgenv().AutoFarmCoins_Active = not getgenv().AutoFarmCoins_Active
     if getgenv().AutoFarmCoins_Active then
         BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (ปลอดภัย): ON"
+        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (แก้ตู้): ON"
     else
         BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (ปลอดภัย): OFF"
+        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (แก้ตู้): OFF"
     end
 end)
+
 
 
 
