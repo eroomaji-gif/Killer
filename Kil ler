@@ -720,7 +720,7 @@ task.spawn(function()
                         if not isLockerOrBuilding and not isTooBig and obj:FindFirstChild("TouchInterest") and not obj:IsDescendantOf(myChar) then
                             
                             local distance = (obj.Position - myRoot.Position).Magnitude
-                            if distance <= 45 then
+                            if distance <= 400 then
                                 -- วาปไปเก็บเฉพาะจุดเล็กๆ ที่ถูกต้อง
                                 myRoot.CFrame = obj.CFrame + Vector3.new(0, 1, 0)
                                 task.wait(0.25)
