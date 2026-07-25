@@ -598,66 +598,61 @@ end)
 
 
 -- ==========================================
--- 📌 ฟังก์ชันสุ่มเทเลพอร์ตไปที่ "จุดทางออก (ลูกศรชี้ออก)" แทนอันเก่า
+-- 📌 ฟังก์ชันสุ่มเทเลพอร์ตไปที่ "พาร์ทเส้นชัย / จุดตัดสินชนะ"
 -- ==========================================
-local BtnSmartExit = Instance.new("TextButton")
-BtnSmartExit.Name = "SmartExitButton"
-BtnSmartExit.Parent = TeleportContainer -- วางแทนที่ปุ่มเก่าในหน้าต่างเทเลพอร์ต
-BtnSmartExit.BackgroundColor3 = Color3.fromRGB(40, 150, 90)
-BtnSmartExit.Size = UDim2.new(1, 0, 0, 45)
-BtnSmartExit.Font = Enum.Font.GothamBold
-BtnSmartExit.Text = "🚪 สุ่มวาปไปจุดทางออก (ลูกศรเขียว)"
-BtnSmartExit.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnSmartExit.TextSize = 14
+local BtnWinGoal = Instance.new("TextButton")
+BtnWinGoal.Name = "WinGoalButton"
+BtnWinGoal.Parent = TeleportContainer
+BtnWinGoal.BackgroundColor3 = Color3.fromRGB(40, 150, 90)
+BtnWinGoal.Size = UDim2.new(1, 0, 0, 45)
+BtnWinGoal.Font = Enum.Font.GothamBold
+BtnWinGoal.Text = "🏁 วาปไปเส้นชัย (จุดชนะเกม)"
+BtnWinGoal.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnWinGoal.TextSize = 14
 
-local CornerSmartExit = Instance.new("UICorner")
-CornerSmartExit.CornerRadius = UDim.new(0, 6)
-CornerSmartExit.Parent = BtnSmartExit
+local CornerWinGoal = Instance.new("UICorner")
+CornerWinGoal.CornerRadius = UDim.new(0, 6)
+CornerWinGoal.Parent = BtnWinGoal
 
-BtnSmartExit.MouseButton1Click:Connect(function()
+BtnWinGoal.MouseButton1Click:Connect(function()
     pcall(function()
         local myChar = localPlayer.Character
         if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
         local myRoot = myChar.HumanoidRootPart
 
-        local exitList = {}
+        local winGoals = {}
 
-        -- กวาดหาวัตถุหรือป้ายสัญลักษณ์เฉพาะทางออก (Exit / Portal)
+        -- กวาดหาพาร์ทใน Workspace ที่ทำหน้าที่เป็นเส้นชัยหรือจุดจบเกม
         for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") or obj:IsA("Model") then
+            if obj:IsA("BasePart") then
                 local nameLower = string.lower(obj.Name)
                 
-                -- เจาะจงเฉพาะคำว่า exit หรือไอคอนทางออกเพื่อป้องกันการไปโดนประตูบ้านทั่วไป
-                if string.find(nameLower, "exit") or string.find(nameLower, "escape") or string.find(nameLower, "portal") then
-                    table.insert(exitList, obj)
+                -- เจาะจงหาคำที่เกี่ยวข้องกับเส้นชัย ชัยชนะ หรือจุดจบเกมโดยตรง
+                local isGoalPart = string.find(nameLower, "win") or 
+                                   string.find(nameLower, "goal") or 
+                                   string.find(nameLower, "finish") or 
+                                   string.find(nameLower, "end") or
+                                   string.find(nameLower, "complete")
+
+                -- ต้องมี TouchInterest (ระบบสัมผัสเพื่อส่งสัญญาณกลับบ้าน/ล็อบบี้) และไม่ใช่ตัวเราเอง
+                if isGoalPart and obj:FindFirstChild("TouchInterest") and not obj:IsDescendantOf(myChar) then
+                    local targetPos = obj.Position
+                    local distFromPlayer = (targetPos - myRoot.Position).Magnitude
+                    
+                    -- เช็คระยะให้อยู่ในแมพ (ไม่หลุดโลก)
+                    if distFromPlayer <= 1000 and targetPos.Y > -50 then
+                        table.insert(winGoals, targetPos)
+                    end
                 end
             end
         end
 
-        -- ถ้าพบจุดทางออกหลายจุด ให้สุ่มเลือกพุ่งไป 1 จุดทันที
-        if #exitList > 0 then
-            local randomIndex = math.random(1, #exitList)
-            local targetObj = exitList[randomIndex]
+        -- ถ้าเจอพาร์ทเส้นชัย ให้สุ่มวาปไปพุ่งชนทันทีเพื่อให้เกมพาเด้งกลับล็อบบี้และชนะ
+        if #winGoals > 0 then
+            local randomIndex = math.random(1, #winGoals)
+            local targetPos = winGoals[randomIndex]
             
-            local targetPos = Vector3.new(0, 0, 0)
-            if targetObj:IsA("Model") and targetObj.PrimaryPart then
-                targetPos = targetObj.PrimaryPart.Position
-            elseif targetObj:IsA("BasePart") then
-                targetPos = targetObj.Position
-            end
-
-            -- สั่งวาปตัวละครไปที่จุดทางออกนั้นทันที
-            myRoot.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-        else
-            -- สำรอง: ค้นหาจาก BillboardGui ที่เป็นสัญลักษณ์ลูกศรทางออกโดยเฉพาะ
-            for _, gui in ipairs(workspace:GetDescendants()) do
-                if gui:IsA("BillboardGui") and (string.find(string.lower(gui.Name), "exit") or string.find(string.lower(gui.Name), "portal")) then
-                    if gui.Adornee and gui.Adornee:IsA("BasePart") then
-                        myRoot.CFrame = gui.Adornee.CFrame + Vector3.new(0, 3, 0)
-                        break
-                    end
-                end
-            end
+            myRoot.CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))
         end
     end)
 end)
