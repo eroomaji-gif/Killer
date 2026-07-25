@@ -726,7 +726,7 @@ end)
 
 
 -- ==========================================
--- 📌 ระบบออโต้ฟาร์มความเร็วสูง (รอบเดียวจบ + บล็อกฆาตกร + ดีดกลับที่เดิม)
+-- 📌 ระบบออโต้ฟาร์มความเร็วสูง (บล็อกฆาตกร + บล็อกกับดัก + ดีดกลับที่เดิม)
 -- ==========================================
 local BtnSuperFarm = Instance.new("TextButton")
 BtnSuperFarm.Name = "SuperFastFarmButton"
@@ -734,7 +734,7 @@ BtnSuperFarm.Parent = TeleportContainer
 BtnSuperFarm.BackgroundColor3 = Color3.fromRGB(200, 120, 30)
 BtnSuperFarm.Size = UDim2.new(1, 0, 0, 45)
 BtnSuperFarm.Font = Enum.Font.GothamBold
-BtnSuperFarm.Text = "⚡ ออโต้ฟาร์มด่วน (รอบเดียว + บล็อกฆาตกร)"
+BtnSuperFarm.Text = "⚡ ออโต้ฟาร์มด่วน (บล็อกฆาตกร + หลบกับดัก)"
 BtnSuperFarm.TextColor3 = Color3.fromRGB(255, 255, 255)
 BtnSuperFarm.TextSize = 14
 
@@ -748,18 +748,17 @@ BtnSuperFarm.MouseButton1Click:Connect(function()
         if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
         local myRoot = myChar.HumanoidRootPart
         
-        -- 1. บันทึกตำแหน่งเดิมของเราไว้ก่อนเริ่มฟาร์ม เพื่อจะได้ดีดกลับมาที่เดิมเป๊ะๆ
+        -- 1. บันทึกตำแหน่งเดิมไว้ก่อนเริ่มฟาร์ม
         local originalCFrame = myRoot.CFrame
 
-        print("⚡ [AutoFarm] เริ่มต้นกวาดเก็บเหรียญรอบเดียวด้วยความเร็วสูงสุด...")
+        print("⚡ [AutoFarm] เริ่มกวาดเก็บเหรียญ (หลบภัยฆาตกรและกับดัก)...")
         local collectedCount = 0
 
-        -- 2. วนลูปหากลุ่มเป้าหมายทั้งหมดใน Workspace ทีเดียวจบ
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") then
                 local nameLower = string.lower(obj.Name)
                 
-                -- 🛑 [ระบบบล็อกฆาตกร / ผู้เล่นคนอื่น]: เช็คว่าพาร์ทนี้เป็นของคนอื่นหรืออยู่ในตัวผู้เล่นไหม ถ้าใช่ ห้ามแตะเด็ดขาด!
+                -- 🛑 1. บล็อกผู้เล่น/ฆาตกร
                 local isPlayerPart = false
                 for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
                     if player.Character and obj:IsDescendantOf(player.Character) then
@@ -768,7 +767,16 @@ BtnSuperFarm.MouseButton1Click:Connect(function()
                     end
                 end
 
-                -- กรองตู้ สิ่งก่อสร้าง และพาร์ทของคนอื่นออก
+                -- 🛑 2. บล็อกกับดักของฆาตกร (เพิ่มคำเตือนที่มักใช้ตั้งชื่อกับดักในเกม)
+                local isTrap = string.find(nameLower, "trap") or 
+                               string.find(nameLower, "mine") or 
+                               string.find(nameLower, "spike") or 
+                               string.find(nameLower, "stun") or 
+                               string.find(nameLower, "bear") or
+                               string.find(nameLower, "freeze") or
+                               string.find(nameLower, "slow")
+
+                -- 🛑 3. บล็อกสิ่งกีดขวางและตู้ต่างๆ
                 local isInvalid = string.find(nameLower, "locker") or 
                                   string.find(nameLower, "cabinet") or 
                                   string.find(nameLower, "chest") or 
@@ -778,26 +786,23 @@ BtnSuperFarm.MouseButton1Click:Connect(function()
 
                 local isTooBig = obj.Size.X > 5 or obj.Size.Y > 5 or obj.Size.Z > 5
 
-                -- ✅ เงื่อนไขเก็บจริง: ต้องไม่ใช่ผู้เล่น (ไม่โดนฆาตกรดัก), ไม่ใช่ตู้, ไม่ใหญ่เกินไป และมี TouchInterest
-                if not isPlayerPart and not isInvalid and not isTooBig and obj:FindFirstChild("TouchInterest") then
+                -- ✅ ผ่านเกณฑ์ความปลอดภัยทั้งหมด ถึงจะยอมพุ่งไปเก็บ
+                if not isPlayerPart and not isTrap and not isInvalid and not isTooBig and obj:FindFirstChild("TouchInterest") then
                     
-                    -- วาปไปเก็บพาร์ทนั้นทันทีแบบเร็วที่สุด (ความเร็วสูงรอบเดียวจบ)
                     myRoot.CFrame = obj.CFrame + Vector3.new(0, 1, 0)
                     collectedCount = collectedCount + 1
-                    
-                    -- หน่วงเวลาน้อยที่สุดเท่าที่เกมจะรับไหว เพื่อให้ระบบเซิร์ฟเวอร์นับว่าเก็บแล้ว
                     task.wait(0.05) 
                 end
             end
         end
 
-        -- 3. เก็บเสร็จปุ๊บ ดีดตัวกลับมาที่จุดตั้งต้นเดิมทันทีอย่างไร้รอยต่อ!
+        -- ดีดตัวกลับจุดเดิมทันที
         myRoot.CFrame = originalCFrame
 
         if collectedCount > 0 then
-            print("✨ [AutoFarm] ฟาร์มสำเร็จ! เก็บไปทั้งหมด " .. collectedCount .. " ชิ้น และกลับมาที่เดิมเรียบร้อย")
+            print("✨ [AutoFarm] ฟาร์มปลอดภัย! เก็บไป " .. collectedCount .. " ชิ้น และกลับจุดเดิมเรียบร้อย")
         else
-            print("⚠️ [AutoFarm] ไม่พบไอเทมที่สามารถเก็บได้ในระยะนี้ ระบบหยุดทำงานทันทีเพื่อความปลอดภัย")
+            print("⚠️ [AutoFarm] ไม่พบไอเทมที่ปลอดภัยในระยะนี้ ระบบหยุดทำงานเพื่อป้องกันกับดัก")
         end
     end)
 end)
