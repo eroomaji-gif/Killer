@@ -523,7 +523,7 @@ CatBtnTp.Parent = SidebarFrame
 CatBtnTp.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 CatBtnTp.Size = UDim2.new(1, 0, 0, 40)
 CatBtnTp.Font = Enum.Font.GothamBold
-CatBtnTp.Text = "🗺️ เทเลพอร์ต"
+CatBtnTp.Text = "🗺️ วาป+ฟาม"
 CatBtnTp.TextColor3 = Color3.fromRGB(255, 255, 255)
 CatBtnTp.TextSize = 13
 
