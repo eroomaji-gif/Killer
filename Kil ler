@@ -598,73 +598,62 @@ end)
 
 
 -- ==========================================
--- 📌 ระบบสุ่มวาปไปที่ "ลูกแก้วชัยชนะ" โดยตรง (ไม่พึ่งพาประตู)
+-- 📌 ระบบวาปด่วนไปหาลูกแก้วทันที (กดปุ๊บไปปั๊บ ไม่ต้องรอจังหวะ)
 -- ==========================================
-local BtnOrbWin = Instance.new("TextButton")
-BtnOrbWin.Name = "OrbWinButton"
-BtnOrbWin.Parent = TeleportContainer
-BtnOrbWin.BackgroundColor3 = Color3.fromRGB(220, 150, 30)
-BtnOrbWin.Size = UDim2.new(1, 0, 0, 45)
-BtnOrbWin.Font = Enum.Font.GothamBold
-BtnOrbWin.Text = "✨ วาปเข้าประตู (ตัวจริง)"
-BtnOrbWin.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnOrbWin.TextSize = 14
+local BtnInstantOrb = Instance.new("TextButton")
+BtnInstantOrb.Name = "InstantOrbButton"
+BtnInstantOrb.Parent = targetContainer -- ใช้ Container หมวดตั้งค่าเดิมของคุณ
+BtnInstantOrb.BackgroundColor3 = Color3.fromRGB(200, 100, 20)
+BtnInstantOrb.Size = UDim2.new(1, 0, 0, 45)
+BtnInstantOrb.Font = Enum.Font.GothamBold
+BtnInstantOrb.Text = "⚡ วาปด่วนไปหาลูกแก้วทันที (ทันที)"
+BtnInstantOrb.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnInstantOrb.TextSize = 14
 
-local CornerOrb = Instance.new("UICorner")
-CornerOrb.CornerRadius = UDim.new(0, 6)
-CornerOrb.Parent = BtnOrbWin
+local CornerInstant = Instance.new("UICorner")
+CornerInstant.CornerRadius = UDim.new(0, 6)
+CornerInstant.Parent = BtnInstantOrb
 
-BtnOrbWin.MouseButton1Click:Connect(function()
+BtnInstantOrb.MouseButton1Click:Connect(function()
     pcall(function()
         local myChar = localPlayer.Character
         if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
         local myRoot = myChar.HumanoidRootPart
 
-        local orbList = {}
+        local targetOrb = nil
 
-        print("-----------------------------------------")
-        print("✨ [Orb Teleport] กำลังค้นหาลูกแก้วชัยชนะในแมพ...")
-
+        -- กวาดหาพาร์ทที่เป็นลูกแก้วหรือจุดแสงทันทีแบบไม่สนเงื่อนไขซับซ้อน
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") then
                 local nameLower = string.lower(obj.Name)
                 
-                -- 🛑 ตัดคำว่าประตูทิ้งทั้งหมด! เราจะหาเฉพาะวัตถุที่เป็นลูกแก้ว แสง หรือจุดใจกลาง
+                -- ตัดพวกประตูหรือกำแพงออก เพื่อให้พุ่งไปโดนตัวลูกแก้วจริงๆ
                 local isNotDoor = not string.find(nameLower, "door") and 
-                                  not string.find(nameLower, "wall") and 
-                                  not string.find(nameLower, "frame")
+                                  not string.find(nameLower, "wall")
 
-                -- ค้นหาคำที่สื่อถึงลูกแก้ว จุดศูนย์กลาง หรือแสงเรืองแสง
                 local isOrb = string.find(nameLower, "orb") or 
                               string.find(nameLower, "ball") or 
                               string.find(nameLower, "glow") or 
                               string.find(nameLower, "core") or
-                              string.find(nameLower, "center") or
                               string.find(nameLower, "light")
 
-                -- เงื่อนไข: ต้องไม่ใช่ประตู, มีลักษณะเป็นลูกแก้ว/จุดแสง, มีระบบสัมผัส (TouchInterest) และขนาดไม่ใหญ่เกินไป
-                if isNotDoor and isOrb and obj:FindFirstChild("TouchInterest") and obj.Size.X < 8 and obj.Size.Y < 8 then
-                    table.insert(orbList, obj)
+                if isNotDoor and isOrb and obj:FindFirstChild("TouchInterest") then
+                    targetOrb = obj
+                    break -- เจอตัวแรกพุ่งไปทันทีแบบไม่รอช้า
                 end
             end
         end
 
-        -- ถ้าเจอรายชื่อลูกแก้วในแมพ
-        if #orbList > 0 then
-            -- สุ่มเลือกสักลูกแก้วหนึ่งเพื่อหลอกการดักรอของฆาตกร
-            local randomIndex = math.random(1, #orbList)
-            local targetOrb = orbList[randomIndex]
-
-            print("🎯 [เจอเป้าหมาย!] สุ่มวาปไปที่ลูกแก้ว: " .. targetOrb.Name)
-            
-            -- วาปไปทับตำแหน่งลูกแก้วทันทีเพื่อให้ชนะเกม
+        -- ถ้าเจอเป้าหมาย สั่งวาปพุ่งไปทับทันทีในเสี้ยววินาที
+        if targetOrb then
             myRoot.CFrame = targetOrb.CFrame + Vector3.new(0, 1, 0)
+            print("⚡ [Instant Teleport] วาปพุ่งไปหาลูกแก้วสำเร็จทันที!")
         else
-            print("⚠️ ไม่พบลูกแก้วที่พร้อมใช้งาน (ประตูอาจจะยังไม่เปิด หรือยังไม่ถึงเวลา)")
+            print("⚠️ ไม่พบลูกแก้วในระยะ หรือยังไม่ได้สปอนขึ้นมาในแมพ")
         end
-        print("-----------------------------------------")
     end)
 end)
+
 
 
 
