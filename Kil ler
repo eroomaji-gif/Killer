@@ -706,50 +706,48 @@ end)
 
 
 -- ==========================================
--- 📌 ฟังก์ชันวาปไปเหยียบจุดสปอนเซอร์/เก็บเหรียญบนพื้น (พร้อมปุ่มเปิด/ปิด)
+-- 📌 ฟังก์ชันออโต้ฟาร์มแบบกรองเฉพาะจุดสปอนเซอร์จริง (แก้ปัญหาวาปชนตู้/ชนกำแพง)
 -- ==========================================
-getgenv().AutoTouchSpawn_Active = false
+getgenv().AutoFarmCoins_Active = false
 
-local BtnAutoTouch = Instance.new("TextButton")
-BtnAutoTouch.Name = "AutoTouchSpawnButton"
-BtnAutoTouch.Parent = TeleportContainer -- วางไว้ในหน้าต่างหมวดหมู่เทเลพอร์ต
-BtnAutoTouch.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-BtnAutoTouch.Size = UDim2.new(1, 0, 0, 45)
-BtnAutoTouch.Font = Enum.Font.GothamBold
-BtnAutoTouch.Text = "🏫 วาปเหยียบจุดเก็บเหรียญ: OFF"
-BtnAutoTouch.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnAutoTouch.TextSize = 14
+local BtnAutoFarm = Instance.new("TextButton")
+BtnAutoFarm.Name = "AutoFarmCoinsButton"
+BtnAutoFarm.Parent = TeleportContainer
+BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+BtnAutoFarm.Size = UDim2.new(1, 0, 0, 45)
+BtnAutoFarm.Font = Enum.Font.GothamBold
+BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (Smart): OFF"
+BtnAutoFarm.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnAutoFarm.TextSize = 14
 
-local CornerAutoTouch = Instance.new("UICorner")
-CornerAutoTouch.CornerRadius = UDim.new(0, 6)
-CornerAutoTouch.Parent = BtnAutoTouch
+local CornerAutoFarm = Instance.new("UICorner")
+CornerAutoFarm.CornerRadius = UDim.new(0, 6)
+CornerAutoFarm.Parent = BtnAutoFarm
 
--- ลูปการทำงานเบื้องหลัง
 task.spawn(function()
     while true do
         task.wait(0.3)
-        if getgenv().AutoTouchSpawn_Active then
+        if getgenv().AutoFarmCoins_Active then
             pcall(function()
                 local myChar = localPlayer.Character
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 local myRoot = myChar.HumanoidRootPart
 
-                -- กวาดหาวัตถุทั้งหมดใน Workspace เพื่อเช็คหาจุดไอเทมหรือจุดสปอนเซอร์ที่ปรากฏบนพื้น
+                -- วิ่งกวาดหาเฉพาะจุดที่มีการฝัง TouchInterest (ตัวเช็คการเดินชน/เหยียบ) 
+                -- ซึ่งจุดสปอนเซอร์เก็บเหรียญหรือไอเทม จะต้องมีตัวนี้เสมอเพื่อให้ผู้เล่นเก็บได้
                 for _, obj in ipairs(workspace:GetDescendants()) do
-                    if not getgenv().AutoTouchSpawn_Active then break end
+                    if not getgenv().AutoFarmCoins_Active then break end
                     
                     if obj:IsA("BasePart") then
-                        local nameLower = string.lower(obj.Name)
-                        
-                        -- เช็ควัตถุที่เป็นจุดดรอป/ไอเทมที่ปรากฏขึ้นมา (คุณสามารถเปลี่ยนหรือเพิ่มคำค้นหาให้ตรงกับชื่อชิ้นส่วนในเกมนี้ได้)
-                        if string.find(nameLower, "drop") or string.find(nameLower, "item") or string.find(nameLower, "coin") or string.find(nameLower, "spawn") then
+                        -- เช็คว่าพาร์ทนั้นมี TouchInterest และไม่ใช่ตัวละครของเราเอง
+                        if obj:FindFirstChild("TouchInterest") and not obj:IsDescendantOf(myChar) then
                             
-                            -- เช็คระยะห่างไม่ให้ไกลตัวเกินไป (เช่น อยู่ในรัศมี 40 สตั๊ด)
                             local distance = (obj.Position - myRoot.Position).Magnitude
-                            if distance <= 40 then
-                                -- วาปตัวละครไปทับตำแหน่งของไอเทมบนพื้นทันทีเพื่อให้เกมคิดว่าเราเดินไปเหยียบ
+                            -- เช็คให้อยู่ในระยะที่เหมาะสม ไม่ไกลจนเกินไป
+                            if distance <= 45 then
+                                -- วาปไปทับพิกัดจุดนั้นพอดี
                                 myRoot.CFrame = obj.CFrame + Vector3.new(0, 1, 0)
-                                task.wait(0.2) -- หน่วงเวลาเล็กน้อยให้ระบบเกมประมวลผลการเก็บเหรียญ
+                                task.wait(0.25)
                             end
                         end
                     end
@@ -759,18 +757,16 @@ task.spawn(function()
     end
 end)
 
--- ควบคุมการกดปุ่มเปิด/ปิด
-BtnAutoTouch.MouseButton1Click:Connect(function()
-    getgenv().AutoTouchSpawn_Active = not getgenv().AutoTouchSpawn_Active
-    if getgenv().AutoTouchSpawn_Active then
-        BtnAutoTouch.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        BtnAutoTouch.Text = "🏫 วาปเหยียบจุดเก็บเหรียญ: ON"
+BtnAutoFarm.MouseButton1Click:Connect(function()
+    getgenv().AutoFarmCoins_Active = not getgenv().AutoFarmCoins_Active
+    if getgenv().AutoFarmCoins_Active then
+        BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (Smart): ON"
     else
-        BtnAutoTouch.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        BtnAutoTouch.Text = "🏫 วาปเหยียบจุดเก็บเหรียญ: OFF"
+        BtnAutoFarm.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnAutoFarm.Text = "🤖 ออโต้ฟาร์มเก็บเหรียญ (Smart): OFF"
     end
 end)
-
 
 
 
