@@ -199,14 +199,15 @@ ContentLayout.Padding = UDim.new(0, 8)
 
 
 
+
 -- ==========================================
--- 📌 [ปุ่มที่ 1] วาปหาเพื่อนเฉพาะกลุ่ม Swivels (ยกเว้น Lobby และไม่ใช่ฆาตกร)
+-- 📌 [ปุ่มที่ 1] วาปหาผู้เล่น (โค้ดตัวเดิมก่อนเพิ่มเงื่อนไขทีม)
 -- ==========================================
 getgenv().Script1_Active = false
 
 local Btn1 = Instance.new("TextButton")
 Btn1.Name = "ScriptButton1"
-Btn1.Parent = ContentContainer -- <--- ปิดไว้ที่หมวดหมู่ฆาตกรตามเดิม
+Btn1.Parent = ContentContainer
 Btn1.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
 Btn1.Size = UDim2.new(1, 0, 0, 45)
 Btn1.Font = Enum.Font.GothamBold
@@ -231,10 +232,7 @@ local function getTargetColorType(targetPlayer)
     return "GreenOrWhite"
 end
 
-
-
-
--- 2. ลูปการทำงานหลัก (ปรับปรุงการเช็คชื่อทีมให้ยืดหยุ่นขึ้น)
+-- 2. ลูปการทำงานหลัก (ตัวเดิม)
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -254,30 +252,8 @@ task.spawn(function()
                             -- เช็คว่าเป็นฆาตกรหรือไม่ (ถ้าเป็นสีแดงให้ข้าม)
                             local colorType = getTargetColorType(targetPlayer)
                             if colorType ~= "Red" then
-                                
-                                local isSwivels = false
-                                local isInLobby = false
-                                
-                                if targetPlayer.Team then
-                                    local teamName = tostring(targetPlayer.Team.Name)
-                                    local teamNameLower = string.lower(teamName)
-                                    
-                                    -- ปรินท์เช็คชื่อทีมใน F9 (ช่วยให้รู้ชื่อทีมที่แท้จริง)
-                                    -- print("Player Team:", teamName)
-                                    
-                                    if string.find(teamNameLower, "swivels") then
-                                        isSwivels = true
-                                    end
-                                    if string.find(teamNameLower, "lobby") or string.find(teamNameLower, "ใน") then
-                                        isInLobby = true
-                                    end
-                                end
-                                
-                                -- เงื่อนไข: ถ้าเป็น Swivels และไม่ได้อยู่ใน Lobby ถึงจะวาป
-                                if isSwivels and not isInLobby then
-                                    myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
-                                    task.wait(0.2)
-                                end
+                                myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
+                                task.wait(0.2)
                             end
                         end
                     end
@@ -287,24 +263,18 @@ task.spawn(function()
     end
 end)
 
-
-
-
-
 -- 3. คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
 Btn1.MouseButton1Click:Connect(function()
     getgenv().Script1_Active = not getgenv().Script1_Active
     
     if getgenv().Script1_Active then
         Btn1.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
-        Btn1.Text = "⚡ วาปหาเพื่อน Swivels: ON"
+        Btn1.Text = "⚡ วาปฆ่า+วาปเพื่อน: ON"
     else
         Btn1.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
-        Btn1.Text = "⚡ วาปหาเพื่อน Swivels: OFF"
+        Btn1.Text = "⚡ วาปฆ่า+วาปเพื่อน: OFF"
     end
 end)
-
-
 
 
 
