@@ -705,6 +705,71 @@ end)
 
 
 
+-- ==========================================
+-- 📌 ฟังก์ชันวาปไปเหยียบจุดสปอนเซอร์/เก็บเหรียญบนพื้น (พร้อมปุ่มเปิด/ปิด)
+-- ==========================================
+getgenv().AutoTouchSpawn_Active = false
+
+local BtnAutoTouch = Instance.new("TextButton")
+BtnAutoTouch.Name = "AutoTouchSpawnButton"
+BtnAutoTouch.Parent = TeleportContainer -- วางไว้ในหน้าต่างหมวดหมู่เทเลพอร์ต
+BtnAutoTouch.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+BtnAutoTouch.Size = UDim2.new(1, 0, 0, 45)
+BtnAutoTouch.Font = Enum.Font.GothamBold
+BtnAutoTouch.Text = "🏫 วาปเหยียบจุดเก็บเหรียญ: OFF"
+BtnAutoTouch.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnAutoTouch.TextSize = 14
+
+local CornerAutoTouch = Instance.new("UICorner")
+CornerAutoTouch.CornerRadius = UDim.new(0, 6)
+CornerAutoTouch.Parent = BtnAutoTouch
+
+-- ลูปการทำงานเบื้องหลัง
+task.spawn(function()
+    while true do
+        task.wait(0.3)
+        if getgenv().AutoTouchSpawn_Active then
+            pcall(function()
+                local myChar = localPlayer.Character
+                if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                local myRoot = myChar.HumanoidRootPart
+
+                -- กวาดหาวัตถุทั้งหมดใน Workspace เพื่อเช็คหาจุดไอเทมหรือจุดสปอนเซอร์ที่ปรากฏบนพื้น
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if not getgenv().AutoTouchSpawn_Active then break end
+                    
+                    if obj:IsA("BasePart") then
+                        local nameLower = string.lower(obj.Name)
+                        
+                        -- เช็ควัตถุที่เป็นจุดดรอป/ไอเทมที่ปรากฏขึ้นมา (คุณสามารถเปลี่ยนหรือเพิ่มคำค้นหาให้ตรงกับชื่อชิ้นส่วนในเกมนี้ได้)
+                        if string.find(nameLower, "drop") or string.find(nameLower, "item") or string.find(nameLower, "coin") or string.find(nameLower, "spawn") then
+                            
+                            -- เช็คระยะห่างไม่ให้ไกลตัวเกินไป (เช่น อยู่ในรัศมี 40 สตั๊ด)
+                            local distance = (obj.Position - myRoot.Position).Magnitude
+                            if distance <= 40 then
+                                -- วาปตัวละครไปทับตำแหน่งของไอเทมบนพื้นทันทีเพื่อให้เกมคิดว่าเราเดินไปเหยียบ
+                                myRoot.CFrame = obj.CFrame + Vector3.new(0, 1, 0)
+                                task.wait(0.2) -- หน่วงเวลาเล็กน้อยให้ระบบเกมประมวลผลการเก็บเหรียญ
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ควบคุมการกดปุ่มเปิด/ปิด
+BtnAutoTouch.MouseButton1Click:Connect(function()
+    getgenv().AutoTouchSpawn_Active = not getgenv().AutoTouchSpawn_Active
+    if getgenv().AutoTouchSpawn_Active then
+        BtnAutoTouch.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnAutoTouch.Text = "🏫 วาปเหยียบจุดเก็บเหรียญ: ON"
+    else
+        BtnAutoTouch.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnAutoTouch.Text = "🏫 วาปเหยียบจุดเก็บเหรียญ: OFF"
+    end
+end)
 
 
 
