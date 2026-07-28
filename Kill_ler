@@ -900,35 +900,56 @@ SettingsContainerLayout.Padding = UDim.new(0, 8)
 
 
 
--- ==========================================
--- 📌 [ปุ่มตั้งค่าใหม่] ล็อคความเร็วเดิน 45 (ย้ายมาใส่ในหน้าตั้งค่า)
--- ==========================================
-getgenv().Speed45_Active = true -- เปิดใช้งานเป็นค่าเริ่มต้น
 
-local BtnSpeed45 = Instance.new("TextButton")
-BtnSpeed45.Name = "Speed45Button"
-BtnSpeed45.Parent = SettingsContainer
-BtnSpeed45.Size = UDim2.new(1, 0, 0, 45)
-BtnSpeed45.Font = Enum.Font.GothamBold
-BtnSpeed45.TextSize = 14
-BtnSpeed45.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-if getgenv().Speed45_Active then
-    BtnSpeed45.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-    BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: ON"
-else
-    BtnSpeed45.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: OFF"
+
+
+
+-- ==========================================
+-- 📌 สคริปต์ล็อคสปีด 45 (พร้อมปุ่มเปิด/ปิดควบคุม)
+-- ==========================================
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- ลบ UI เก่าทิ้งกันซ้ำซ้อน
+local oldGui = playerGui:FindFirstChild("Speed45Gui")
+if oldGui then
+    oldGui:Destroy()
 end
 
-local CornerSpeed45 = Instance.new("UICorner")
-CornerSpeed45.CornerRadius = UDim.new(0, 6)
-CornerSpeed45.Parent = BtnSpeed45
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Speed45Gui"
+ScreenGui.Parent = playerGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 9999
 
--- ลูปการทำงานเบื้องหลังของระบบล็อคสปีด 45
+-- ปุ่มเปิด/ปิด (ลากขยับได้)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "SpeedToggleButton"
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+ToggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+ToggleButton.Size = UDim2.new(0, 160, 0, 45)
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "⚡ สปีดเดิน 45: ON"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 14
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleButton
+
+-- ตัวแปรสถานะ
+getgenv().Speed45_Active = true
+
+-- ลูปบังคับความเร็วเดิน
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(0.2)
         if getgenv().Speed45_Active then
             pcall(function()
                 local character = localPlayer.Character
@@ -943,18 +964,26 @@ task.spawn(function()
     end
 end)
 
-BtnSpeed45.MouseButton1Click:Connect(function()
+-- ควบคุมการกดปุ่ม
+ToggleButton.MouseButton1Click:Connect(function()
     getgenv().Speed45_Active = not getgenv().Speed45_Active
     if getgenv().Speed45_Active then
-        BtnSpeed45.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: ON"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        ToggleButton.Text = "⚡ สปีดเดิน 45: ON"
     else
-        BtnSpeed45.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: OFF"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        ToggleButton.Text = "⚡ สปีดเดิน 45: OFF"
+        pcall(function()
+            local character = localPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = 16 --คืนค่าสปีดเริ่มต้นเมื่อปิด
+                end
+            end
+        end)
     end
 end)
-
-
 
 
 
