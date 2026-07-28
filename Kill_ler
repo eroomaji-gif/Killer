@@ -902,86 +902,95 @@ SettingsContainerLayout.Padding = UDim.new(0, 8)
 
 
 
-
-
-
 -- ==========================================
--- 📌 สคริปต์ล็อคสปีด 45 (พร้อมปุ่มเปิด/ปิดควบคุม)
+-- 📌 [เพิ่มในหน้าตั้งค่า] ระบบปรับสปีดเองพร้อมช่องใส่ตัวเลข
 -- ==========================================
-local Players = game:GetService("Players")
-local localPlayer = Players.LocalPlayer
-local playerGui = localPlayer:WaitForChild("PlayerGui")
+local speedEnabled = false
 
--- ลบ UI เก่าทิ้งกันซ้ำซ้อน
-local oldGui = playerGui:FindFirstChild("Speed45Gui")
-if oldGui then
-    oldGui:Destroy()
-end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Speed45Gui"
-ScreenGui.Parent = playerGui
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.DisplayOrder = 9999
-
--- ปุ่มเปิด/ปิด (ลากขยับได้)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "SpeedToggleButton"
-ToggleButton.Parent = ScreenGui
-ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-ToggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
-ToggleButton.Size = UDim2.new(0, 160, 0, 45)
-ToggleButton.Active = true
-ToggleButton.Draggable = true
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Text = "⚡ สปีดเดิน 45: ON"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 14
+-- ปุ่มเปิด/ปิดสปีด
+local SpeedToggleBtn = Instance.new("TextButton")
+SpeedToggleBtn.Name = "SpeedToggleBtn"
+SpeedToggleBtn.Parent = SettingsContainer
+SpeedToggleBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+SpeedToggleBtn.Size = UDim2.new(0.55, -4, 0, 45)
+SpeedToggleBtn.Font = Enum.Font.SourceSansBold
+SpeedToggleBtn.Text = "🐰วิ่งไว"
+SpeedToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedToggleBtn.TextSize = 14
 
 local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 8)
-ToggleCorner.Parent = ToggleButton
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = SpeedToggleBtn
 
--- ตัวแปรสถานะ
-getgenv().Speed45_Active = true
+-- ช่องกรอกตัวเลขสปีด
+local SpeedBox = Instance.new("TextBox")
+SpeedBox.Name = "SpeedBox"
+SpeedBox.Parent = SettingsContainer
+SpeedBox.Size = UDim2.new(0.45, -4, 0, 45)
+SpeedBox.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+SpeedBox.Font = Enum.Font.SourceSansBold
+SpeedBox.PlaceholderText = "16"
+SpeedBox.Text = "50"
+SpeedBox.TextColor3 = Color3.fromRGB(0, 150, 255)
+SpeedBox.TextSize = 16
 
--- ลูปบังคับความเร็วเดิน
-task.spawn(function()
-    while true do
-        task.wait(0.2)
-        if getgenv().Speed45_Active then
-            pcall(function()
-                local character = localPlayer.Character
-                if character then
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.WalkSpeed ~= 45 then
-                        humanoid.WalkSpeed = 45
-                    end
-                end
-            end)
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 6)
+BoxCorner.Parent = SpeedBox
+
+-- ระบบการทำงานเมื่อคลิกปุ่มเปิด/ปิด
+SpeedToggleBtn.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    local player = game.Players.LocalPlayer
+    
+    if speedEnabled then
+        SpeedToggleBtn.Text = "⚡ สปีดเอง: [เปิด]"
+        SpeedToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
+        local num = tonumber(SpeedBox.Text) or 16
+        if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = num
+        end
+    else
+        SpeedToggleBtn.Text = "⚡ สปีดเอง: [ปิด]"
+        SpeedToggleBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+        if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = 16
         end
     end
 end)
 
--- ควบคุมการกดปุ่ม
-ToggleButton.MouseButton1Click:Connect(function()
-    getgenv().Speed45_Active = not getgenv().Speed45_Active
-    if getgenv().Speed45_Active then
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        ToggleButton.Text = "⚡ สปีดเดิน 45: ON"
-    else
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        ToggleButton.Text = "⚡ สปีดเดิน 45: OFF"
-        pcall(function()
-            local character = localPlayer.Character
-            if character then
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid.WalkSpeed = 16 --คืนค่าสปีดเริ่มต้นเมื่อปิด
-                end
+-- ระบบบันทึกค่าเมื่อพิมพ์เสร็จและกด Enter / คลิกออก
+SpeedBox.FocusLost:Connect(function()
+    local num = tonumber(SpeedBox.Text)
+    if num then
+        if num < 0 then num = 0 end
+        if num > 1000 then num = 1000 end
+        SpeedBox.Text = tostring(num)
+        
+        if speedEnabled then
+            local player = game.Players.LocalPlayer
+            if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid.WalkSpeed = num
             end
-        end)
+        end
+    end
+end)
+
+-- ลูปคอยรักษาสปีดไม่ให้รีเซ็ตเวลาตัวละครเกิดใหม่
+task.spawn(function()
+    while true do
+        task.wait(0.3)
+        if speedEnabled then
+            pcall(function()
+                local player = game.Players.LocalPlayer
+                local num = tonumber(SpeedBox.Text) or 16
+                if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+                    if player.Character.Humanoid.WalkSpeed ~= num then
+                        player.Character.Humanoid.WalkSpeed = num
+                    end
+                end
+            end)
+        end
     end
 end)
 
