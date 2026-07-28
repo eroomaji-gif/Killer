@@ -898,6 +898,68 @@ SettingsContainerLayout.Parent = SettingsContainer
 SettingsContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
 SettingsContainerLayout.Padding = UDim.new(0, 8)
 
+
+
+-- ==========================================
+-- 📌 [ปุ่มตั้งค่าใหม่] ล็อคความเร็วเดิน 45 (ย้ายมาใส่ในหน้าตั้งค่า)
+-- ==========================================
+getgenv().Speed45_Active = true -- เปิดใช้งานเป็นค่าเริ่มต้น
+
+local BtnSpeed45 = Instance.new("TextButton")
+BtnSpeed45.Name = "Speed45Button"
+BtnSpeed45.Parent = SettingsContainer
+BtnSpeed45.Size = UDim2.new(1, 0, 0, 45)
+BtnSpeed45.Font = Enum.Font.GothamBold
+BtnSpeed45.TextSize = 14
+BtnSpeed45.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+if getgenv().Speed45_Active then
+    BtnSpeed45.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: ON"
+else
+    BtnSpeed45.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: OFF"
+end
+
+local CornerSpeed45 = Instance.new("UICorner")
+CornerSpeed45.CornerRadius = UDim.new(0, 6)
+CornerSpeed45.Parent = BtnSpeed45
+
+-- ลูปการทำงานเบื้องหลังของระบบล็อคสปีด 45
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if getgenv().Speed45_Active then
+            pcall(function()
+                local character = localPlayer.Character
+                if character then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.WalkSpeed ~= 45 then
+                        humanoid.WalkSpeed = 45
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+BtnSpeed45.MouseButton1Click:Connect(function()
+    getgenv().Speed45_Active = not getgenv().Speed45_Active
+    if getgenv().Speed45_Active then
+        BtnSpeed45.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: ON"
+    else
+        BtnSpeed45.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BtnSpeed45.Text = "⚡ ล็อคสปีดเดิน 45: OFF"
+    end
+end)
+
+
+
+
+
+
+
 -- ==========================================
 -- 📌 [จุดที่ 4] เอาปุ่มฟังก์ชันหมวดหมู่ "ตั้งค่า" มาใส่ไว้ที่นี่
 -- (เช่น ปุ่มรีเซ็ต UI, ปุ่มปรับแต่งธีม ฯลฯ)
@@ -1188,25 +1250,6 @@ end)
 
 
 
-
-
--- ==========================================
--- 📌 [ระบบเบื้องหลัง] ล็อคความเร็วเดิน 45 อัตโนมัติตลอดเวลาทันทีที่รันสคริปต์
--- ==========================================
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        pcall(function()
-            local character = localPlayer.Character
-            if character then
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.WalkSpeed ~= 45 then
-                    humanoid.WalkSpeed = 45
-                end
-            end
-        end)
-    end
-end)
 
 
 
