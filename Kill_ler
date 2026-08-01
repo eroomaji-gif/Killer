@@ -1442,3 +1442,43 @@ if player.Character then
     setupDoubleJump(player.Character)
 end
 player.CharacterAdded:Connect(setupDoubleJump)
+
+
+
+
+
+
+
+
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- กำหนดตำแหน่งของ ScreenGui และ Main Frame ที่ต้องการเปิด/ปิด
+-- (เปลี่ยนชื่อ "MyScriptGui" และ "MainFrame" ให้ตรงกับชื่อในโปรเจกต์ของคุณ)
+local screenGui = playerGui:WaitForChild("MyScriptGui")
+local mainFrame = screenGui:WaitForChild("MainFrame")
+
+-- กำหนดปุ่มที่ใช้ควบคุม (ในที่นี้ใช้ Left Control)
+local toggleKey = Enum.KeyCode.LeftControl
+
+-- ฟังก์ชันสำหรับสลับเปิด/ปิด UI
+local function toggleUI()
+	-- สลับค่าสถานะ (ถ้าเปิดอยู่ให้ปิด ถ้าปิดอยู่ให้เปิด)
+	mainFrame.Visible = not mainFrame.Visible
+end
+
+-- ดักจับการกดปุ่มบนคีย์บอร์ด
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+	-- เช็กว่าผู้เล่นกำลังพิมพ์แชทอยู่หรือไม่ (ถ้ากำลังพิมพ์อยู่ จะไม่ให้ปุ่มลัดทำงาน)
+	if gameProcessedEvent then return end
+	
+	-- เช็กว่าปุ่มที่กดคือ Left Control หรือไม่
+	if input.KeyCode == toggleKey then
+		toggleUI()
+	end
+end)
+
