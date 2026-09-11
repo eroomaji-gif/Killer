@@ -433,27 +433,39 @@ end)
 
 
 -- ==========================================
--- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip) แบบเสถียร
+-- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip) แบบสลิง/สมูท
 -- ==========================================
 getgenv().Noclip_Active = false
 
 createSwitchButton(ContentContainer, "👻 ทะลุกำแพง", getgenv().Noclip_Active, function(isActive)
     getgenv().Noclip_Active = isActive
     
-    -- ถ้ากดปิดสวิตช์ ให้คืนค่าสถานะการชน (CanCollide = true) ให้ตัวละครทันที
+    -- ถ้าปิดสวิตช์ (ปล่อยมือจากชักเย่อ ให้ระบบกลับสู่สมดุล)
     if not isActive then
         local character = localPlayer.Character
         if character then
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
+            -- ค่อยๆ คืนค่า CanCollide กลับทีละชิ้นแบบไม่กระชาก
+            task.spawn(function()
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        -- ยกเว้นชิ้นส่วนเล็กๆ หรือปล่อยให้ HumanoidRootPart คืนค่าก่อน
+                        if part.Name ~= "HumanoidRootPart" then
+                            part.CanCollide = true
+                        end
+                    end
                 end
-            end
+                -- หน่วงสั้นๆ ให้ฟิสิกส์เซ็ตตัว แล้วค่อยคืนค่าแกนหลัก
+                task.wait(0.05)
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    rootPart.CanCollide = true
+                end
+            end)
         end
     end
 end)
 
--- ระบบการทำงาน Noclip แบบต่อเนื่องทุกเฟรม
+-- ระบบการทำงาน Noclip ทุกเฟรม (ดึงฝั่งทะลุ)
 local RunService = game:GetService("RunService")
 
 RunService.Stepped:Connect(function()
