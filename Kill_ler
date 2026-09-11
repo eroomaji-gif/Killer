@@ -455,18 +455,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- คำสั่งเมื่อกดปุ่ม (สลับสถานะเปิด/ปิด)
-BtnNoclip.MouseButton1Click:Connect(function()
-    getgenv().Noclip_Active = not getgenv().Noclip_Active
-    
-    if getgenv().Noclip_Active then
-        BtnNoclip.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียวเมื่อเปิด
-        BtnNoclip.Text = "👻 ทะลุกำแพง: ON"
-    else
-        BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดงเมื่อปิด
-        BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
-    end
-end)
+
 
 
 
