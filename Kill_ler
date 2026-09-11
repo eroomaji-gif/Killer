@@ -343,9 +343,8 @@ end)
 -- 📌 [ปุ่มที่ 2] เปิดมองทะลุ (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
 -- ==========================================
 getgenv().Script2_Active = false
-getgenv().Script1_Active = false
-createSwitchButton(ContentContainer, "👁️ ตาเทพ", getgenv().Script1_Active, function(isActive)
-    getgenv().Script1_Active = isActive
+createSwitchButton(ContentContainer, "👁️ ตาเทพ", getgenv().Script2_Active, function(isActive)
+    getgenv().Script2_Active = isActive
 end)
 
 
