@@ -21,6 +21,95 @@ end
 
 
 -- ==========================================
+-- 📌 ฟังก์ชันสำเร็จรูปสำหรับสร้างปุ่มสวิตช์แคปซูล
+-- ==========================================
+local function createSwitchButton(parent, titleText, initialState, callback)
+    local SwitchFrame = Instance.new("TextButton")
+    SwitchFrame.Parent = parent
+    SwitchFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    SwitchFrame.Size = UDim2.new(1, 0, 0, 45)
+    SwitchFrame.Text = ""
+
+    local FrameCorner = Instance.new("UICorner")
+    FrameCorner.CornerRadius = UDim.new(1, 0)
+    FrameCorner.Parent = SwitchFrame
+
+    local FrameStroke = Instance.new("UIStroke")
+    FrameStroke.Color = Color3.fromRGB(0, 0, 0)
+    FrameStroke.Thickness = 2
+    FrameStroke.Parent = SwitchFrame
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Parent = SwitchFrame
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+    TitleLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.Text = titleText
+    TitleLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+    TitleLabel.TextSize = 14
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local KnobTrack = Instance.new("Frame")
+    KnobTrack.Parent = SwitchFrame
+    KnobTrack.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+    KnobTrack.Position = UDim2.new(1, -65, 0.5, -16)
+    KnobTrack.Size = UDim2.new(0, 50, 0, 32)
+
+    local TrackCorner = Instance.new("UICorner")
+    TrackCorner.CornerRadius = UDim.new(1, 0)
+    TrackCorner.Parent = KnobTrack
+
+    local TrackStroke = Instance.new("UIStroke")
+    TrackStroke.Color = Color3.fromRGB(0, 0, 0)
+    TrackStroke.Thickness = 2
+    TrackStroke.Parent = KnobTrack
+
+    local KnobCircle = Instance.new("Frame")
+    KnobCircle.Parent = KnobTrack
+    KnobCircle.Size = UDim2.new(0, 24, 0, 24)
+
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = KnobCircle
+
+    local CircleStroke = Instance.new("UIStroke")
+    CircleStroke.Color = Color3.fromRGB(0, 0, 0)
+    CircleStroke.Thickness = 1.5
+    CircleStroke.Parent = KnobCircle
+
+    local currentState = initialState
+
+    local function updateVisual(state)
+        if state then
+            KnobCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- เขียว (เปิด)
+            KnobCircle.Position = UDim2.new(1, -27, 0.5, -12)
+        else
+            KnobCircle.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- เทา (ปิด)
+            KnobCircle.Position = UDim2.new(0, 3, 0.5, -12)
+        end
+    end
+
+    updateVisual(currentState)
+
+    SwitchFrame.MouseButton1Click:Connect(function()
+        currentState = not currentState
+        updateVisual(currentState)
+        if callback then
+            callback(currentState)
+        end
+    end)
+
+    return SwitchFrame
+end
+
+
+
+
+
+
+
+-- ==========================================
 -- 📌 โครงสร้าง UI แบบใหม่ (มีแถบหมวดหมู่ด้านซ้าย + หน้าต่างกว้าง)
 -- ==========================================
 local Players = game:GetService("Players")
