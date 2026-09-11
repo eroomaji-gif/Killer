@@ -348,6 +348,21 @@ createSwitchButton(ContentContainer, "👁️ ตาเทพ", getgenv().Script
 end)
 
 
+-- ถ้ากดปิดสวิตช์ ให้สั่งลบ Highlight ทิ้งทั้งหมดทันที
+    if not isActive and getgenv().ActiveHighlights then
+        for _, highlight in ipairs(getgenv().ActiveHighlights) do
+            if highlight then
+                highlight:Destroy()
+            end
+        end
+        getgenv().ActiveHighlights = {} -- ล้างข้อมูลในตารางเก็บไฮไลต์
+    end
+end)
+
+
+
+
+
 -- ฟังก์ชันเช็คสี ESP นอกปุ่ม
 local function getESPColor(player)
     if player.Team and player.Team == localPlayer.Team then
