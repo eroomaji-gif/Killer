@@ -290,8 +290,6 @@ ContentLayout.Padding = UDim.new(0, 8)
 -- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
 -- ==========================================
 getgenv().Script1_Active = false
-
-getgenv().Script1_Active = false
 createSwitchButton(ContentContainer, "⚡ วาปฆ่า", getgenv().Script1_Active, function(isActive)
     getgenv().Script1_Active = isActive
 end)
