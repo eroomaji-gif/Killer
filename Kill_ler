@@ -436,21 +436,9 @@ end)
 -- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip)
 -- ==========================================
 getgenv().Noclip_Active = false
-
-local BtnNoclip = Instance.new("TextButton")
-BtnNoclip.Name = "NoclipButton"
-BtnNoclip.Parent = ContentContainer -- <--- ให้อยู่ในหมวดหมู่ตั้งค่า
-BtnNoclip.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง (ปิดอยู่)
-BtnNoclip.Size = UDim2.new(1, 0, 0, 45)
-BtnNoclip.Font = Enum.Font.GothamBold
-BtnNoclip.Text = "👻 ทะลุกำแพง: OFF"
-BtnNoclip.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnNoclip.TextSize = 14
-
-local CornerNoclip = Instance.new("UICorner")
-CornerNoclip.CornerRadius = UDim.new(0, 6)
-CornerNoclip.Parent = BtnNoclip
-
+createSwitchButton(ContentContainer, "👻 ทะลุกำแพง", getgenv().Noclip_Active, function(isActive)
+    getgenv().Noclip_Active = isActive
+end)
 -- ระบบการทำงาน Noclip (เดินทะลุกำแพงและวัตถุ)
 local RunService = game:GetService("RunService")
 
