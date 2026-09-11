@@ -345,17 +345,15 @@ end)
 getgenv().Script2_Active = false
 createSwitchButton(ContentContainer, "👁️ ตาเทพ", getgenv().Script2_Active, function(isActive)
     getgenv().Script2_Active = isActive
-end)
-
-
--- ถ้ากดปิดสวิตช์ ให้สั่งลบ Highlight ทิ้งทั้งหมดทันที
+    
+    -- 📌 เอามาไว้ข้างในตรงนี้ (พอด้านนอกปิดปุ๊บ ลูปนี้จะทำงานทันที)
     if not isActive and getgenv().ActiveHighlights then
         for _, highlight in ipairs(getgenv().ActiveHighlights) do
             if highlight then
                 highlight:Destroy()
             end
         end
-        getgenv().ActiveHighlights = {} -- ล้างข้อมูลในตารางเก็บไฮไลต์
+        getgenv().ActiveHighlights = {}
     end
 end)
 
