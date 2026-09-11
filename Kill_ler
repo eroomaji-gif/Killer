@@ -535,35 +535,39 @@ TpContainerLayout.Padding = UDim.new(0, 8)
 
 
 -- ==============================================================================
--- 🏠 TELEPORT HOME (CAPSULE SWITCH VERSION)
+-- 🏠 COMPLETE TELEPORT HOME - CAPSULE SWITCH (READY TO USE)
 -- ==============================================================================
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
--- กำหนดตัวแปรสถานะเริ่มต้นเป็น false
+-- 1. ประกาศตัวแปรสถานะเริ่มต้น
 getgenv().HomeTeleport_Active = false
 
--- สร้างปุ่มแคปซูลสวิตช์ (เปลี่ยน ContentContainer ให้ตรงกับชื่อในเมนูของคุณ)
-createSwitchButton(ContentContainer, "🏠 เทเลพอร์ตกลับบ้าน", getgenv().HomeTeleport_Active, function(isActive)
-    getgenv().HomeTeleport_Active = isActive
-    
-    if isActive then
-        local character = localPlayer.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            -- พิกัดบ้านของคุณ (ปรับแต่งตัวเลข X, Y, Z ตรงนี้ได้เลยครับ)
-            -- [หมายเหตุ: เพิ่มความสูง Y ขึ้น +3 เล็กน้อย จะได้ไม่จมลงไปในพื้น]
-            local homePosition = Vector3.new(-7.17, 269.55 + 3, -4.11)
-            
-            -- สั่งวาร์ปพิกัดทันที
-            character.HumanoidRootPart.CFrame = CFrame.new(homePosition)
-        end
+-- 2. ฟังก์ชันสร้างปุ่มแคปซูลสวิตช์และระบบวาร์ปอัตโนมัติ
+pcall(function()
+    createSwitchButton(ContentContainer, "🏠 เทเลพอร์ตกลับบ้าน", getgenv().HomeTeleport_Active, function(isActive)
+        getgenv().HomeTeleport_Active = isActive
         
-        -- ดีดสวิตช์กลับเป็น OFF อัตโนมัติทันทีหลังวาร์ปเสร็จ (เพราะอันนี้ไม่ใช่ระบบเปิดค้าง)
-        task.wait(0.2)
-        getgenv().HomeTeleport_Active = false
-    end
+        -- ถ้ากดเปิดสวิตช์
+        if isActive then
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                -- 📍 กำหนดพิกัดเป้าหมายตรงนี้ (แก้ไขตัวเลข X, Y, Z ได้ตามใจชอบ)
+                -- (+3 ที่แกน Y ช่วยป้องกันไม่ให้ตัวละครจมลงไปติดในพื้นครับ)
+                local targetPosition = Vector3.new(-7.17, 269.55 + 3, -4.11)
+                
+                -- สั่งวาร์ปย้ายพิกัดตัวละครทันที
+                character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+            end
+            
+            -- หน่วงเวลาเล็กน้อยเพื่อให้ระบบประมวลผลทัน
+            task.wait(0.2)
+            
+            -- 🔄 บังคับดีดสวิตช์แคปซูลให้เด้งกลับมาเป็น OFF อัตโนมัติทันที
+            getgenv().HomeTeleport_Active = false
+        end
+    end)
 end)
-
 
 
 
