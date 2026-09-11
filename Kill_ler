@@ -433,13 +433,27 @@ end)
 
 
 -- ==========================================
--- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip)
+-- 📌 [ปุ่มตั้งค่า] เปิด/ปิด ทะลุกำแพง (Noclip) แบบเสถียร
 -- ==========================================
 getgenv().Noclip_Active = false
+
 createSwitchButton(ContentContainer, "👻 ทะลุกำแพง", getgenv().Noclip_Active, function(isActive)
     getgenv().Noclip_Active = isActive
+    
+    -- ถ้ากดปิดสวิตช์ ให้คืนค่าสถานะการชน (CanCollide = true) ให้ตัวละครทันที
+    if not isActive then
+        local character = localPlayer.Character
+        if character then
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
 end)
--- ระบบการทำงาน Noclip (เดินทะลุกำแพงและวัตถุ)
+
+-- ระบบการทำงาน Noclip แบบต่อเนื่องทุกเฟรม
 local RunService = game:GetService("RunService")
 
 RunService.Stepped:Connect(function()
