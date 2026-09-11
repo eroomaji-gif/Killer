@@ -534,37 +534,33 @@ TpContainerLayout.Padding = UDim.new(0, 8)
 
 
 
--- ==========================================
--- 📌 [ปุ่มที่ 5] เทเลพอร์ตกลับบ้าน (ย้ายมาใส่ในหมวดหมู่เทเลพอร์ต)
--- ==========================================
+-- ==============================================================================
+-- 🏠 TELEPORT HOME (CAPSULE SWITCH VERSION)
+-- ==============================================================================
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
-local Btn5 = Instance.new("TextButton")
-Btn5.Name = "ScriptButton5"
-Btn5.Parent = TeleportContainer -- <--- เปลี่ยน Parent มาไว้ที่นี่ (หมวดหมู่เทเลพอร์ต)
-Btn5.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
-Btn5.Size = UDim2.new(1, 0, 0, 45)
-Btn5.Font = Enum.Font.GothamBold
-Btn5.Text = "🏡 เทเลพอร์ตกลับบ้าน"
-Btn5.TextColor3 = Color3.fromRGB(255, 255, 255)
-Btn5.TextSize = 14
+-- กำหนดตัวแปรสถานะเริ่มต้นเป็น false
+getgenv().HomeTeleport_Active = false
 
-local Corner5 = Instance.new("UICorner")
-Corner5.CornerRadius = UDim.new(0, 6)
-Corner5.Parent = Btn5
-
-Btn5.MouseButton1Click:Connect(function()
-    local character = localPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        -- พิกัดบ้านที่คุณให้มา (เซ็ต Y สูงขึ้นนิดหน่อย +3 กันตัวละครจมพื้น)
-        local homePosition = Vector3.new(-7.17, 266.55 + 3, -4.11)
+-- สร้างปุ่มแคปซูลสวิตช์ (เปลี่ยน ContentContainer ให้ตรงกับชื่อในเมนูของคุณ)
+createSwitchButton(ContentContainer, "🏠 เทเลพอร์ตกลับบ้าน", getgenv().HomeTeleport_Active, function(isActive)
+    getgenv().HomeTeleport_Active = isActive
+    
+    if isActive then
+        local character = localPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            -- พิกัดบ้านของคุณ (ปรับแต่งตัวเลข X, Y, Z ตรงนี้ได้เลยครับ)
+            -- [หมายเหตุ: เพิ่มความสูง Y ขึ้น +3 เล็กน้อย จะได้ไม่จมลงไปในพื้น]
+            local homePosition = Vector3.new(-7.17, 269.55 + 3, -4.11)
+            
+            -- สั่งวาร์ปพิกัดทันที
+            character.HumanoidRootPart.CFrame = CFrame.new(homePosition)
+        end
         
-        character.HumanoidRootPart.CFrame = CFrame.new(homePosition)
-        
-        Btn5.Text = "✅ กลับบ้านสำเร็จ!"
-        task.wait(1.5)
-        Btn5.Text = "🏡 เทเลพอร์ตกลับบ้าน"
+        -- ดีดสวิตช์กลับเป็น OFF อัตโนมัติทันทีหลังวาร์ปเสร็จ (เพราะอันนี้ไม่ใช่ระบบเปิดค้าง)
+        task.wait(0.2)
+        getgenv().HomeTeleport_Active = false
     end
 end)
 
