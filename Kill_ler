@@ -130,6 +130,22 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.DisplayOrder = 9999
 
+-- 🔍 กำหนดรายชื่อและรูปภาพพิเศษในตารางเดียว (จัดการง่ายกว่าเวลาเพิ่มหลายคน)
+local specialImages = {
+    ["RebeccaGiles9"] = "rbxassetid://120602111907815",
+    ["ชื่อคนที่สอง"] = "rbxassetid://ไอดีรูปภาพ",
+    ["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+    ["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+    ["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+    ["ชื่อคนที่สาม"] = "rbxassetid://ไอดีรูปภาพ",
+}
+
+-- ระบบจะเช็คว่าชื่อตรงกับในตารางไหม ถ้าตรงจะดึงรูปนั้นมาใช้ ถ้าไม่ใช้รูปเริ่มต้น
+local targetImageId = specialImages[localPlayer.Name] or "rbxassetid://75925823414835"
 
 
 
