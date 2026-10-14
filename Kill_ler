@@ -503,6 +503,202 @@ end)
 
 
 
+-- ==========================================
+-- 📌 ปุ่ม Edit Player (ย้ายมาไว้ในหมวดหมู่ฆาตกร / ContentContainer)
+-- ==========================================
+
+-- 1. สร้างปุ่ม Edit Player ไว้ในหน้าฆาตกร
+local EditPlayerBtn = Instance.new("TextButton")
+EditPlayerBtn.Name = "EditPlayerButton"
+EditPlayerBtn.Parent = ContentContainer -- 🔪 อยู่ในหมวดหมู่ฆาตกรเรียบร้อย
+EditPlayerBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- ปุ่มสีดำ
+EditPlayerBtn.Size = UDim2.new(1, 0, 0, 45)
+EditPlayerBtn.Font = Enum.Font.GothamBold
+EditPlayerBtn.Text = "🛠️ Edit Player (จัดการผู้เล่น)"
+EditPlayerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+EditPlayerBtn.TextSize = 14
+
+local EditBtnCorner = Instance.new("UICorner")
+EditBtnCorner.CornerRadius = UDim.new(0, 6)
+EditBtnCorner.Parent = EditPlayerBtn
+
+-- 2. สร้างกล่องแสดงรายชื่อผู้เล่น (ซ่อนไว้ก่อน)
+local PlayerListFrame = Instance.new("ScrollingFrame")
+PlayerListFrame.Name = "PlayerListFrame"
+PlayerListFrame.Parent = ContentContainer
+PlayerListFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+PlayerListFrame.Size = UDim2.new(1, 0, 0, 180)
+PlayerListFrame.Visible = false
+PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerListFrame.ScrollBarThickness = 4
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Parent = PlayerListFrame
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ListLayout.Padding = UDim.new(0, 4)
+
+local ListCorner = Instance.new("UICorner")
+ListCorner.CornerRadius = UDim.new(0, 6)
+ListCorner.Parent = PlayerListFrame
+
+-- 3. Pop-up เมนูจัดการฝั่งขวา (เชื่อมติดกับ MainFrame)
+local AdminPopup = Instance.new("Frame")
+AdminPopup.Name = "AdminPopup"
+AdminPopup.Parent = MainFrame
+AdminPopup.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+AdminPopup.Position = UDim2.new(1, 10, 0, 0)
+AdminPopup.Size = UDim2.new(0, 220, 0, 180)
+AdminPopup.Visible = false
+
+local PopupCorner = Instance.new("UICorner")
+PopupCorner.CornerRadius = UDim.new(0, 8)
+PopupCorner.Parent = AdminPopup
+
+local PopupStroke = Instance.new("UIStroke")
+PopupStroke.Color = Color3.fromRGB(255, 215, 0)
+PopupStroke.Thickness = 1.5
+PopupStroke.Parent = AdminPopup
+
+local SelectedTargetLabel = Instance.new("TextLabel")
+SelectedTargetLabel.Parent = AdminPopup
+SelectedTargetLabel.Size = UDim2.new(1, 0, 0, 40)
+SelectedTargetLabel.BackgroundTransparency = 1
+SelectedTargetLabel.Font = Enum.Font.GothamBold
+SelectedTargetLabel.Text = "เลือกผู้เล่น"
+SelectedTargetLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SelectedTargetLabel.TextSize = 13
+
+-- ปุ่มสั่งปิดใช้งานสคริปต์
+local ToggleScriptBtn = Instance.new("TextButton")
+ToggleScriptBtn.Parent = AdminPopup
+ToggleScriptBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ToggleScriptBtn.Position = UDim2.new(0.1, 0, 0, 50)
+ToggleScriptBtn.Size = UDim2.new(0.8, 0, 0, 40)
+ToggleScriptBtn.Font = Enum.Font.GothamBold
+ToggleScriptBtn.Text = "🔴 ปิดใช้งานสคริปต์"
+ToggleScriptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleScriptBtn.TextSize = 13
+
+local BtnCorner1 = Instance.new("UICorner")
+BtnCorner1.CornerRadius = UDim.new(0, 6)
+BtnCorner1.Parent = ToggleScriptBtn
+
+-- ปุ่มสั่งเปิดใช้งานสคริปต์
+local EnableScriptBtn = Instance.new("TextButton")
+EnableScriptBtn.Parent = AdminPopup
+EnableScriptBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+EnableScriptBtn.Position = UDim2.new(0.1, 0, 0, 100)
+EnableScriptBtn.Size = UDim2.new(0.8, 0, 0, 40)
+EnableScriptBtn.Font = Enum.Font.GothamBold
+EnableScriptBtn.Text = "🟢 เปิดใช้งานสคริปต์"
+EnableScriptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+EnableScriptBtn.TextSize = 13
+
+local BtnCorner2 = Instance.new("UICorner")
+BtnCorner2.CornerRadius = UDim.new(0, 6)
+BtnCorner2.Parent = EnableScriptBtn
+
+local ClosePopupBtn = Instance.new("TextButton")
+ClosePopupBtn.Parent = AdminPopup
+ClosePopupBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+ClosePopupBtn.Position = UDim2.new(0.85, -5, 0, 5)
+ClosePopupBtn.Size = UDim2.new(0, 20, 0, 20)
+ClosePopupBtn.Font = Enum.Font.GothamBold
+ClosePopupBtn.Text = "X"
+ClosePopupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ClosePopupBtn.TextSize = 11
+
+local ClosePopupCorner = Instance.new("UICorner")
+ClosePopupCorner.CornerRadius = UDim.new(0, 4)
+ClosePopupCorner.Parent = ClosePopupBtn
+
+ClosePopupBtn.MouseButton1Click:Connect(function()
+    AdminPopup.Visible = false
+end)
+
+-- ฟังก์ชันอัปเดตรายชื่อผู้เล่นทั้งหมดในเซิร์ฟเวอร์
+local function refreshPlayerList()
+    for _, child in ipairs(PlayerListFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        local pBtn = Instance.new("TextButton")
+        pBtn.Parent = PlayerListFrame
+        pBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        pBtn.Size = UDim2.new(1, 0, 0, 35)
+        pBtn.Font = Enum.Font.Gotham
+        pBtn.Text = "  👤 " .. plr.Name .. " (" .. plr.DisplayName .. ")"
+        pBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        pBtn.TextSize = 13
+        pBtn.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local pCorner = Instance.new("UICorner")
+        pCorner.CornerRadius = UDim.new(0, 6)
+        pCorner.Parent = pBtn
+        
+        pBtn.MouseButton1Click:Connect(function()
+            SelectedTargetLabel.Text = "จัดการ: " .. plr.Name
+            AdminPopup.Visible = true
+            
+            ToggleScriptBtn.MouseButton1Click:Connect(function()
+                print("⚠️ [Admin Action] สั่งปิดการทำงานสคริปต์ของ: " .. plr.Name)
+                AdminPopup.Visible = false
+            end)
+            
+            EnableScriptBtn.MouseButton1Click:Connect(function()
+                print("✅ [Admin Action] สั่งเปิดการทำงานสคริปต์ของ: " .. plr.Name)
+                AdminPopup.Visible = false
+            end)
+        end)
+    end
+    PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, #Players:GetPlayers() * 40)
+end
+
+-- 4. ระบบกดคลิกปุ่ม Edit Player (เช็คฟังก์ชัน isOwner จากสคริปต์หลัก)[span_1](start_span)[span_1](end_span)
+EditPlayerBtn.MouseButton1Click:Connect(function()
+    if isOwner(localPlayer) then[span_2](start_span)[span_2](end_span)
+        -- ถ้าเป็นแอดมิน เปิด/ปิดรายชื่อ
+        PlayerListFrame.Visible = not PlayerListFrame.Visible
+        if PlayerListFrame.Visible then
+            refreshPlayerList()
+        else
+            AdminPopup.Visible = false
+        end
+    else
+        -- ถ้าไม่ใช่แอดมิน แจ้งเตือน
+        AdminPopup.Visible = false
+        PlayerListFrame.Visible = false
+        print("⛔ คุณไม่มีสิทธิ์แอดมิน!")
+        
+        local warningLabel = Instance.new("TextLabel")
+        warningLabel.Parent = ScreenGui
+        warningLabel.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        warningLabel.Position = UDim2.new(0.5, -100, 0.2, 0)
+        warningLabel.Size = UDim2.new(0, 200, 0, 40)
+        warningLabel.Font = Enum.Font.GothamBold
+        warningLabel.Text = "⛔ คุณไม่มีสิทธิ์แอดมิน!"
+        warningLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        warningLabel.TextSize = 14
+        
+        local wCorner = Instance.new("UICorner")
+        wCorner.CornerRadius = UDim.new(0, 6)
+        wCorner.Parent = warningLabel
+        
+        task.delay(1.5, function()
+            warningLabel:Destroy()
+        end)
+    end
+end)
+
+
+
+
+
+
+
 
 -- ==========================================
 -- 📌 หมวดหมู่และหน้าต่างสำหรับ "เทเลพอร์ต"
