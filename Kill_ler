@@ -504,13 +504,13 @@ end)
 
 
 -- ==========================================
--- 📌 ปุ่ม Edit Player (ย้ายมาไว้ในหมวดหมู่ฆาตกร / ContentContainer)
+-- 📌 [โค้ดที่แก้ไขแล้ว] ปุ่ม Edit Player (วางในหมวดหมู่ฆาตกร)
 -- ==========================================
 
 -- 1. สร้างปุ่ม Edit Player ไว้ในหน้าฆาตกร
 local EditPlayerBtn = Instance.new("TextButton")
 EditPlayerBtn.Name = "EditPlayerButton"
-EditPlayerBtn.Parent = ContentContainer -- 🔪 อยู่ในหมวดหมู่ฆาตกรเรียบร้อย
+EditPlayerBtn.Parent = ContentContainer -- อยู่ในหมวดหมู่ฆาตกร
 EditPlayerBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- ปุ่มสีดำ
 EditPlayerBtn.Size = UDim2.new(1, 0, 0, 45)
 EditPlayerBtn.Font = Enum.Font.GothamBold
@@ -616,7 +616,7 @@ ClosePopupBtn.MouseButton1Click:Connect(function()
     AdminPopup.Visible = false
 end)
 
--- ฟังก์ชันอัปเดตรายชื่อผู้เล่นทั้งหมดในเซิร์ฟเวอร์
+-- ฟังก์ชันอัปเดตรายชื่อผู้เล่นทั้งหมดในเซิร์ฟเวอร์แบบปลอดภัย
 local function refreshPlayerList()
     for _, child in ipairs(PlayerListFrame:GetChildren()) do
         if child:IsA("TextButton") then
@@ -642,25 +642,29 @@ local function refreshPlayerList()
         pBtn.MouseButton1Click:Connect(function()
             SelectedTargetLabel.Text = "จัดการ: " .. plr.Name
             AdminPopup.Visible = true
-            
-            ToggleScriptBtn.MouseButton1Click:Connect(function()
-                print("⚠️ [Admin Action] สั่งปิดการทำงานสคริปต์ของ: " .. plr.Name)
-                AdminPopup.Visible = false
-            end)
-            
-            EnableScriptBtn.MouseButton1Click:Connect(function()
-                print("✅ [Admin Action] สั่งเปิดการทำงานสคริปต์ของ: " .. plr.Name)
-                AdminPopup.Visible = false
-            end)
         end)
     end
     PlayerListFrame.CanvasSize = UDim2.new(0, 0, 0, #Players:GetPlayers() * 40)
 end
 
--- 4. ระบบกดคลิกปุ่ม Edit Player (เช็คฟังก์ชัน isOwner จากสคริปต์หลัก)[span_1](start_span)[span_1](end_span)
+-- ผูกปุ่มกดสั่งงานใน Pop-up รอบเดียว (ป้องกัน Event ซ้อนทับกันจนสคริปต์ตาย)
+ToggleScriptBtn.MouseButton1Click:Connect(function()
+    print("⚠️ [Admin Action] สั่งปิดการทำงานสคริปต์เป้าหมาย")
+    AdminPopup.Visible = false
+end)
+
+EnableScriptBtn.MouseButton1Click:Connect(function()
+    print("✅ [Admin Action] สั่งเปิดการทำงานสคริปต์เป้าหมาย")
+    AdminPopup.Visible = false
+end)
+
+-- 4. ระบบกดคลิกปุ่ม Edit Player (เช็คฟังก์ชัน isOwner จากหัวข้อแรกสุดของสคริปต์[span_0](start_span)[span_0](end_span))
 EditPlayerBtn.MouseButton1Click:Connect(function()
-    if isOwner(localPlayer) then[span_2](start_span)[span_2](end_span)
-        -- ถ้าเป็นแอดมิน เปิด/ปิดรายชื่อ
+    local success, isAdmin = pcall(function()
+        return isOwner(localPlayer)[span_1](start_span)[span_1](end_span)
+    end)
+    
+    if success and isAdmin then
         PlayerListFrame.Visible = not PlayerListFrame.Visible
         if PlayerListFrame.Visible then
             refreshPlayerList()
@@ -668,30 +672,42 @@ EditPlayerBtn.MouseButton1Click:Connect(function()
             AdminPopup.Visible = false
         end
     else
-        -- ถ้าไม่ใช่แอดมิน แจ้งเตือน
         AdminPopup.Visible = false
         PlayerListFrame.Visible = false
         print("⛔ คุณไม่มีสิทธิ์แอดมิน!")
         
-        local warningLabel = Instance.new("TextLabel")
-        warningLabel.Parent = ScreenGui
-        warningLabel.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        warningLabel.Position = UDim2.new(0.5, -100, 0.2, 0)
-        warningLabel.Size = UDim2.new(0, 200, 0, 40)
-        warningLabel.Font = Enum.Font.GothamBold
-        warningLabel.Text = "⛔ คุณไม่มีสิทธิ์แอดมิน!"
-        warningLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        warningLabel.TextSize = 14
-        
-        local wCorner = Instance.new("UICorner")
-        wCorner.CornerRadius = UDim.new(0, 6)
-        wCorner.Parent = warningLabel
-        
-        task.delay(1.5, function()
-            warningLabel:Destroy()
+        -- แจ้งเตือนบนจอแบบปลอดภัย
+        pcall(function()
+            local warningLabel = Instance.new("TextLabel")
+            warningLabel.Parent = ScreenGui
+            warningLabel.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            warningLabel.Position = UDim2.new(0.5, -100, 0.2, 0)
+            warningLabel.Size = UDim2.new(0, 200, 0, 40)
+            warningLabel.Font = Enum.Font.GothamBold
+            warningLabel.Text = "⛔ คุณไม่มีสิทธิ์แอดมิน!"
+            warningLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            warningLabel.TextSize = 14
+            
+            local wCorner = Instance.new("UICorner")
+            wCorner.CornerRadius = UDim.new(0, 6)
+            wCorner.Parent = warningLabel
+            
+            task.delay(1.5, function()
+                if warningLabel then warningLabel:Destroy() end
+            end)
         end)
     end
 end)
+
+
+
+
+
+
+
+
+
+
 
 
 
