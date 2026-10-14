@@ -1330,20 +1330,30 @@ CountNumberLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- ตัวหนัง
 CountNumberLabel.TextSize = 15
 CountNumberLabel.TextXAlignment = Enum.TextXAlignment.Right
 
--- 2. ฟังก์ชันอัปเดตตัวเลข (โครงสร้างพร้อมเชื่อมต่อ WebSocket / Render ในอนาคต)
-local function updateActiveScriptUsers(count)
-    CountNumberLabel.Text = tostring(count) .. " คน"
-end
+    -- 2. ฟังก์ชันอัปเดตตัวเลขจาก Render.com
+    local SERVER_URL = "https://ชื่อโปรเจกต์ของคุณ.onrender.com" -- 👈 วางลิงก์ Render ของคุณตรงนี้
 
--- ตัวอย่างจำลองการทำงาน (สามารถลบออกได้ตอนเอาไปต่อเซิร์ฟเวอร์จริง)
-task.spawn(function()
-    while true do
-        task.wait(3)
-        -- ตรงนี้ในอนาคตจะดึงค่ามาจาก Server บน Render.com ที่นับจำนวนคนเชื่อมต่อ WebSocket อยู่
-        -- ตอนนี้จำลองให้เห็นว่าเลขขยับหรือแสดงผลปกติก่อน
-        updateActiveScriptUsers(1) 
+    local function updateActiveScriptUsers()
+        local success, response = pcall(function()
+            return game:HttpGet(SERVER_URL .. "/get-count")
+        end)
+        
+        if success then
+            local data = game:GetService("HttpService"):JSONDecode(response)
+            if data and data.count then
+                CountNumberLabel.Text = data.count .. " คน"
+            end
+        end
     end
-end)
+
+    -- ลูปส่งรีเควสไปดึงข้อมูลทุกๆ 5 วินาที
+    task.spawn(function()
+        while true do
+            updateActiveScriptUsers()
+            task.wait(5)
+        end
+    end)
+
 
 
 
