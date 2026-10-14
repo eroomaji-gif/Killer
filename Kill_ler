@@ -1330,29 +1330,44 @@ CountNumberLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- ตัวหนัง
 CountNumberLabel.TextSize = 15
 CountNumberLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-    -- 2. ฟังก์ชันอัปเดตตัวเลขจาก Render.com
-    local SERVER_URL = "https://node-js-0r8s.onrender.com/" -- 👈 วางลิงก์ Render ของคุณตรงนี้
+    -- 2. ฟังก์ชันเชื่อมต่อกับ Render.com
+    local SERVER_URL = "https://ชื่อโปรเจกต์ของคุณ.onrender.com" -- 👈 วางลิงก์ Render ตรงนี้
+    local HttpService = game:GetService("HttpService")
 
+    -- ฟังก์ชันส่งสัญญาณบอกเซิร์ฟเวอร์ว่า "ฉันยังเปิดใช้อยู่" (Ping)
+    local function sendPing()
+        pcall(function()
+            HttpService:PostAsync(
+                SERVER_URL .. "/ping",
+                HttpService:JSONEncode({ userId = game.Players.LocalPlayer.UserId }),
+                Enum.HttpContentType.ApplicationJson
+            )
+        end)
+    end
+
+    -- ฟังก์ชันดึงจำนวนคนออนไลน์มาแสดงบน UI สีเขียว
     local function updateActiveScriptUsers()
         local success, response = pcall(function()
             return game:HttpGet(SERVER_URL .. "/get-count")
         end)
         
         if success then
-            local data = game:GetService("HttpService"):JSONDecode(response)
+            local data = HttpService:JSONDecode(response)
             if data and data.count then
                 CountNumberLabel.Text = data.count .. " คน"
             end
         end
     end
 
-    -- ลูปส่งรีเควสไปดึงข้อมูลทุกๆ 5 วินาที
+    -- วนลูปทำงาน: ส่ง Ping และดึงตัวเลขมาอัปเดตทุกๆ 5 วินาที
     task.spawn(function()
         while true do
+            sendPing()
             updateActiveScriptUsers()
             task.wait(5)
         end
     end)
+
 
 
 
