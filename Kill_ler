@@ -525,6 +525,7 @@ end)
 
 
 
+
 -- ==========================================
 -- 📌 หมวดหมู่และหน้าต่างสำหรับ "เทเลพอร์ต"
 -- ==========================================
@@ -1282,6 +1283,73 @@ CatBtnCreator.MouseButton1Click:Connect(function()
     SettingsContainer.Visible = false
     CreatorContainer.Visible = true
 end)
+
+
+
+
+
+
+
+-- ==========================================
+-- 📊 ระบบแสดงจำนวนผู้รันสคริปต์ (โชว์ในหมวดหมู่ข้อมูล)
+-- ==========================================
+
+-- 1. สร้างป้ายแสดงสถานะจำนวนคนรันสคริปต์
+local UserCountCard = Instance.new("Frame")
+UserCountCard.Name = "UserCountCard"
+UserCountCard.Parent = InfoContainer -- 📂 อยู่ในหมวดหมู่ข้อมูลของคุณ
+UserCountCard.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+UserCountCard.Size = UDim2.new(1, 0, 0, 50)
+
+local CardCorner = Instance.new("UICorner")
+CardCorner.CornerRadius = UDim.new(0, 6)
+CardCorner.Parent = UserCountCard
+
+local CardTitle = Instance.new("TextLabel")
+CardTitle.Parent = UserCountCard
+CardTitle.BackgroundTransparency = 1
+CardTitle.Position = UDim2.new(0, 15, 0, 0)
+CardTitle.Size = UDim2.new(0.6, 0, 1, 0)
+CardTitle.Font = Enum.Font.GothamBold
+CardTitle.Text = "🟢 จำนวนคนรันสคริปต์ปัจจุบัน:"
+CardTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+CardTitle.TextSize = 13
+CardTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- ตัวเลขแสดงจำนวนคน (สีเขียว ตามที่คุณต้องการ)
+local CountNumberLabel = Instance.new("TextLabel")
+CountNumberLabel.Name = "CountNumberLabel"
+CountNumberLabel.Parent = UserCountCard
+CountNumberLabel.BackgroundTransparency = 1
+CountNumberLabel.Position = UDim2.new(1, -80, 0, 0)
+CountNumberLabel.Size = UDim2.new(0, 70, 1, 0)
+CountNumberLabel.Font = Enum.Font.GothamBold
+CountNumberLabel.Text = "1 คน" -- (ค่าจำลองเบื้องต้น เดี๋ยวเอาไปต่อ Render)
+CountNumberLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- ตัวหนังสือสีเขียว
+CountNumberLabel.TextSize = 15
+CountNumberLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+-- 2. ฟังก์ชันอัปเดตตัวเลข (โครงสร้างพร้อมเชื่อมต่อ WebSocket / Render ในอนาคต)
+local function updateActiveScriptUsers(count)
+    CountNumberLabel.Text = tostring(count) .. " คน"
+end
+
+-- ตัวอย่างจำลองการทำงาน (สามารถลบออกได้ตอนเอาไปต่อเซิร์ฟเวอร์จริง)
+task.spawn(function()
+    while true do
+        task.wait(3)
+        -- ตรงนี้ในอนาคตจะดึงค่ามาจาก Server บน Render.com ที่นับจำนวนคนเชื่อมต่อ WebSocket อยู่
+        -- ตอนนี้จำลองให้เห็นว่าเลขขยับหรือแสดงผลปกติก่อน
+        updateActiveScriptUsers(1) 
+    end
+end)
+
+
+
+
+
+
+
 
 
 -- ==========================================
