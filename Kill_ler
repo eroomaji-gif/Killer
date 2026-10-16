@@ -453,7 +453,7 @@ end)
 -- ==========================================
 getgenv().PillarESP_Combined_Active = false
 
-createSwitchButton(ContentContainer, "🗼 ESP มองทะลุ + แท่งเสา", getgenv().PillarESP_Combined_Active, function(isActive)
+createSwitchButton(ContentContainer, "🗼 EP มองทะลุ + แท่งเสา", getgenv().PillarESP_Combined_Active, function(isActive)
     getgenv().PillarESP_Combined_Active = isActive
     
     if not isActive then
