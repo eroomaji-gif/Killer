@@ -1014,6 +1014,126 @@ end)
 
 
 
+
+-- ==========================================
+-- 📌 [ปุ่มฟังก์ชัน] ระบบกระโดดสูง / ปรับความสูงการกระโดด
+-- ==========================================
+local jumpEnabled = false
+
+-- 1. ปุ่มเปิด/ปิดระบบกระโดดสูง (ใส่ใน SettingsContainer หรือ ContentContainer ได้เลยครับ)
+local JumpToggleBtn = Instance.new("TextButton")
+JumpToggleBtn.Name = "JumpToggleBtn"
+JumpToggleBtn.Parent = SettingsContainer -- หรือเปลี่ยนเป็น ContentContainer ตามต้องการ
+JumpToggleBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+JumpToggleBtn.Size = UDim2.new(0.55, -4, 0, 45)
+JumpToggleBtn.Font = Enum.Font.SourceSansBold
+JumpToggleBtn.Text = "🦘 กระโดดสูง👇"
+JumpToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+JumpToggleBtn.TextSize = 14
+
+local JumpToggleCorner = Instance.new("UICorner")
+JumpToggleCorner.CornerRadius = UDim.new(0, 6)
+JumpToggleCorner.Parent = JumpToggleBtn
+
+-- 2. ช่องกรอกตัวเลขความสูงในการกระโดด
+local JumpBox = Instance.new("TextBox")
+JumpBox.Name = "JumpBox"
+JumpBox.Parent = SettingsContainer -- ให้คู่กับปุ่มเปิด/ปิด
+JumpBox.Size = UDim2.new(0.45, -4, 0, 45)
+JumpBox.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+JumpBox.Font = Enum.Font.SourceSansBold
+JumpBox.PlaceholderText = "50"
+JumpBox.Text = "100" -- ค่าเริ่มต้นความสูง (ปกติของ Roblox คือ 50)
+JumpBox.TextColor3 = Color3.fromRGB(0, 250, 150)
+JumpBox.TextSize = 16
+
+local JumpBoxCorner = Instance.new("UICorner")
+JumpBoxCorner.CornerRadius = UDim.new(0, 6)
+JumpBoxCorner.Parent = JumpBox
+
+-- 3. ฟังก์ชันควบคุมการกระโดด
+JumpToggleBtn.MouseButton1Click:Connect(function()
+    jumpEnabled = not jumpEnabled
+    local player = game.Players.LocalPlayer
+    
+    if jumpEnabled then
+        JumpToggleBtn.Text = "🦘 กระโดดสูง: [เปิด]"
+        JumpToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
+        local jumpPowerNum = tonumber(JumpBox.Text) or 100
+        
+        if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+            local hum = player.Character.Humanoid
+            hum.UseJumpPower = true -- บังคับใช้ระบบ JumpPower
+            hum.JumpPower = jumpPowerNum
+        end
+    else
+        JumpToggleBtn.Text = "🦘 กระโดดสูง: [ปิด]"
+        JumpToggleBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+        
+        if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+            local hum = player.Character.Humanoid
+            hum.UseJumpPower = true
+            hum.JumpPower = 50 -- คืนค่ามาตรฐานปกติของ Roblox
+        end
+    end
+end)
+
+-- 4. บันทึกค่าเมื่อพิมพ์เปลี่ยนตัวเลขความสูง
+JumpBox.FocusLost:Connect(function()
+    local num = tonumber(JumpBox.Text)
+    if num then
+        if num < 0 then num = 0 end
+        if num > 500 then num = 500 end -- ป้องกันค่าสูงเกินไปจนเกมบัณพุ่งหลุดแมพ
+        JumpBox.Text = tostring(num)
+        
+        if jumpEnabled then
+            local player = game.Players.LocalPlayer
+            if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid.UseJumpPower = true
+                player.Character.Humanoid.JumpPower = num
+            end
+        end
+    end
+end)
+
+-- 5. ลูปคอยรักษาระดับการกระโดดไม่ให้รีเซ็ตเวลาตัวละครเกิดใหม่
+task.spawn(function()
+    while true do
+        task.wait(0.3)
+        if jumpEnabled then
+            pcall(function()
+                local player = game.Players.LocalPlayer
+                local num = tonumber(JumpBox.Text) or 100
+                if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+                    local hum = player.Character.Humanoid
+                    hum.UseJumpPower = true
+                    if hum.JumpPower ~= num then
+                        hum.JumpPower = num
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- ==========================================
 -- 📌 [จุดที่ 4] เอาปุ่มฟังก์ชันหมวดหมู่ "ตั้งค่า" มาใส่ไว้ที่นี่
 -- (เช่น ปุ่มรีเซ็ต UI, ปุ่มปรับแต่งธีม ฯลฯ)
@@ -1022,6 +1142,11 @@ end)
 -- ตัวอย่าง:
 -- local BtnConfig = Instance.new("TextButton")
 -- BtnConfig.Parent = SettingsContainer
+
+
+
+
+
 
 
 
