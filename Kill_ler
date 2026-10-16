@@ -1640,3 +1640,27 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	end
 end)
 
+
+
+
+
+
+
+
+
+local ProximityPromptService = game:GetService("ProximityPromptService")
+
+-- ฟังก์ชันสำหรับแก้ค่า HoldDuration ให้เป็น 0 (กดปุ๊บติดปั๊บ)
+local function instantPrompt(prompt)
+    if prompt:IsA("ProximityPrompt") then
+        prompt.HoldDuration = 0
+    end
+end
+
+-- ไล่แก้ตัวที่มีอยู่แล้วในแมพตอนนี้
+for _, v in ipairs(workspace:GetDescendants()) do
+    instantPrompt(v)
+end
+
+-- ดักจับกรณีที่เกมเสก ProximityPrompt อันใหม่ขึ้นมาเรื่อยๆ
+workspace.DescendantAdded:Connect(instantPrompt)
