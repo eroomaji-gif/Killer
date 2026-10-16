@@ -430,7 +430,7 @@ end)
 
 
 -- ==========================================
--- 📌 [ปุ่มฟังก์ชัน] ESP เสาสูงผู้เล่น (แยกสี + เสาสีรุ้งสำหรับ Owner)
+-- 📌 [ปุ่มฟังก์ชัน] ESP เสาสูงผู้เล่น (แยกสี + เสาสีรุ้ง Owner แบบปลอดภัย ไม่บั๊กตัวละครล่องหน)
 -- ==========================================
 getgenv().PillarESP_Active = false
 
@@ -446,16 +446,16 @@ createSwitchButton(ContentContainer, "🗼 ESP เสาสูงผู้เล
     end
 end)
 
--- ฟังก์ชันเช็คสีของเสาตามเงื่อนไข (Owner = รุ้ง | มีอาวุธ = แดง | ทีมเดียวกัน = เขียว | ทั่วไป = ขาว)
+-- ฟังก์ชันเช็คสีของเสาตามเงื่อนไข
 local function getPillarColor(targetPlayer)
     if targetPlayer == localPlayer then return nil end
     
-    -- 👑 0. เช็คว่าเป็น Owner หรือไม่ (เรียกใช้ฟังก์ชัน isOwner ที่มีอยู่แล้วในสคริปต์ของคุณ)
+    -- 👑 0. เช็คว่าเป็น Owner หรือไม่
     if type(isOwner) == "function" and isOwner(targetPlayer) then
-        return "Rainbow" -- ส่งค่าพิเศษเพื่อให้ลูปไปทำสีรุ้งวนลูป
+        return "Rainbow"
     end
     
-    -- 1. เช็คว่าเป็นทีมเดียวกันไหม (ถ้ามีระบบ Team)
+    -- 1. เช็คว่าเป็นทีมเดียวกันไหม
     local isSameTeam = false
     if targetPlayer.Team and localPlayer.Team then
         if targetPlayer.Team == localPlayer.Team then
@@ -463,7 +463,7 @@ local function getPillarColor(targetPlayer)
         end
     end
     
-    -- 2. เช็คว่ามีอาวุธหรือไม่ (เช็คทั้งใน Character และ Backpack)
+    -- 2. เช็คว่ามีอาวุธหรือไม่
     local targetChar = targetPlayer.Character
     local hasWeapon = false
     if targetChar then
@@ -476,20 +476,20 @@ local function getPillarColor(targetPlayer)
     
     -- 🎨 กำหนดสีตามเงื่อนไข
     if hasWeapon then
-        return Color3.fromRGB(255, 0, 0)   -- 🔴 สีแดง (ผู้เล่นอันตราย พกอาวุธ)
+        return Color3.fromRGB(255, 0, 0)   -- 🔴 สีแดง (พกอาวุธ)
     elseif isSameTeam then
-        return Color3.fromRGB(0, 255, 0)   -- 🟢 สีเขียว (ผู้เล่นทีมเดียวกัน)
+        return Color3.fromRGB(0, 255, 0)   -- 🟢 สีเขียว (ทีมเดียวกัน)
     else
-        return Color3.fromRGB(255, 255, 255) -- ⚪ สีขาว (ผู้เล่นทั่วไป / ฝ่ายตรงข้ามมือเปล่า)
+        return Color3.fromRGB(255, 255, 255) -- ⚪ สีขาว (ทั่วไป)
     end
 end
 
--- ระบบลูปสร้างเสาพุ่งขึ้นฟ้าและการันตีสีรุ้งสำหรับ Owner
+-- ระบบลูปสร้างเสาและอัปเดตตำแหน่ง (แยกเก็บไว้ใน Workspace ปลอดภัย ไม่กระทบตัวละคร)
 task.spawn(function()
     getgenv().PillarESPLines = {}
     
     while true do
-        task.wait(0.2) -- ปรับให้ไวขึ้นนิดหน่อยเพื่อให้สีรุ้งเปลี่ยนสมูทขึ้น
+        task.wait(0.1) -- อัปเดตไวขึ้นเพื่อให้เสาขยับตามตัวละครได้ลื่นไหล
         pcall(function()
             if not getgenv().PillarESP_Active then
                 for _, pillar in pairs(getgenv().PillarESPLines) do
@@ -502,50 +502,57 @@ task.spawn(function()
             local myChar = localPlayer.Character
             if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
             
+            -- สร้างโฟลเดอร์เก็บเสาแยกต่างหาก เพื่อความเป็นระเบียบและไม่กวนระบบเกม
+            local folder = workspace:FindFirstChild("CustomPillarESPFolder")
+            if not folder then
+                folder = Instance.new("Folder")
+                folder.Name = "CustomPillarESPFolder"
+                folder.Parent = workspace
+            end
+            
+            -- ตรวจสอบรายชื่อผู้เล่นทั้งหมด
+            local activePlayers = {}
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= localPlayer then
                     local targetChar = player.Character
                     if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                        activePlayers[player.Name] = true
                         local rootPart = targetChar.HumanoidRootPart
                         
-                        -- เช็คหรือสร้างเสา
-                        local pillarPart = targetChar:FindFirstChild("CustomPillarESP")
+                        -- เช็คหรือสร้างเสา (แยกสร้างข้างนอก ไม่ไปแตะต้องตัวละครโดยตรง)
+                        local pillarPart = folder:FindFirstChild(player.Name .. "_Pillar")
                         if not pillarPart then
                             pillarPart = Instance.new("Part")
-                            pillarPart.Name = "CustomPillarESP"
-                            pillarPart.Size = Vector3.new(0.5, 100, 0.5) -- กว้าง 0.5 สูง 100 สตัด
-                            pillarPart.Anchored = false
+                            pillarPart.Name = player.Name .. "_Pillar"
+                            pillarPart.Size = Vector3.new(0.6, 120, 0.6) -- ขนาดความสูงเสา
+                            pillarPart.Anchored = true
                             pillarPart.CanCollide = false
                             pillarPart.Transparency = 0.3
                             pillarPart.Material = Enum.Material.Neon
-                            
-                            local weld = Instance.new("WeldConstraint")
-                            weld.Part0 = rootPart
-                            weld.Part1 = pillarPart
-                            weld.Parent = pillarPart
-                            
-                            pillarPart.Parent = targetChar
+                            pillarPart.Parent = folder
                             getgenv().PillarESPLines[player.Name] = pillarPart
                         end
                         
-                        -- อัปเดตตำแหน่งเสาให้เกาะติดหัวเสมอ
-                        pillarPart.CFrame = rootPart.CFrame * CFrame.new(0, 50, 0)
+                        -- อัปเดตตำแหน่งเสาให้ครอบคลุมตามพิกัดตัวละครเป้าหมายแบบเรียลไทม์
+                        pillarPart.CFrame = rootPart.CFrame * CFrame.new(0, 60, 0)
                         
-                        -- อัปเดตสีเสา
+                        -- อัปเดตสีเสาตามสถานะ
                         local colorResult = getPillarColor(player)
                         if colorResult == "Rainbow" then
-                            -- 🌈 ทำเอฟเฟกต์สีรุ้งวนลูปตามเวลาจริง (Tick)
                             local hue = tick() % 5 / 5
                             pillarPart.Color = Color3.fromHSV(hue, 1, 1)
                         elseif typeof(colorResult) == "Color3" then
                             pillarPart.Color = colorResult
                         end
-                    else
-                        if getgenv().PillarESPLines[player.Name] then
-                            getgenv().PillarESPLines[player.Name]:Destroy()
-                            getgenv().PillarESPLines[player.Name] = nil
-                        end
                     end
+                end
+            end
+            
+            -- เคลียร์เสาทิ้งถ้าผู้เล่นคนนั้นออกจากเกมหรือตายไป
+            for name, pillar in pairs(getgenv().PillarESPLines) do
+                if not activePlayers[name] then
+                    if pillar then pillar:Destroy() end
+                    getgenv().PillarESPLines[name] = nil
                 end
             end
         end)
@@ -554,9 +561,7 @@ end)
 
 
 
-
-
-
+                            
 
 
 
