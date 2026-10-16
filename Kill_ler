@@ -585,7 +585,7 @@ getgenv().HomeTeleport_Active = false
 
 -- 2. ฟังก์ชันสร้างปุ่มแคปซูลสวิตช์และระบบวาร์ปอัตโนมัติ
 pcall(function()
-    createSwitchButton(ContentContainer, "🏠 เทเลพอร์ตกลับบ้าน", getgenv().HomeTeleport_Active, function(isActive)
+    createSwitchButton(ContentContainer, "🏠 หายตัววววว", getgenv().HomeTeleport_Active, function(isActive)
         getgenv().HomeTeleport_Active = isActive
         
         -- ถ้ากดเปิดสวิตช์
