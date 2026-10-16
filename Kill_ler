@@ -386,7 +386,6 @@ end)
 
 
 
-
 -- ==========================================
 -- 📌 [ปุ่มพิเศษ] วาปล่าเก็บนายอำเภอ (ไม่สนระยะทาง ไกลแค่ไหนก็พุ่งไปหา)
 -- ==========================================
@@ -395,33 +394,60 @@ createSwitchButton(ContentContainer, "🎯 วาปล่าเก็บนา�
     getgenv().KillSheriff_Active = isActive
 end)
 
+-- ฟังก์ชันตรวจจับปืน/นายอำเภอแบบตรงๆ ชัวร์ 100%
+local function checkIsGunHolder(player)
+    if not player or player == localPlayer then return false end
+    
+    -- ถ้ามีฟังก์ชันหลักอยู่แล้วให้เรียกใช้ก่อน
+    if type(isSheriffOrGunUser) == "function" and isSheriffOrGunUser(player) then
+        return true
+    end
+    
+    -- สำรอง: ตรวจหา Tool ด้วยตัวเองกรณีฟังก์ชันหลักมองไม่เห็น
+    local char = player.Character
+    local backpack = player:FindFirstChild("Backpack")
+    
+    local function containsGun(container)
+        if not container then return false end
+        for _, item in ipairs(container:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = string.lower(item.Name)
+                if name:find("gun") or name:find("revolver") or name:find("sheriff") or name:find("pistol") or name:find("shoot") then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+    
+    return containsGun(char) or containsGun(backpack)
+end
+
 -- ลูปการทำงาน: ตรวจเจอคนถือปืน/นายอำเภอในเซิร์ฟปุ๊บ วาร์ปใส่ทันที
 task.spawn(function()
     while true do
-        task.wait(0.3) -- ความเร็วในการสแกนและวาร์ปหา
+        task.wait(0.2) -- ความเร็วสแกน (ปรับให้ไวขึ้น)
         if getgenv().KillSheriff_Active then
             pcall(function()
                 local myChar = localPlayer.Character
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 local myRoot = myChar.HumanoidRootPart
                 
-                -- 🔍 สแกนหาผู้เล่นทุกคนในเซิร์ฟเวอร์
+                -- วนลูปหาคนถือปืนทุกคนในเซิร์ฟ
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    -- ไม่วาร์ปหาตัวเอง, ไม่วาร์ปหา Owner, และเป้าหมายต้องมีตัวละคร/ยังไม่ตาย
                     if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
                         local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                         local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
                         
+                        -- ต้องยังมีชีวิตอยู่
                         if targetRoot and targetHum and targetHum.Health > 0 then
-                            -- 🔵 เช็คว่าเป็นนายอำเภอ หรือ มีปืนในมือ/กระเป๋า หรือไม่
-                            local isGunUser = (type(isSheriff) == "function" and isSheriff(targetPlayer)) or 
-                                             (type(isSheriffOrGunUser) == "function" and isSheriffOrGunUser(targetPlayer))
-                            
-                            -- ⚡ ถ้าตรวจเจอว่าเป็นนายอำเภอ/ถือปืน วาร์ปไปประกบหลังทันที ไม่สนว่าอยู่ไกลแค่ไหน!
-                            if isGunUser then
+                            -- 🔵 ตรวจจับว่าใช่คนถือปืน/นายอำเภอไหม
+                            if checkIsGunHolder(targetPlayer) then
                                 if not getgenv().KillSheriff_Active then break end
+                                
+                                -- ⚡ วาร์ปไปประกบหลังระยะ 2 บล็อกทันที ไม่สนระยะทาง!
                                 myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
-                                break -- พอวาร์ปเจอคนแรกแล้ว ให้หลุดลูปเพื่อไปรอรอบถัดไป
+                                break -- เจอปุ๊บวาร์ปหาเลย แล้วจบลูปรอบนี้
                             end
                         end
                     end
