@@ -307,10 +307,10 @@ ContentLayout.Padding = UDim.new(0, 8)
 
 
 -- ==========================================
--- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
+-- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (จำกัดรัศมีไม่เกิน 200 เมตร รอบตัวเรา)
 -- ==========================================
 getgenv().Script1_Active = false
-createSwitchButton(ContentContainer, "⚡ กระโดดกัดคอ", getgenv().Script1_Active, function(isActive)
+createSwitchButton(ContentContainer, "⚡ กระโดดกัดคอ (รัศมี 200m)", getgenv().Script1_Active, function(isActive)
     getgenv().Script1_Active = isActive
 end)
 
@@ -327,7 +327,7 @@ local function getTargetColorType(targetPlayer)
     return "GreenOrWhite"
 end
 
--- 2. ลูปการทำงานหลัก (อัปเกรด: ค้นหาคนใกล้ที่สุดก่อน แล้วค่อยเทเลพอร์ตไปหาตามลำดับ)
+-- 2. ลูปการทำงานหลัก (อัปเกรด: ค้นหาคนใกล้ที่สุดในรัศมี 200 เมตรก่อน แล้วค่อยเทเลพอร์ตไปตามลำดับ)
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -337,9 +337,12 @@ task.spawn(function()
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 local myRoot = myChar.HumanoidRootPart
                 
-                -- 🔍 ประกาศตัวแปรไว้หาคนที่ใกล้ที่สุด ณ ตอนนั้น
+                -- 🛑 กำหนดรัศมีจำกัดไม่เกิน 200 เมตร (200 Studs)
+                local MAX_DISTANCE = 200 
+                
+                -- 🔍 ประกาศตัวแปรไว้หาคนที่ใกล้ที่สุดในวงกลม 200 เมตร
                 local nearestPlayer = nil
-                local shortestDistance = math.huge -- ตั้งระยะทางเริ่มต้นให้มากที่สุด
+                local shortestDistance = MAX_DISTANCE -- ตั้งค่าเริ่มต้นเป็นขีดจำกัดสูงสุดที่ 200 เมตร
                 
                 -- วนลูปเช็คผู้เล่นทุกคนเพื่อหาระยะทาง
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
@@ -354,8 +357,8 @@ task.spawn(function()
                                 -- 📐 คำนวณระยะห่างระหว่างตัวเรากับเป้าหมาย
                                 local distance = (myRoot.Position - targetRoot.Position).Magnitude
                                 
-                                -- ถ้าคนนี้อยู่ใกล้กว่าระยะที่เคยบันทึกไว้ ให้เปลี่ยนคิวเป้าหมายเป็นคนนี้แทน
-                                if distance < shortestDistance then
+                                -- เช็คว่าต้องอยู่ในระยะไม่เกิน 200 เมตร และใกล้กว่าคนที่เคยเจอ
+                                if distance <= MAX_DISTANCE and distance < shortestDistance then
                                     shortestDistance = distance
                                     nearestPlayer = targetPlayer
                                 end
@@ -364,7 +367,7 @@ task.spawn(function()
                     end
                 end
                 
-                -- ⚡ พอได้คนที่ใกล้เราที่สุดคิวแรกแล้ว ให้เทเลพอร์ตไปหาคนนั้นทันที
+                -- ⚡ พอได้คนที่ใกล้ที่สุดในรัศมี 200 เมตรแล้ว ให้เทเลพอร์ตไปหาคนนั้นตามลำดับ
                 if nearestPlayer and nearestPlayer.Character then
                     if not getgenv().Script1_Active then return end
                     local targetRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
