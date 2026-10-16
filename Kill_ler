@@ -449,6 +449,9 @@ end)
 
 
 
+
+
+
 -- ==========================================
 -- 📌 [ปุ่มฟังก์ชัน] ESP กรอบสี + เสาสูงผู้เล่น (ปุ่มนี้แยกจากปุ่ม "แอบมองเธอ" ใช้ตัวแปรของตัวเอง ไม่ซ้ำกัน)
 -- - มีไส้ในของ ESP กรอบสีครบ (Highlight) + เสาสูงเพิ่มให้
@@ -510,7 +513,51 @@ do
         return false
     end
 
+    -- ------------------------------------------
+    -- 🔵 เช็คนายอำเภอ (Sheriff) ก่อนอย่างอื่นทั้งหมด
+    -- ------------------------------------------
+    local SHERIFF_WORDS = { "sheriff", "detective", "police" }
+
+    local function hasSheriffWord(text)
+        text = string.lower(tostring(text or ""))
+        for _, word in ipairs(SHERIFF_WORDS) do
+            if string.find(text, word, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function isSheriff(player)
+        -- ชื่อทีม
+        if player.Team and hasSheriffWord(player.Team.Name) then
+            return true
+        end
+        -- Attribute บทบาท (ถ้าเกมมี)
+        for _, attr in ipairs({ "Role", "role", "Class", "Team" }) do
+            local value = player:GetAttribute(attr)
+            if value and hasSheriffWord(value) then
+                return true
+            end
+        end
+        -- ชื่อ Tool ในมือ/กระเป๋า
+        for _, container in ipairs({ player.Character, player:FindFirstChild("Backpack") }) do
+            if container then
+                for _, item in ipairs(container:GetChildren()) do
+                    if item:IsA("Tool") and hasSheriffWord(item.Name) then
+                        return true
+                    end
+                end
+            end
+        end
+        return false
+    end
+
     local function isDangerous(player)
+        -- นายอำเภอไม่นับเป็นอันตราย (ต่อให้ถือปืนก็ไม่เป็นแดง)
+        if isSheriff(player) then
+            return false
+        end
         -- ชื่อทีม (เช่น Murderer / Hunter)
         if player.Team and hasDangerWord(player.Team.Name) then
             return true
@@ -533,6 +580,9 @@ do
     -- เช็คสี ESP (ไส้ในจากตัวบน + เพิ่มเช็คอันตรายก่อน)
     -- ------------------------------------------
     local function getESPColor(player)
+        if isSheriff(player) then
+            return Color3.fromRGB(0, 100, 255) -- 🔵 น้ำเงิน (นายอำเภอ) เช็คก่อนเสมอ
+        end
         if isDangerous(player) then
             return Color3.fromRGB(255, 0, 0) -- 🔴 แดง (อันตราย)
         end
@@ -582,7 +632,10 @@ do
 
                     local targetColor = getESPColor(player)
                     highlight.OutlineColor = targetColor
-                    if isDangerous(player) then
+                    if isSheriff(player) then
+                        -- กรอบน้ำเงิน + ข้างในน้ำเงินอ่อน
+                        highlight.FillColor = Color3.fromRGB(120, 170, 255)
+                    elseif isDangerous(player) then
                         -- กรอบแดง + ข้างในแดงอ่อน
                         highlight.FillColor = Color3.fromRGB(255, 120, 120)
                     else
@@ -659,6 +712,7 @@ do
         end
     end)
 end
+
 
 
 
