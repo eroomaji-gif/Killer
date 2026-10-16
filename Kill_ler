@@ -307,73 +307,61 @@ ContentLayout.Padding = UDim.new(0, 8)
 
 
 -- ==========================================
--- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (จำกัดรัศมีไม่เกิน 200 เมตร รอบตัวเรา)
+-- 📌 [ปุ่มที่ 1] วาปหากวาดล้างรอบตัว (รัศมี 200m เคลื่อนที่ตามตัว + เว้นฆาตกรถือมีด)
 -- ==========================================
 getgenv().Script1_Active = false
-createSwitchButton(ContentContainer, "⚡ กระโดดกัดคอ (รัศมี 200m)", getgenv().Script1_Active, function(isActive)
+createSwitchButton(ContentContainer, "⚡ กระโดดกัดคอ (กวาด 200m เว้นฆาตกร)", getgenv().Script1_Active, function(isActive)
     getgenv().Script1_Active = isActive
 end)
 
--- 1. ฟังก์ชันเช็คสีเป้าหมาย (วางไว้นอกปุ่ม)
+-- 1. ฟังก์ชันเช็คสีเป้าหมาย (เช็คมีด/ฆาตกรเพื่อกรองออก)
 local function getTargetColorType(targetPlayer)
     local targetChar = targetPlayer.Character
     if not targetChar then return "White" end
     local targetBackpack = targetPlayer:FindFirstChild("Backpack")
     
-    if targetChar:FindFirstChild("Knife") or targetChar:FindFirstChild("Gun") or 
-       (targetBackpack and (targetBackpack:FindFirstChild("Knife") or targetBackpack:FindFirstChild("Gun"))) then
+    -- เช็คมีดในมือหรือในกระเป๋า
+    if targetChar:FindFirstChild("Knife") or 
+       (targetBackpack and targetBackpack:FindFirstChild("Knife")) then
         return "Red"
     end
     return "GreenOrWhite"
 end
 
--- 2. ลูปการทำงานหลัก (อัปเกรด: ค้นหาคนใกล้ที่สุดในรัศมี 200 เมตรก่อน แล้วค่อยเทเลพอร์ตไปตามลำดับ)
+-- 2. ลูปการทำงานหลัก
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(0.05) -- ความเร็วระดับเสี้ยววิ (กวาดไวที่สุด)
         if getgenv().Script1_Active then
             pcall(function()
                 local myChar = localPlayer.Character
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 local myRoot = myChar.HumanoidRootPart
                 
-                -- 🛑 กำหนดรัศมีจำกัดไม่เกิน 200 เมตร (200 Studs)
+                -- รัศมีวงกลม 200 เมตร (ขยับตามตัวเราตลอดเวลา)
                 local MAX_DISTANCE = 200 
                 
-                -- 🔍 ประกาศตัวแปรไว้หาคนที่ใกล้ที่สุดในวงกลม 200 เมตร
-                local nearestPlayer = nil
-                local shortestDistance = MAX_DISTANCE -- ตั้งค่าเริ่มต้นเป็นขีดจำกัดสูงสุดที่ 200 เมตร
-                
-                -- วนลูปเช็คผู้เล่นทุกคนเพื่อหาระยะทาง
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    -- 🛡️ ป้องกันไม่ให้สคริปต์วิ่งหรือเทเลพอร์ตมาหาเจ้าของสคริปต์ (Onsenb47162)
+                    -- 🛡️ ไม่วาร์ปหาตัวเอง และ ไม่วาร์ปหา Owner
                     if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
                         local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                         local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
                         
                         if targetRoot and targetHum and targetHum.Health > 0 then
-                            local colorType = getTargetColorType(targetPlayer)
-                            if colorType ~= "Red" then
-                                -- 📐 คำนวณระยะห่างระหว่างตัวเรากับเป้าหมาย
-                                local distance = (myRoot.Position - targetRoot.Position).Magnitude
-                                
-                                -- เช็คว่าต้องอยู่ในระยะไม่เกิน 200 เมตร และใกล้กว่าคนที่เคยเจอ
-                                if distance <= MAX_DISTANCE and distance < shortestDistance then
-                                    shortestDistance = distance
-                                    nearestPlayer = targetPlayer
+                            if not getgenv().Script1_Active then break end
+                            
+                            -- คำนวณระยะห่างจากตัวเรา ณ ตอนนั้น
+                            local distance = (myRoot.Position - targetRoot.Position).Magnitude
+                            
+                            -- เงื่อนไข: อยู่ในระยะ 200m และ "ต้องไม่ใช่ฆาตกรถือมีด"
+                            if distance <= MAX_DISTANCE then
+                                local colorType = getTargetColorType(targetPlayer)
+                                if colorType ~= "Red" then
+                                    myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
+                                    task.wait(0.05) -- วาร์ปสลับเป้าหมายรวดเร็วในเสี้ยววิ
                                 end
                             end
                         end
-                    end
-                end
-                
-                -- ⚡ พอได้คนที่ใกล้ที่สุดในรัศมี 200 เมตรแล้ว ให้เทเลพอร์ตไปหาคนนั้นตามลำดับ
-                if nearestPlayer and nearestPlayer.Character then
-                    if not getgenv().Script1_Active then return end
-                    local targetRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if targetRoot then
-                        myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
-                        task.wait(0.2)
                     end
                 end
             end)
