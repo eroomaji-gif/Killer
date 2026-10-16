@@ -866,8 +866,72 @@ end
 
 
 
+-- ==========================================
+-- 🎯 ระบบ Silent Aim (กระสุนพุ่งหาฆาตกรอัตโนมัติ + เช็คสิ่งกีดขวาง)
+-- ==========================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-                            
+getgenv().SilentAim_Active = true -- เปิด/ปิด ระบบ
+
+-- 1. ฟังก์ชันค้นหาตัวฆาตกรที่ไม่มีสิ่งกีดขวางบัง (Visible Check)
+local function getVisibleMurderer()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local char = player.Character
+            local hum = char:FindFirstChild("Humanoid")
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local head = char:FindFirstChild("Head")
+            
+            -- เช็คว่าถือมีดอยู่หรือไม่ (ฆาตกร)
+            local isMurderer = char:FindFirstChild("Knife") or 
+                               (player:FindFirstChild("Backpack") and player.Backpack:FindFirstChild("Knife"))
+            
+            if isMurderer and hum and hum.Health > 0 and hrp and head then
+                -- 🧱 ระบบ WallCheck (เช็คว่ามีสิ่งกีดขวางบังระหว่างเรากับฆาตกรไหม)
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = RaycastFilterType.Exclude
+                rayParams.FilterDescendantsInstances = {LocalPlayer.Character, char}
+                
+                local rayResult = workspace:Raycast(Camera.CFrame.Position, head.Position - Camera.CFrame.Position, rayParams)
+                
+                -- ถ้าไม่มีวัตถุอื่นบัง Raycast จะคืนค่า nil แปลว่ามองเห็นตัวเต็มๆ
+                if not rayResult then
+                    return head -- คืนค่าตำแหน่งหัวของฆาตกร
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- 2. Hook ดักจับการยิงปืน (Redirect Bullet Vector)
+local rawMetaTable = getrawmetatable(game)
+local oldNamecall = rawMetaTable.__namecall
+setreadonly(rawMetaTable, false)
+
+rawMetaTable.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    -- ดักจับตำแหน่งเมาส์ตอนยิง
+    if getgenv().SilentAim_Active and (method == "FindPartOnRayWithIgnoreList" or method == "Raycast" or method == "Hit") then
+        local targetHead = getVisibleMurderer()
+        if targetHead then
+            -- ถ้าเจอฆาตกรในระยะสายตา เปลี่ยนเป้าหมายกระสุนไปที่หัวฆาตกรทันที
+            if method == "Hit" then
+                return targetHead.CFrame
+            end
+        end
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+setreadonly(rawMetaTable, true)
+
+            
 
 
 
