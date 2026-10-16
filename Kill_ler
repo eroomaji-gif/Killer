@@ -867,7 +867,76 @@ end
 
 
 
+
+
+-- ==========================================
+-- 📌 [ปุ่มนายอำเภอ] Silent Aim ล็อกเป้าฆาตกร (กล้องไม่ล็อก + ปิด-เปิดได้)
+-- ==========================================
+getgenv().SilentAim_Active = false
+
+createSwitchButton(ContentContainer, "🎯 กระสุนพุ่งหาฆาตกร (Silent Aim)", getgenv().SilentAim_Active, function(isActive)
+    getgenv().SilentAim_Active = isActive
+end)
+
+-- 1. ฟังก์ชันค้นหาตำแหน่งหัวของฆาตกร
+local function getMurdererHead()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local char = player.Character
+            local hum = char:FindFirstChild("Humanoid")
+            local head = char:FindFirstChild("Head")
+            local backpack = player:FindFirstChild("Backpack")
             
+            -- เช็คว่าเป็นฆาตกรถือมีดอยู่หรือไม่
+            local isMurderer = char:FindFirstChild("Knife") or 
+                               (backpack and backpack:FindFirstChild("Knife"))
+            
+            if isMurderer and hum and hum.Health > 0 and head then
+                return head
+            end
+        end
+    end
+    return nil
+end
+
+-- 2. ระบบ Hook ดักจับกระสุน (ทำงานเฉพาะตอนเปิดปุ่ม SilentAim_Active)
+if not getgenv().SilentAimHooked then
+    getgenv().SilentAimHooked = true
+    
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        -- ทำงานเฉพาะตอนเปิดปุ่มสวิตช์
+        if getgenv().SilentAim_Active and method == "FireServer" then
+            local remoteName = self.Name:lower()
+            -- เช็คว่าเป็นการส่งข้อมูลยิงปืนหรือไม่
+            if remoteName:find("shoot") or remoteName:find("gun") or remoteName:find("fire") or remoteName:find("bullet") then
+                local targetHead = getMurdererHead()
+                if targetHead then
+                    -- สลับพิกัดกระสุนให้พุ่งไปที่หัวฆาตกรทันที
+                    for i, v in ipairs(args) do
+                        if typeof(v) == "Vector3" then
+                            args[i] = targetHead.Position
+                            break
+                        elseif typeof(v) == "CFrame" then
+                            args[i] = targetHead.CFrame
+                            break
+                        end
+                    end
+                    return oldNamecall(self, unpack(args))
+                end
+            end
+        end
+        
+        return oldNamecall(self, ...)
+    end)
+end
+
+
+
+
 
 
 
