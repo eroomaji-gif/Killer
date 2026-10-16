@@ -430,8 +430,18 @@ end)
 
 
 
+
+
+
+
+
+
+
+
+
+
 -- ==========================================
--- 📌 [ปุ่มที่ 2] ESP มองทะลุ + แท่งเสา (แก้เสาสีค้าง อัปเดตสีเสาสดทุกเฟรม)
+-- 📌 [ปุ่มที่ 2] ESP มองทะลุ + แท่งเสา (ระบบเช็คสีตามฝั่งตัวเรา 100%)
 -- ==========================================
 getgenv().PillarESP_Combined_Active = false
 
@@ -453,35 +463,52 @@ createSwitchButton(ContentContainer, "🗼 ESP มองทะลุ + แท่
     end
 end)
 
--- ฟังก์ชันเช็คสี (ฆาตกร/อาวุธมาก่อนเสมอ)
-local function getCombinedESPColor(player)
-    if player == localPlayer then return nil end
-
-    -- 👑 0. เช็ค Owner (สีรุ้ง)
-    if type(isOwner) == "function" and isOwner(player) then
-        return "Rainbow"
-    end
-    
-    -- 🔴 1. เช็คอาวุธ/ฆาตกร
+-- 🔍 ฟังก์ชันเช็คว่าผู้เล่นคนนั้นพกอาวุธ/เป็นฆาตกรหรือไม่
+local function hasWeapon(player)
     local character = player.Character
     if character then
         local backpack = player:FindFirstChild("Backpack")
         if character:FindFirstChild("Knife") or character:FindFirstChild("Gun") or character:FindFirstChild("Weapon") or
            (backpack and (backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Weapon"))) then
-            return Color3.fromRGB(255, 0, 0) -- สีแดง
+            return true
         end
     end
-
-    -- 🟢 2. เช็คทีมเดียวกัน
-    if player.Team and player.Team == localPlayer.Team then
-        return Color3.fromRGB(0, 255, 0) -- สีเขียว
-    end
-    
-    -- ⚪ 3. ผู้เล่นทั่วไป
-    return Color3.fromRGB(255, 255, 255)
+    return false
 end
 
--- ลูปการทำงานหลัก
+-- 🎨 ฟังก์ชันคำนวณสีตามฝั่งตัวเรา (POV Logic)
+local function getPOVColor(targetPlayer)
+    if targetPlayer == localPlayer then return nil end
+
+    -- 👑 0. เช็ค Owner (สีรุ้ง)
+    if type(isOwner) == "function" and isOwner(targetPlayer) then
+        return "Rainbow"
+    end
+
+    local amIKiller = hasWeapon(localPlayer) -- เช็คว่าตัวเราเป็นฆาตกร/พกอาวุธไหม
+    local targetIsKiller = hasWeapon(targetPlayer) -- เช็คว่าเป้าหมายเป็นฆาตกร/พกอาวุธไหม
+
+    -- 🔴 กรณีที่ 1: ตัวเราเป็นฝั่งฆาตกร/ฝั่งร้าย
+    if amIKiller then
+        if targetIsKiller then
+            return Color3.fromRGB(255, 0, 0) -- เพื่อนฆาตกรทีมเดียวกัน -> สีแดง
+        else
+            return Color3.fromRGB(255, 255, 255) -- เหยื่อ/คนหนี -> สีขาว
+        end
+    
+    -- 🟢 กรณีที่ 2: ตัวเราเป็นฝั่งผู้ดี/ผู้บริสุทธิ์
+    else
+        if targetIsKiller then
+            return Color3.fromRGB(255, 0, 0) -- ฆาตกร/ตัวอันตราย -> สีแดง
+        elseif targetPlayer.Team and targetPlayer.Team == localPlayer.Team then
+            return Color3.fromRGB(0, 255, 0) -- เพื่อนฝั่งดีทีมเดียวกัน -> สีเขียว
+        else
+            return Color3.fromRGB(0, 255, 0) -- ผู้บริสุทธิ์ทั่วไปฝั่งเดียวกัน -> สีเขียว
+        end
+    end
+end
+
+-- 🔁 ลูปอัปเดตสีและตำแหน่งเสา+กรอบสดๆ ทุกเฟรม
 task.spawn(function()
     getgenv().ActiveCombinedHighlights = {}
     getgenv().ActiveCombinedPillars = {}
@@ -507,51 +534,53 @@ task.spawn(function()
                     activePlayers[player.Name] = true
                     local rootPart = character.HumanoidRootPart
                     
-                    -- คำนวณสี ณ วินาทีปัจจุบัน
-                    local colorResult = getCombinedESPColor(player)
-                    local targetColor = (colorResult == "Rainbow") and rainbowColor or colorResult
+                    -- คำนวณสีตามฝั่งตัวเราสดๆ ณ เฟรมนี้
+                    local colorResult = getPOVColor(player)
+                    if colorResult then
+                        local targetColor = (colorResult == "Rainbow") and rainbowColor or colorResult
 
-                    -- 1. จัดการกรอบตัวละคร (Highlight)
-                    local highlight = character:FindFirstChild("CustomTeamESP_Combined")
-                    if not highlight then
-                        highlight = Instance.new("Highlight")
-                        highlight.Name = "CustomTeamESP_Combined"
-                        highlight.Adornee = character
-                        highlight.OutlineTransparency = 0
-                        highlight.FillTransparency = 0.4
-                        highlight.Parent = character
-                        table.insert(getgenv().ActiveCombinedHighlights, highlight)
+                        -- 1. อัปเดตกรอบสีตัวละคร (Highlight)
+                        local highlight = character:FindFirstChild("CustomTeamESP_Combined")
+                        if not highlight then
+                            highlight = Instance.new("Highlight")
+                            highlight.Name = "CustomTeamESP_Combined"
+                            highlight.Adornee = character
+                            highlight.OutlineTransparency = 0
+                            highlight.FillTransparency = 0.4
+                            highlight.Parent = character
+                            table.insert(getgenv().ActiveCombinedHighlights, highlight)
+                        end
+                        
+                        highlight.FillColor = targetColor
+                        highlight.OutlineColor = targetColor
+                        
+                        -- 2. อัปเดตเสาสูง (Pillar Part)
+                        local pillarPart = folder:FindFirstChild(player.Name .. "_Pillar")
+                        if not pillarPart then
+                            pillarPart = Instance.new("Part")
+                            pillarPart.Name = player.Name .. "_Pillar"
+                            pillarPart.Size = Vector3.new(0.6, 120, 0.6)
+                            pillarPart.Anchored = true
+                            pillarPart.CanCollide = false
+                            pillarPart.Transparency = 0.3
+                            pillarPart.Material = Enum.Material.Neon
+                            pillarPart.Parent = folder
+                            getgenv().ActiveCombinedPillars[player.Name] = pillarPart
+                        end
+                        
+                        -- บังคับเปลี่ยนตำแหน่งและสีเสาให้ตรงกับกรอบ 100% ทุกเฟรม
+                        pillarPart.CFrame = rootPart.CFrame * CFrame.new(0, 60, 0)
+                        pillarPart.Color = targetColor
                     end
-                    
-                    highlight.FillColor = targetColor
-                    highlight.OutlineColor = targetColor
-                    
-                    -- 2. จัดการแท่งเสา (Pillar)
-                    local pillarPart = folder:FindFirstChild(player.Name .. "_Pillar")
-                    if not pillarPart then
-                        pillarPart = Instance.new("Part")
-                        pillarPart.Name = player.Name .. "_Pillar"
-                        pillarPart.Size = Vector3.new(0.6, 120, 0.6)
-                        pillarPart.Anchored = true
-                        pillarPart.CanCollide = false
-                        pillarPart.Transparency = 0.3
-                        pillarPart.Material = Enum.Material.Neon
-                        pillarPart.Parent = folder
-                        getgenv().ActiveCombinedPillars[player.Name] = pillarPart
-                    end
-                    
-                    -- 📌 อัปเดตพิกัดและบังคับเปลี่ยนสีเสาตาม targetColor สดๆ ทุกเฟรม
-                    pillarPart.CFrame = rootPart.CFrame * CFrame.new(0, 60, 0)
-                    pillarPart.Color = targetColor
                 else
-                    -- เคลียร์ของคนที่ตายทิ้ง
+                    -- เคลียร์ของคนที่ตายทิ้งทันที
                     local oldPillar = folder:FindFirstChild(player.Name .. "_Pillar")
                     if oldPillar then oldPillar:Destroy() end
                 end
             end
         end
         
-        -- เคลียร์เสาผู้เล่นที่ออกจากเกม
+        -- เคลียร์เสาของผู้เล่นที่ออกจากเกม
         for name, pillar in pairs(getgenv().ActiveCombinedPillars) do
             if not activePlayers[name] then
                 if pillar then pillar:Destroy() end
@@ -562,7 +591,7 @@ task.spawn(function()
 end)
 
 
-
+        
 
 
 
