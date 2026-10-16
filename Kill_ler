@@ -518,7 +518,7 @@ do
         getgenv().PillarESPHighlights = {}
     end
 
-    createSwitchButton(ContentContainer, "🗼 EP กรอบสี + เสา", getgenv().PillarESP_Active, function(isActive)
+    createSwitchButton(ContentContainer, "🗼 EsP กรอบสี + เสา", getgenv().PillarESP_Active, function(isActive)
         getgenv().PillarESP_Active = isActive
 
         -- ปิดสวิตช์ = ล้างทั้งเสาและกรอบสีของปุ่มนี้
