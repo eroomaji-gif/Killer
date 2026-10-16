@@ -517,7 +517,7 @@ end)
 -- ==========================================
 getgenv().CategorizedESP_Active = false
 
-createSwitchButton(ContentContainer, "👁️ ESP แยกประเภท (แดง/เหลือง/เขียว) (200ม.)", getgenv().CategorizedESP_Active, function(isActive)
+createSwitchButton(ContentContainer, "👁️ ESP สิ่งมีชีวิต และ ความโหด (200ม.)", getgenv().CategorizedESP_Active, function(isActive)
     getgenv().CategorizedESP_Active = isActive
     
     if not isActive and getgenv().CategorizedESPHighlights then
