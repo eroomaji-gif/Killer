@@ -375,6 +375,84 @@ end)
 
 
 
+-- ==========================================
+-- 📌 [ปุ่มจิตสังหาร] แยกมีดเสียบทุกคนในแมพพร้อมกันในเสี้ยววิ (Mass Multi-Stab)
+-- ==========================================
+getgenv().MassStab_Active = false
+
+createSwitchButton(ContentContainer, "🗡️ จิตสังหาร (แยกมีดเสียบพร้อมกันทั้งแมพ)", getgenv().MassStab_Active, function(isActive)
+    getgenv().MassStab_Active = isActive
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if getgenv().MassStab_Active then
+            pcall(function()
+                local myChar = localPlayer.Character
+                if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                
+                -- หาไอเทมมีดของเรา
+                local knife = myChar:FindFirstChild("Knife") or localPlayer.Backpack:FindFirstChild("Knife")
+                if not knife then return end
+                
+                -- ดึงมีดมาถือไว้เตรียมใช้งาน
+                knife.Parent = myChar
+                
+                -- รวบรวมเป้าหมายทั้งหมดในแมพ (ไม่รวมตัวเราและ Owner)
+                local targets = {}
+                for _, targetPlayer in ipairs(Players:GetPlayers()) do
+                    if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
+                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
+                        if targetRoot and targetHum and targetHum.Health > 0 then
+                            table.insert(targets, targetRoot)
+                        end
+                    end
+                end
+                
+                -- ⚡ ใช้ task.spawn แยกเธรดออกไปจิ้มทุกคนพร้อมกันทันทีในเสี้ยววิเดียว (ไม่ต้องรอคิว)
+                for _, targetRoot in ipairs(targets) do
+                    task.spawn(function()
+                        if not getgenv().MassStab_Active then return end
+                        
+                        -- สร้างเอฟเฟกต์โคลนมีดพุ่งไปหาเป้าหมายแต่ละคน
+                        local handle = knife:FindFirstChild("Handle")
+                        if handle then
+                            local fakeKnife = handle:Clone()
+                            fakeKnife.Anchored = true
+                            fakeKnife.CanCollide = false
+                            fakeKnife.Parent = workspace
+                            
+                            -- เริ่มจากตัวเรา พุ่งไปที่เป้าหมาย
+                            fakeKnife.CFrame = myChar.HumanoidRootPart.CFrame
+                            
+                            -- สั่งเคลื่อนที่พุ่งไปหาเป้าหมายพริบตาเดียว
+                            fakeKnife.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 1)
+                            
+                            -- สั่งกระตุ้นฟังก์ชันโจมตี/เปิดใช้งานมีด
+                            knife:Activate()
+                            
+                            -- ลบมีดจำลองทิ้งหลังพุ่งชน
+                            task.delay(0.1, function()
+                                if fakeKnife then fakeKnife:Destroy() end
+                            end)
+                        end
+                    end)
+                end
+                
+                -- ทำงานเสร็จ ปิดปุ่มสวิตช์อัตโนมัติ
+                task.wait(0.5)
+                getgenv().MassStab_Active = false
+            end)
+        end
+    end
+end)
+
+
+
+
+
 
 
 -- ==========================================
