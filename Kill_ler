@@ -508,6 +508,57 @@ end)
 -- ==========================================
  
 
+-- ==========================================
+-- 📌 [ปุ่มฟังก์ชัน] ออโต้ดูดของลงกองไฟ (พิกัดกลางกองไฟเป๊ะๆ)
+-- ==========================================
+getgenv().AutoCampfireFeed_Active = false
+
+-- 📍 [พิกัดกลางกองไฟจริงในแมพ]
+local CampfireTargetPosition = Vector3.new(0.73, 7.93, -0.06) 
+
+createSwitchButton(ContentContainer, "🔥 ออโต้ดูดของลงกองไฟ", getgenv().AutoCampfireFeed_Active, function(isActive)
+    getgenv().AutoCampfireFeed_Active = isActive
+end)
+
+-- ระบบลูปเบื้องหลังสำหรับดักจับและเทเลพอร์ตไอเทม
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if getgenv().AutoCampfireFeed_Active then
+            pcall(function()
+                local character = localPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local rootPos = character.HumanoidRootPart.Position
+                    
+                    -- วนลูปเช็ควัตถุทั้งหมดใน Workspace
+                    for _, obj in pairs(workspace:GetChildren()) do
+                        if obj:IsA("BasePart") or obj:IsA("Model") then
+                            local itemPart = obj:IsA("Model") and obj.PrimaryPart or obj
+                            
+                            if itemPart and itemPart ~= character.PrimaryPart then
+                                local dist = (rootPos - itemPart.Position).Magnitude
+                                
+                                -- เงื่อนไข: ถ้าไอเทมอยู่ใกล้ตัวในระยะประชิด (แปลว่าเพิ่งปล่อยมือทิ้งจากตัว)
+                                if dist <= 7 then
+                                    -- ใช้พิกัดตรงกลางกองไฟเป๊ะๆ ไม่สุ่ม
+                                    local exactPosition = CFrame.new(CampfireTargetPosition)
+                                    
+                                    if obj:IsA("Model") then
+                                        if obj.PrimaryPart then
+                                            obj:SetPrimaryPartCFrame(exactPosition)
+                                        end
+                                    else
+                                        obj.CFrame = exactPosition
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
 
 
 
