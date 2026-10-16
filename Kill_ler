@@ -433,7 +433,7 @@ end)
 -- ==========================================
 getgenv().PillarESP_Combined_Active = false
 
-createSwitchButton(ContentContainer, "🗼 ESP มองทะลุ + แท่งเสา", getgenv().PillarESP_Combined_Active, function(isActive)
+createSwitchButton(ContentContainer, "🗼 ES มองทะลุ + แท่งเสา", getgenv().PillarESP_Combined_Active, function(isActive)
     getgenv().PillarESP_Combined_Active = isActive
     
     -- ถ้าปิดปุ๊บ ล้างเกลี้ยงทันทีทั้งโฟลเดอร์เสา ไฮไลท์ และเคลียร์ตารางเก็บข้อมูลให้เป็นค่าว่าง
