@@ -304,9 +304,7 @@ ContentLayout.Padding = UDim.new(0, 8)
 
 
 
--- ==========================================
--- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
--- ==========================================
+
 -- ==========================================
 -- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
 -- ==========================================
@@ -344,7 +342,53 @@ task.spawn(function()
                 
                 -- วนลูปเช็คผู้เล่นทุกคนเพื่อหาระยะทาง
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    -- 🛡️ ป้องกันไม่ให้สคริปต์วิ่งหรือเทเลพอร์ตมาหาเจ้าของสคริปต์ (On
+                    -- 🛡️ ป้องกันไม่ให้สคริปต์วิ่งหรือเทเลพอร์ตมาหาเจ้าของสคริปต์ (Onsenb47162)
+                    if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
+                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
+                        
+                        if targetRoot and targetHum and targetHum.Health > 0 then
+                            local colorType = getTargetColorType(targetPlayer)
+                            if colorType ~= "Red" then
+                                -- 📐 คำนวณระยะห่างระหว่างตัวเรากับเป้าหมาย
+                                local distance = (myRoot.Position - targetRoot.Position).Magnitude
+                                
+                                -- ถ้าคนนี้อยู่ใกล้กว่าระยะที่เคยบันทึกไว้ ให้เปลี่ยนคิวเป้าหมายเป็นคนนี้แทน
+                                if distance < shortestDistance then
+                                    shortestDistance = distance
+                                    nearestPlayer = targetPlayer
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- ⚡ พอได้คนที่ใกล้เราที่สุดคิวแรกแล้ว ให้เทเลพอร์ตไปหาคนนั้นทันที
+                if nearestPlayer and nearestPlayer.Character then
+                    if not getgenv().Script1_Active then return end
+                    local targetRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if targetRoot then
+                        myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
+                        task.wait(0.2)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 -- ==========================================
