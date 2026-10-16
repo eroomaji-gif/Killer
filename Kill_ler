@@ -379,22 +379,62 @@ end)
 
 
 
--- ฟังก์ชันเช็คสี ESP นอกปุ่ม
-local function getESPColor(player)
-    if player.Team and player.Team == localPlayer.Team then
-        return Color3.fromRGB(0, 255, 0) -- สีเขียว (พวกเดียวกัน)
+-- ==========================================
+-- ⬇️ [จุดที่เริ่มแทรก] ให้ลบฟังก์ชัน getESPColor อันเก่าทิ้ง 
+-- แล้วเอาชุดโค้ดใหม่นี้ (isSheriffOrGunUser และ getESPColor ตัวใหม่) มาวางแทนที่ตรงนี้ครับ:
+-- ==========================================
+
+-- ฟังก์ชันเช็คนายอำเภอ (เพิ่มใหม่เพื่อตรวจจับปืน/รีฟอลเวอร์)
+local function isSheriffOrGunUser(player)
+    local char = player.Character
+    local backpack = player:FindFirstChild("Backpack")
+    
+    local function checkGun(container)
+        if not container then return false end
+        for _, item in ipairs(container:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = string.lower(item.Name)
+                if name:find("gun") or name:find("revolver") or name:find("sheriff") then
+                    return true
+                end
+            end
+        end
+        return false
     end
     
+    return checkGun(char) or checkGun(backpack)
+end
+
+-- ฟังก์ชันเช็คสี ESP (ตัวอัปเกรด: เช็คนายอำเภอก่อน แล้วค่อยเช็คทีม/ฆาตกร)
+local function getESPColor(player)
+    -- ⬇️ [แทรกเช็คที่ 1] ถ้านายอำเภอถือปืน ให้คืนค่าเป็นสีน้ำเงิน/ฟ้าทันที
+    if isSheriffOrGunUser(player) then
+        return Color3.fromRGB(0, 150, 255) -- 🔵 สีน้ำเงิน (นายอำเภอ)
+    end
+
+    -- ⬇️ [แทรกเช็คที่ 2] เช็คทีมเดียวกัน
+    if player.Team and player.Team == localPlayer.Team then
+        return Color3.fromRGB(0, 255, 0) -- 🟢 สีเขียว (พวกเดียวกัน)
+    end
+    
+    -- ⬇️ [แทรกเช็คที่ 3] เช็คฆาตกรที่ถือมีด
     local character = player.Character
     if character then
         local backpack = player:FindFirstChild("Backpack")
-        if character:FindFirstChild("Knife") or character:FindFirstChild("Gun") or 
-           (backpack and (backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Gun"))) then
-            return Color3.fromRGB(255, 0, 0) -- สีแดง (อันตราย/ฆาตกร)
+        if character:FindFirstChild("Knife") or 
+           (backpack and backpack:FindFirstChild("Knife")) then
+            return Color3.fromRGB(255, 0, 0) -- 🔴 สีแดง (อันตราย/ฆาตกร)
         end
     end
-    return Color3.fromRGB(255, 255, 255) -- สีขาว (ทั่วไป)
+    
+    -- ⬇️ [แทรกเช็คที่ 4] คนทั่วไปที่ไม่เข้าเงื่อนไขด้านบน
+    return Color3.fromRGB(255, 255, 255) -- ⚪ สีขาว (ทั่วไป)
 end
+
+-- ==========================================
+-- ⬆️ [จุดสิ้นสุดการแทรก] จบชุดโค้ดใหม่ตรงนี้ครับ
+-- ==========================================
+
 
 -- ลูปการทำงาน ESP
 task.spawn(function()
