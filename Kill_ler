@@ -444,14 +444,13 @@ end)
 
 
 -- ==========================================
--- 📌 [ปุ่มฟังก์ชัน] ESP มองทะลุ + แท่งเสา (ฉบับแก้ตัว โค้ดถูกต้อง 100%)
+-- 📌 [ปุ่มฟังก์ชัน] ESP มองทะลุ + แท่งเสา (ฉบับบังคับโชว์เสาแดง ชัวร์ 100%)
 -- ==========================================
 getgenv().PillarESP_Combined_Active = false
 
-createSwitchButton(ContentContainer, "🗼 EP มองทะลุ + แท่งเสา", getgenv().PillarESP_Combined_Active, function(isActive)
+createSwitchButton(ContentContainer, "🗼 ESP มองทะลุ + แท่งเสา", getgenv().PillarESP_Combined_Active, function(isActive)
     getgenv().PillarESP_Combined_Active = isActive
     
-    -- ล้างค่าทั้งกรอบ Highlight และโฟลเดอร์เสาทิ้งทันทีเมื่อปิดสวิตช์
     if not isActive then
         if getgenv().ActiveHighlights then
             for _, highlight in ipairs(getgenv().ActiveHighlights) do
@@ -466,15 +465,14 @@ createSwitchButton(ContentContainer, "🗼 EP มองทะลุ + แท่�
     end
 end)
 
--- ฟังก์ชันเช็คสี ESP ต้นแบบของคุณเป๊ะๆ (เพิ่มเช็ค Owner สีรุ้งด้านบนสุด)
+-- ฟังก์ชันเช็คสี ESP ตัวเดิม
 local function getESPColor(player)
-    -- 👑 0. เช็ค Owner เป็นสีรุ้งเสมอ
     if type(isOwner) == "function" and isOwner(player) then
         return "Rainbow"
     end
 
     if player.Team and player.Team == localPlayer.Team then
-        return Color3.fromRGB(0, 255, 0) -- สีเขียว (พวกเดียวกัน)
+        return Color3.fromRGB(0, 255, 0) -- สีเขียว
     end
     
     local character = player.Character
@@ -482,13 +480,13 @@ local function getESPColor(player)
         local backpack = player:FindFirstChild("Backpack")
         if character:FindFirstChild("Knife") or character:FindFirstChild("Gun") or 
            (backpack and (backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Gun"))) then
-            return Color3.fromRGB(255, 0, 0) -- สีแดง (อันตราย/ฆาตกร)
+            return Color3.fromRGB(255, 0, 0) -- สีแดง
         end
     end
-    return Color3.fromRGB(255, 255, 255) -- สีขาว (ทั่วไป)
+    return Color3.fromRGB(255, 255, 255) -- สีขาว
 end
 
--- ลูปการทำงาน ESP + เพิ่มเสาเชื่อมต่อกับฟังก์ชันต้นแบบ
+-- ลูปการทำงาน
 task.spawn(function()
     getgenv().ActiveHighlights = {}
     getgenv().ActivePillarParts = {}
@@ -496,10 +494,8 @@ task.spawn(function()
     game:GetService("RunService").RenderStepped:Connect(function()
         if not getgenv().PillarESP_Combined_Active then return end
         
-        -- คำนวณสีรุ้งสำหรับ Owner
         local rainbowColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
         
-        -- 📌 แก้ตรงนี้: ถ้ายังไม่มีโฟลเดอร์ ค่อยสร้างใหม่ ถ้ามีแล้วให้ใช้ต่อเลย
         local folder = workspace:FindFirstChild("CustomPillarESPFolder")
         if not folder then
             folder = Instance.new("Folder")
@@ -517,11 +513,10 @@ task.spawn(function()
                 if rootPart then
                     activePlayers[player.Name] = true
                     
-                    -- ดึงค่าสีจากฟังก์ชันต้นแบบของคุณ
                     local colorResult = getESPColor(player)
                     local targetColor = (colorResult == "Rainbow") and rainbowColor or colorResult
 
-                    -- 1. กรอบสีตัวละคร (Highlight ต้นแบบของคุณ)
+                    -- 1. กรอบสีตัวละคร
                     local highlight = character:FindFirstChild("CustomTeamESP")
                     if not highlight then
                         highlight = Instance.new("Highlight")
@@ -536,27 +531,26 @@ task.spawn(function()
                     highlight.FillColor = targetColor
                     highlight.OutlineColor = targetColor
 
-                    -- 2. แท่งเสาสูง (ดึงมาเชื่อม ใช้ targetColor ตัวเดียวกับกรอบเป๊ะๆ)
+                    -- 2. แท่งเสาสูง (เซ็ตค่าให้มองเห็นชัดเจนแน่นอน)
                     local pillarPart = folder:FindFirstChild(player.Name .. "_Pillar")
                     if not pillarPart then
                         pillarPart = Instance.new("Part")
                         pillarPart.Name = player.Name .. "_Pillar"
-                        pillarPart.Size = Vector3.new(0.6, 120, 0.6)
+                        pillarPart.Size = Vector3.new(1, 150, 1) -- ขยายขนาดให้หนาและสูงขึ้น จะได้เห็นชัดๆ
                         pillarPart.Anchored = true
                         pillarPart.CanCollide = false
-                        pillarPart.Transparency = 0.3
+                        pillarPart.Transparency = 0.1 -- ปรับให้ทึบขึ้น (แทบไม่โปร่งใส) เพื่อให้สีตัดกับฉากหลังชัดเจน
                         pillarPart.Material = Enum.Material.Neon
                         pillarPart.Parent = folder
                         getgenv().ActivePillarParts[player.Name] = pillarPart
                     end
                     
-                    pillarPart.CFrame = rootPart.CFrame * CFrame.new(0, 60, 0)
+                    pillarPart.CFrame = rootPart.CFrame * CFrame.new(0, 75, 0)
                     pillarPart.Color = targetColor
                 end
             end
         end
         
-        -- เคลียร์เสาทิ้งถ้าผู้เล่นคนนั้นออกจากเกมหรือตายไป
         for name, pillar in pairs(getgenv().ActivePillarParts) do
             if not activePlayers[name] then
                 if pillar then pillar:Destroy() end
@@ -566,9 +560,6 @@ task.spawn(function()
     end)
 end)
 
-
-
-        
         
 
         
