@@ -1796,81 +1796,8 @@ end)
 
 
 
--- ==========================================
--- 🌊 [หมวดหมู่ Settings] ระบบเดินบนน้ำ ( Water Walk + Save State )
--- ==========================================
-local saveWaterFile = "WaterWalk_Save.txt"
-getgenv().WaterWalk_Active = false
 
--- 1. อ่านค่าเก่าที่เคยบันทึกไว้
-pcall(function()
-    if readfile and isfile and isfile(saveWaterFile) then
-        local savedValue = readfile(saveWaterFile)
-        if savedValue == "true" then
-            getgenv().WaterWalk_Active = true
-        elseif savedValue == "false" then
-            getgenv().WaterWalk_Active = false
-        end
-    end
-end)
-
--- 2. ฟังก์ชันปรับสีปุ่มและเริ่มทำงานตามสถานะที่โหลดมา
-local function updateWaterButtonState()
-    if getgenv().WaterWalk_Active then
-        BtnWater.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        BtnWater.Text = "🌊 เดินบนน้ำ: ON"
-    else
-        BtnWater.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        BtnWater.Text = "🌊 เดินบนน้ำ: OFF"
-    end
-end
-
--- อัปเดตหน้าตาปุ่มทันทีที่รันสคริปต์
-pcall(function()
-    updateWaterButtonState()
-end)
-
--- 3. กดปุ่มเพื่อสลับเปิด/ปิด และบันทึกค่าลงไฟล์อัตโนมัติ
-BtnWater.MouseButton1Click:Connect(function()
-    getgenv().WaterWalk_Active = not getgenv().WaterWalk_Active
-    
-    pcall(function()
-        if writefile then
-            writefile(saveWaterFile, tostring(getgenv().WaterWalk_Active))
-        end
-    end)
-    
-    updateWaterButtonState()
-end)
-
--- 4. ลูปเด้งขึ้นผิวน้ำตลอดเวลาเมื่อเปิดใช้งาน
-task.spawn(function()
-    while true do
-        task.wait(0.05)
-        if getgenv().WaterWalk_Active then
-            pcall(function()
-                local lp = game:GetService("Players").LocalPlayer
-                if not lp or not lp.Character then return end
-                
-                local char = lp.Character
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                local hum = char:FindFirstChild("Humanoid")
-                
-                if hrp and hum then
-                    local waterLevel = 6 -- ระดับความสูงของน้ำในแมพ
-                    
-                    -- ถ้าตัวละครจมลงต่ำกว่าระดับผิวน้ำ
-                    if hrp.Position.Y < waterLevel then
-                        hrp.CFrame = CFrame.new(hrp.Position.X, waterLevel + 2, hrp.Position.Z)
-                        hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
-                        hum:ChangeState(Enum.HumanoidStateType.Running)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
+ฃ
 
 
 
