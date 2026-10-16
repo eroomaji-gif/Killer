@@ -434,7 +434,7 @@ end)
 -- ==========================================
 getgenv().PillarESP_Active = false
 
-createSwitchButton(ContentContainer, "🗼 ESP เสาสูงผู้เล่น (แยกสี + เสาสีรุ้ง Owner)", getgenv().PillarESP_Active, function(isActive)
+createSwitchButton(ContentContainer, "🗼 ESP แท่งเสา", getgenv().PillarESP_Active, function(isActive)
     getgenv().PillarESP_Active = isActive
     
     -- ถ้าปิดสวิตช์ ให้ล้างเสาทั้งหมดทิ้งทันที
