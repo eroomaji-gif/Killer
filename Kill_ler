@@ -512,6 +512,70 @@ end)
 
 
 
+-- ==========================================
+-- 📌 [ปุ่มฟังก์ชัน] ESP มองทะลุมอนสเตอร์ ผี Entity (รัศมี 200 เมตร) - วางในหมวดหมู่ฆ่าตกร
+-- ==========================================
+getgenv().MonsterESP_Active = false
+
+-- สร้างปุ่มแคปซูลสวิตช์ใน ContentContainer (หมวดหมู่ฆ่าตกร)
+createSwitchButton(ContentContainer, "👁️ ESP มอนสเตอร์/ผี (200ม.)", getgenv().MonsterESP_Active, function(isActive)
+    getgenv().MonsterESP_Active = isActive
+    
+    -- ถ้าปิดสวิตช์ ให้ล้าง Highlight ทั้งหมดทิ้งทันที
+    if not isActive and getgenv().MonsterESPHighlights then
+        for _, hl in ipairs(getgenv().MonsterESPHighlights) do
+            if hl then hl:Destroy() end
+        end
+        getgenv().MonsterESPHighlights = {}
+    end
+end)
+
+-- ระบบลูปสแกนเฉพาะมอนสเตอร์ ผี และ Entity ในรัศมี 200 เมตร
+task.spawn(function()
+    getgenv().MonsterESPHighlights = {}
+    while true do
+        task.wait(0.5) -- เช็คทุกๆ ครึ่งวินาที
+        if getgenv().MonsterESP_Active then
+            pcall(function()
+                local character = localPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local myPos = character.HumanoidRootPart.Position
+                    local maxDistance = 200 -- กำหนดรัศมี 200 เมตร (Studs)
+                    
+                    -- เคลียร์ของเก่ารอบทิศเพื่ออัปเดตใหม่
+                    for _, hl in ipairs(getgenv().MonsterESPHighlights) do
+                        if hl then hl:Destroy() end
+                    end
+                    getgenv().MonsterESPHighlights = {}
+                    
+                    -- สแกนหาเฉพาะสิ่งมีชีวิต/Model ใน Workspace ที่ไม่ใช่ผู้เล่น (เช่น มอนสเตอร์ ผี Entity)
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj ~= character then
+                            local humanoid = obj:FindFirstChildOfClass("Humanoid")
+                            local rootPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head")
+                            
+                            -- ตรวจสอบว่าเป็นสิ่งที่มี Humanoid และไม่ใช่ Player ในเกม
+                            if humanoid and rootPart and not Players:GetPlayerFromCharacter(obj) then
+                                local dist = (myPos - rootPart.Position).Magnitude
+                                if dist <= maxDistance then
+                                    local hl = Instance.new("Highlight")
+                                    hl.Name = "MonsterESP_HL"
+                                    hl.Adornee = obj
+                                    hl.FillColor = Color3.fromRGB(255, 0, 0)     -- สีแดงเด่นชัดสำหรับมอนสเตอร์/ผี
+                                    hl.OutlineColor = Color3.fromRGB(255, 255, 0) -- ขอบสีเหลือง
+                                    hl.FillTransparency = 0.3
+                                    hl.OutlineTransparency = 0
+                                    hl.Parent = obj
+                                    table.insert(getgenv().MonsterESPHighlights, hl)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
 
 
 
