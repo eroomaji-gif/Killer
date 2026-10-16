@@ -500,7 +500,6 @@ end)
 -- - Owner = กรอบ + ข้างใน + เสา เป็นสีรุ้ง
 -- ครอบด้วย do ... end เพื่อไม่ให้กินโควตา local ของสคริปต์หลัก
 -- ==========================================
-do
     getgenv().PillarESP_Active = false
     getgenv().PillarESPLines = {}
     getgenv().PillarESPHighlights = {}
