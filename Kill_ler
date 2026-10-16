@@ -307,6 +307,9 @@ ContentLayout.Padding = UDim.new(0, 8)
 -- ==========================================
 -- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
 -- ==========================================
+-- ==========================================
+-- 📌 [ปุ่มที่ 1] วาปฆ่า+วาปหาเพื่อน (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
+-- ==========================================
 getgenv().Script1_Active = false
 createSwitchButton(ContentContainer, "⚡ กระโดดกัดคอ", getgenv().Script1_Active, function(isActive)
     getgenv().Script1_Active = isActive
@@ -325,7 +328,7 @@ local function getTargetColorType(targetPlayer)
     return "GreenOrWhite"
 end
 
--- 2. ลูปการทำงานหลัก
+-- 2. ลูปการทำงานหลัก (อัปเกรด: ค้นหาคนใกล้ที่สุดก่อน แล้วค่อยเทเลพอร์ตไปหาตามลำดับ)
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -333,28 +336,15 @@ task.spawn(function()
             pcall(function()
                 local myChar = localPlayer.Character
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                local myRoot = myChar.HumanoidRootPart
                 
+                -- 🔍 ประกาศตัวแปรไว้หาคนที่ใกล้ที่สุด ณ ตอนนั้น
+                local nearestPlayer = nil
+                local shortestDistance = math.huge -- ตั้งระยะทางเริ่มต้นให้มากที่สุด
+                
+                -- วนลูปเช็คผู้เล่นทุกคนเพื่อหาระยะทาง
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    -- 🛡️ ป้องกันไม่ให้สคริปต์วิ่งหรือเทเลพอร์ตมาหาเจ้าของสคริปต์ (Onsenb47162)
-                    if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
-                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
-                        
-                        if targetRoot and targetHum and targetHum.Health > 0 then
-                            if not getgenv().Script1_Active then break end
-                            
-                            local colorType = getTargetColorType(targetPlayer)
-                            if colorType ~= "Red" then
-                                myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
-                                task.wait(0.2)
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
+                    -- 🛡️ ป้องกันไม่ให้สคริปต์วิ่งหรือเทเลพอร์ตมาหาเจ้าของสคริปต์ (On
 
 
 -- ==========================================
