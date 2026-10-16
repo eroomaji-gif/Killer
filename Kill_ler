@@ -417,7 +417,7 @@ local function getESPColor(player)
         return Color3.fromRGB(0, 255, 0) -- 🟢 สีเขียว (พวกเดียวกัน)
     end
     
-    -- ⬇️ [แทรกเช็คที่ 3] เช็คฆาตกรที่ถือมีด
+        -- ⬇️ [แทนที่ตรงนี้] เช็คเฉพาะฆาตกรที่ถือมีด (ลบ Gun ออกแล้วเพื่อหยุดไฟกระพริบ)
     local character = player.Character
     if character then
         local backpack = player:FindFirstChild("Backpack")
@@ -426,6 +426,7 @@ local function getESPColor(player)
             return Color3.fromRGB(255, 0, 0) -- 🔴 สีแดง (อันตราย/ฆาตกร)
         end
     end
+
     
     -- ⬇️ [แทรกเช็คที่ 4] คนทั่วไปที่ไม่เข้าเงื่อนไขด้านบน
     return Color3.fromRGB(255, 255, 255) -- ⚪ สีขาว (ทั่วไป)
