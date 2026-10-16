@@ -359,7 +359,7 @@ end)
 -- 📌 [ปุ่มที่ 2] เปิดมองทะลุ (ย้ายมาใส่ในหมวดหมู่ฆาตกร)
 -- ==========================================
 getgenv().Script2_Active = false
-createSwitchButton(ContentContainer, "👁️ ตาเทพ", getgenv().Script2_Active, function(isActive)
+createSwitchButton(ContentContainer, "👁️ แอบมองเธออยู่นะจ๊ะ", getgenv().Script2_Active, function(isActive)
     getgenv().Script2_Active = isActive
     
     -- 📌 เอามาไว้ข้างในตรงนี้ (พอด้านนอกปิดปุ๊บ ลูปนี้จะทำงานทันที)
