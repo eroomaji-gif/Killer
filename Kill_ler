@@ -384,15 +384,18 @@ end)
 
 
 
+
+
+
 -- ==========================================
--- 📌 [ปุ่มพิเศษ] วาปล่าเก็บนายอำเภอ/คนถือปืนก่อน (Sheriff Hunter)
+-- 📌 [ปุ่มพิเศษ] วาปล่าเก็บนายอำเภอ (ไม่สนระยะทาง ไกลแค่ไหนก็พุ่งไปหา)
 -- ==========================================
 getgenv().KillSheriff_Active = false
-createSwitchButton(ContentContainer, "🎯 วาปล่าเก็บนายอำเภอก่อน", getgenv().KillSheriff_Active, function(isActive)
+createSwitchButton(ContentContainer, "🎯 วาปล่าเก็บนายอำเภอ (ไม่สนระยะ)", getgenv().KillSheriff_Active, function(isActive)
     getgenv().KillSheriff_Active = isActive
 end)
 
--- ลูปการทำงาน: ค้นหาและพุ่งไปหานายอำเภอ/คนถือปืนโดยเฉพาะ
+-- ลูปการทำงาน: ตรวจเจอคนถือปืน/นายอำเภอในเซิร์ฟปุ๊บ วาร์ปใส่ทันที
 task.spawn(function()
     while true do
         task.wait(0.3) -- ความเร็วในการสแกนและวาร์ปหา
@@ -402,46 +405,31 @@ task.spawn(function()
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 local myRoot = myChar.HumanoidRootPart
                 
-                -- 🔍 ค้นหาผู้เล่นที่เป็นนายอำเภอ/ถือปืนที่ใกล้เราที่สุด
-                local targetSheriff = nil
-                local shortestDistance = math.huge
-                
+                -- 🔍 สแกนหาผู้เล่นทุกคนในเซิร์ฟเวอร์
                 for _, targetPlayer in ipairs(Players:GetPlayers()) do
-                    -- ไม่วาร์ปหาตัวเอง, ไม่วาร์ปหา Owner, และเป้าหมายต้องมีตัวละครอยู่
+                    -- ไม่วาร์ปหาตัวเอง, ไม่วาร์ปหา Owner, และเป้าหมายต้องมีตัวละคร/ยังไม่ตาย
                     if targetPlayer ~= localPlayer and not isOwner(targetPlayer) and targetPlayer.Character then
                         local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                         local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
                         
                         if targetRoot and targetHum and targetHum.Health > 0 then
-                            -- 🔵 เช็คว่าเป็นนายอำเภอ หรือ คนถือปืน หรือไม่
+                            -- 🔵 เช็คว่าเป็นนายอำเภอ หรือ มีปืนในมือ/กระเป๋า หรือไม่
                             local isGunUser = (type(isSheriff) == "function" and isSheriff(targetPlayer)) or 
                                              (type(isSheriffOrGunUser) == "function" and isSheriffOrGunUser(targetPlayer))
                             
+                            -- ⚡ ถ้าตรวจเจอว่าเป็นนายอำเภอ/ถือปืน วาร์ปไปประกบหลังทันที ไม่สนว่าอยู่ไกลแค่ไหน!
                             if isGunUser then
-                                local distance = (myRoot.Position - targetRoot.Position).Magnitude
-                                if distance < shortestDistance then
-                                    shortestDistance = distance
-                                    targetSheriff = targetPlayer
-                                end
+                                if not getgenv().KillSheriff_Active then break end
+                                myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
+                                break -- พอวาร์ปเจอคนแรกแล้ว ให้หลุดลูปเพื่อไปรอรอบถัดไป
                             end
                         end
-                    end
-                end
-                
-                -- ⚡ ถ้าเจอตัวนายอำเภอ/คนถือปืน ให้วาร์ปไปประชิดหลังทันที!
-                if targetSheriff and targetSheriff.Character then
-                    if not getgenv().KillSheriff_Active then return end
-                    local targetRoot = targetSheriff.Character:FindFirstChild("HumanoidRootPart")
-                    if targetRoot then
-                        -- วาร์ปไปประกบหลังระยะ 2 บล็อก ให้สับมีดได้ง่ายๆ
-                        myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
                     end
                 end
             end)
         end
     end
 end)
-
 
 
 
