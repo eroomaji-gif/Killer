@@ -1799,6 +1799,94 @@ end)
 
 
 
+-- ==========================================
+-- 📌 [ระบบบันทึกการตั้งค่าอัตโนมัติ (Config System)]
+-- ==========================================
+local HttpService = game:GetService("HttpService")
+local ConfigFileName = "MM2_Script_Config.json"
+
+-- ค่าเริ่มต้น (Default States)
+local ConfigData = {
+    WaterWalk = false,
+    SilentAim = false,
+    GlobalHitbox = false
+    -- สามารถเพิ่มชื่อฟังก์ชันอื่นๆ ตรงนี้ได้
+}
+
+-- ฟังก์ชันโหลดค่าจากไฟล์เก่า (ถ้ามี)
+local function LoadConfig()
+    if readfile and isfile and isfile(ConfigFileName) then
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(readfile(ConfigFileName))
+        end)
+        if success and type(result) == "table" then
+            for k, v in pairs(result) do
+                ConfigData[k] = v
+            end
+        end
+    end
+end
+
+-- ฟังก์ชันบันทึกค่าปัจจุบันลงไฟล์
+local function SaveConfig()
+    if writefile then
+        pcall(function()
+            writefile(ConfigFileName, HttpService:JSONEncode(ConfigData))
+        end)
+    end
+end
+
+-- โหลดค่าเดิมทันทีที่เริ่มรันสคริปต์
+LoadConfig()
+
+-- ==========================================
+-- 🌊 ตัวอย่างการใช้งานกับปุ่ม "เดินบนน้ำ" (Water Walk)
+-- ==========================================
+getgenv().WaterWalk_Active = ConfigData.WaterWalk -- ดึงค่าที่เคยบันทึกไว้มาใช้
+
+createSwitchButton(ContentContainer, "🌊 เดินบนน้ำ (ไม่จมน้ำตลอดกาล)", getgenv().WaterWalk_Active, function(isActive)
+    getgenv().WaterWalk_Active = isActive
+    ConfigData.WaterWalk = isActive -- อัปเดตค่า
+    SaveConfig() -- บันทึกลงไฟล์ทันทีเมื่อกดเปลี่ยนสถานะ
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.05)
+        if getgenv().WaterWalk_Active then
+            pcall(function()
+                local lp = game:GetService("Players").LocalPlayer
+                if not lp or not lp.Character then return end
+                
+                local char = lp.Character
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChild("Humanoid")
+                
+                if hrp and hum then
+                    local waterLevel = 6 
+                    if hrp.Position.Y < waterLevel then
+                        hrp.CFrame = CFrame.new(hrp.Position.X, waterLevel + 2, hrp.Position.Z)
+                        hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
+                        hum:ChangeState(Enum.HumanoidStateType.Running)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- ==========================================
 -- 📌 [ปุ่มตั้งค่า] ลบหมอกและปรับกลางวัน + ระบบจำค่า (Auto-Save)
