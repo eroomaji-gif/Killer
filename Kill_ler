@@ -602,6 +602,117 @@ do
         -- ชื่อทีม (เช่น Murderer / Hunter)
         if player.Team and hasDangerWord(player.Team.Name) then
             return true
+-- ==========================================
+-- 📌 [ปุ่มฟังก์ชัน] ESP กรอบสี + เสาสูงผู้เล่น (ปุ่มนี้แยกจากปุ่ม "แอบมองเธอ" ใช้ตัวแปรของตัวเอง ไม่ซ้ำกัน)
+-- - มีไส้ในของ ESP กรอบสีครบ (Highlight) + เสาสูงเพิ่มให้
+-- - อันตราย (มีด/ดาบ/ปืน/ฆาตกร/ฮันเตอร์) = กรอบแดง + ข้างในแดงอ่อน + เสาแดง
+-- - Owner = กรอบ + ข้างใน + เสา เป็นสีรุ้ง
+-- ครอบด้วย do ... end เพื่อไม่ให้กินโควตา local ของสคริปต์หลัก
+-- ==========================================
+do
+    getgenv().PillarESP_Active = false
+    getgenv().PillarESPLines = {}
+    getgenv().PillarESPHighlights = {}
+
+    local function clearPillars()
+        for _, pillar in pairs(getgenv().PillarESPLines) do
+            if pillar then pillar:Destroy() end
+        end
+        getgenv().PillarESPLines = {}
+    end
+
+    local function clearHighlights()
+        for _, hl in pairs(getgenv().PillarESPHighlights) do
+            if hl then hl:Destroy() end
+        end
+        getgenv().PillarESPHighlights = {}
+    end
+
+    createSwitchButton(ContentContainer, "🗼 ESP กรอบสี + เสา", getgenv().PillarESP_Active, function(isActive)
+        getgenv().PillarESP_Active = isActive
+
+        -- ปิดสวิตช์ = ล้างทั้งเสาและกรอบสีของปุ่มนี้
+        if not isActive then
+            clearPillars()
+            clearHighlights()
+        end
+    end)
+
+    -- ------------------------------------------
+    -- เช็คว่าเป็นตัวอันตรายไหม (มีด/ดาบ/ปืน/ฆาตกร/ฮันเตอร์)
+    -- ------------------------------------------
+    -- (ปืนย้ายไปเป็นของนายอำเภอแล้ว จึงไม่อยู่ในลิสต์นี้)
+    local DANGER_WORDS = { "knife", "sword", "murder", "hunter" }
+
+    local function hasDangerWord(text)
+        text = string.lower(tostring(text or ""))
+        for _, word in ipairs(DANGER_WORDS) do
+            if string.find(text, word, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function hasDangerTool(container)
+        if not container then return false end
+        for _, item in ipairs(container:GetChildren()) do
+            if item:IsA("Tool") and hasDangerWord(item.Name) then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- ------------------------------------------
+    -- 🔵 เช็คนายอำเภอ (Sheriff) ก่อนอย่างอื่นทั้งหมด
+    -- ------------------------------------------
+    -- ใครถือปืน/รีวอลเวอร์ = นายอำเภอ (ตรงกับ MM2)
+    local SHERIFF_WORDS = { "sheriff", "detective", "police", "gun", "revolver" }
+
+    local function hasSheriffWord(text)
+        text = string.lower(tostring(text or ""))
+        for _, word in ipairs(SHERIFF_WORDS) do
+            if string.find(text, word, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function isSheriff(player)
+        -- ชื่อทีม
+        if player.Team and hasSheriffWord(player.Team.Name) then
+            return true
+        end
+        -- Attribute บทบาท (ถ้าเกมมี)
+        for _, attr in ipairs({ "Role", "role", "Class", "Team" }) do
+            local value = player:GetAttribute(attr)
+            if value and hasSheriffWord(value) then
+                return true
+            end
+        end
+        -- ชื่อ Tool ในมือ/กระเป๋า
+        for _, container in ipairs({ player.Character, player:FindFirstChild("Backpack") }) do
+            if container then
+                for _, item in ipairs(container:GetChildren()) do
+                    if item:IsA("Tool") and hasSheriffWord(item.Name) then
+                        return true
+                    end
+                end
+            end
+        end
+        return false
+    end
+
+    local function isDangerous(player)
+        -- นายอำเภอไม่นับเป็นอันตราย (ต่อให้ถือปืนก็ไม่เป็นแดง)
+        if isSheriff(player) then
+            return false
+        end
+        -- ชื่อทีม (เช่น Murderer / Hunter)
+        if player.Team and hasDangerWord(player.Team.Name) then
+            return true
         end
         -- Attribute บทบาท (ถ้าเกมมี)
         for _, attr in ipairs({ "Role", "role", "Class", "Team" }) do
@@ -622,7 +733,7 @@ do
     -- ------------------------------------------
     local function getESPColor(player)
         if isSheriff(player) then
-            return Color3.fromRGB(0, 100, 255) -- 🔵 น้ำเงิน (นายอำเภอ) เช็คก่อนเสมอ
+            return Color3.fromRGB(0, 150, 255) -- 🔵 น้ำเงิน (นายอำเภอ) เช็คก่อนเสมอ
         end
         if isDangerous(player) then
             return Color3.fromRGB(255, 0, 0) -- 🔴 แดง (อันตราย)
@@ -652,6 +763,13 @@ do
             if player ~= localPlayer and player.Character then
                 local character = player.Character
                 if character:FindFirstChild("HumanoidRootPart") then
+                    -- ถ้าปุ่ม "แอบมองเธอ" วาดกรอบให้คนนี้อยู่แล้ว ปุ่มนี้ไม่วาดซ้ำ (กันกรอบ 2 ชั้นสลับสีกัน) เหลือแค่เสา
+                    if getgenv().Script2_Active and character:FindFirstChild("CustomTeamESP") then
+                        local mine = character:FindFirstChild("PillarESP_HL")
+                        if mine then mine:Destroy() end
+                        continue
+                    end
+
                     local highlight = character:FindFirstChild("PillarESP_HL")
                     if not highlight then
                         highlight = Instance.new("Highlight")
@@ -753,7 +871,6 @@ do
         end
     end)
 end
-
 
 
 
