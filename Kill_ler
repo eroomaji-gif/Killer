@@ -2769,95 +2769,184 @@ end)
 
 
 
+
+
 -- ==========================================================
--- 🛡️ [HUMANOID BASELINE COMPARISON] สแกนอ่านค่า Humanoid ทุกคนมาเทียบกัน
+-- 🛡️ เทียบข้อมูลตัวละครทุกคนกับคนส่วนใหญ่ ใครไม่ตรง = ติดป้ายถาวร
 -- ==========================================================
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local INTERVAL = 0.5        -- สแกนทุกกี่วินาที
+local MIN_PLAYERS = 3       -- ต้องมีคนให้เทียบอย่างน้อยกี่คน (2 คนหาเสียงข้างมากไม่ได้)
+local STRIKES_TO_FLAG = 3   -- ผิดปกติติดกันกี่รอบถึงตัดสิน (กันค่าที่เปลี่ยนชั่วคราว)
+local MOVE_TOLERANCE = 1.35 -- เคลื่อนที่เร็วกว่าค่าส่วนใหญ่กี่เท่าถึงนับว่าผิดปกติ
+local MAX_JUMP = 80         -- ระยะที่ถือว่าเป็นวาร์ป/เกิดใหม่ (studs ต่อรอบ) ข้ามไป
+
+-- ค่า Humanoid ที่จะเอามาเทียบกัน
+local PROPS = {"WalkSpeed", "JumpPower", "JumpHeight", "HipHeight", "MaxHealth"}
+
+local tracker = {}  -- [player] = {pos, time, strikes}
+local flagged = {}  -- [player] = true (ติดแล้วไม่หายจนกว่าจะออกเกม)
+
+local function round(n)
+    return math.floor(n * 10 + 0.5) / 10
+end
+
+-- ติดป้ายบนตัวละคร
+local function addTag(char)
+    if not char then return end
+
+    if not char:FindFirstChild("BotHighlight") then
+        local hl = Instance.new("Highlight")
+        hl.Name = "BotHighlight"
+        hl.Adornee = char
+        hl.FillColor = Color3.fromRGB(255, 0, 0)
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.Parent = char
+    end
+
+    local head = char:FindFirstChild("Head")
+    if head and not head:FindFirstChild("BotTagGui") then
+        local bill = Instance.new("BillboardGui")
+        bill.Name = "BotTagGui"
+        bill.Adornee = head
+        bill.Size = UDim2.new(0, 200, 0, 50)
+        bill.StudsOffset = Vector3.new(0, 3, 0)
+        bill.AlwaysOnTop = true
+        bill.Parent = head
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = "⚠️ [BOT / ใช้สคริปต์]"
+        label.TextColor3 = Color3.fromRGB(255, 0, 0)
+        label.TextScaled = true
+        label.Font = Enum.Font.GothamBold
+        label.TextStrokeTransparency = 0
+        label.Parent = bill
+    end
+end
+
+-- ตัวละครเกิดใหม่แล้วป้ายหาย -> ติดกลับให้
+local function watchPlayer(player)
+    player.CharacterAdded:Connect(function(char)
+        if flagged[player] then
+            task.wait(1) -- รอให้ Head โหลดก่อน
+            addTag(char)
+        end
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= localPlayer then watchPlayer(p) end
+end
+Players.PlayerAdded:Connect(function(p)
+    if p ~= localPlayer then watchPlayer(p) end
+end)
+Players.PlayerRemoving:Connect(function(p)
+    tracker[p] = nil
+    flagged[p] = nil
+end)
+
+-- หาค่าที่คนส่วนใหญ่ใช้ร่วมกัน
+local function majorityValue(counts)
+    local best, bestCount = nil, 0
+    for value, count in pairs(counts) do
+        if count > bestCount then
+            best, bestCount = value, count
+        end
+    end
+    return best, bestCount
+end
+
 task.spawn(function()
-    local Players = game:GetService("Players")
-    local localPlayer = Players.LocalPlayer
+    -- ถ้ามีตัวแปร isRunning จากเมนูหลักจะใช้ตัวนั้น ถ้าไม่มีก็รันต่อเรื่อยๆ
+    while isRunning ~= false do
+        task.wait(INTERVAL)
 
-    while isRunning do
-        task.wait(1) -- อ่านค่ากวาดสแกนทุกๆ 1 วินาที
-        
         pcall(function()
-            local playerHumanoidData = {}
-            local speedCounts = {}
-            local activePlayers = {}
+            local now = os.clock()
+            local active = {}   -- รายชื่อที่เอามาเทียบ
+            local data = {}     -- [player] = {props = {...}, moveSpeed = n}
+            local propCounts = {}
+            for _, prop in ipairs(PROPS) do propCounts[prop] = {} end
+            local moveSpeeds = {}
 
-            -- 1. วิ่งอ่านค่าจาก Humanoid ของผู้เล่นทุกคนในเซิร์ฟเวอร์
+            -- 1. เก็บข้อมูลทุกคน
             for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= localPlayer and player.Character then
-                    local humanoid = player.Character:FindFirstChild("Humanoid")
-                    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
-                    
-                    if humanoid and rootPart and humanoid.Health > 0 then
-                        -- อ่านค่าความเร็วจาก Humanoid โดยตรง
-                        local currentSpeed = math.floor(humanoid.WalkSpeed)
-                        
-                        -- เก็บข้อมูลรายคน
-                        playerHumanoidData[player] = currentSpeed
-                        table.insert(activePlayers, player)
-                        
-                        -- นับจำนวนคนเพื่อหาค่ากลางของคนส่วนใหญ่
-                        speedCounts[currentSpeed] = (speedCounts[currentSpeed] or 0) + 1
+                if player ~= localPlayer then
+                    local char = player.Character
+                    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+
+                    if humanoid and root and humanoid.Health > 0 then
+                        local info = {props = {}, moveSpeed = nil}
+
+                        for _, prop in ipairs(PROPS) do
+                            local value = round(humanoid[prop])
+                            info.props[prop] = value
+                            propCounts[prop][value] = (propCounts[prop][value] or 0) + 1
+                        end
+
+                        -- วัดความเร็วที่เคลื่อนที่จริง (แนวนอนเท่านั้น)
+                        local t = tracker[player]
+                        if not t then
+                            tracker[player] = {pos = root.Position, time = now, strikes = 0}
+                        else
+                            local dt = now - t.time
+                            local delta = root.Position - t.pos
+                            local horizontal = Vector3.new(delta.X, 0, delta.Z).Magnitude
+                            t.pos = root.Position
+                            t.time = now
+                            if dt > 0 and horizontal < MAX_JUMP then
+                                info.moveSpeed = horizontal / dt
+                            end
+                        end
+
+                        data[player] = info
+                        table.insert(active, player)
                     end
                 end
             end
 
-            -- 2. ต้องมีคนให้เทียบตั้งแต่ 2 คนขึ้นไป
-            if #activePlayers >= 2 then
-                -- หาความเร็วที่คนส่วนใหญ่ในห้องใช้ร่วมกัน (Baseline Speed)
-                local baselineSpeed = nil
-                local maxCount = 0
-                
-                for speed, count in pairs(speedCounts) do
-                    if count > maxCount then
-                        maxCount = count
-                        baselineSpeed = speed
-                    end
-                end
+            if #active < MIN_PLAYERS then return end
 
-                -- 3. นำค่าของทุกคนมาเทียบกับ Baseline คนส่วนใหญ่
-                if baselineSpeed then
-                    for _, player in ipairs(activePlayers) do
-                        local pSpeed = playerHumanoidData[player]
-                        
-                        -- ถ้าค่าความเร็วของใคร "ไม่เท่ากับคนส่วนใหญ่" -> ชี้เป้าว่าเป็น BOT / ใช้สคริปต์ทันที
-                        if pSpeed and pSpeed ~= baselineSpeed then
-                            local char = player.Character
-                            
-                            -- แปะ Highlight สีแดง
-                            local hl = char:FindFirstChild("BotHighlight")
-                            if not hl then
-                                hl = Instance.new("Highlight")
-                                hl.Name = "BotHighlight"
-                                hl.Adornee = char
-                                hl.FillColor = Color3.fromRGB(255, 0, 0)
-                                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                hl.Parent = char
-                            end
-                            
-                            -- แปะป้าย BillboardGui แสดงบนหัว
-                            local head = char:FindFirstChild("Head")
-                            if head and not head:FindFirstChild("BotTagGui") then
-                                local bill = Instance.new("BillboardGui")
-                                bill.Name = "BotTagGui"
-                                bill.Adornee = head
-                                bill.Size = UDim2.new(0, 200, 0, 50)
-                                bill.StudsOffset = Vector3.new(0, 3, 0)
-                                bill.AlwaysOnTop = true
-                                bill.Parent = head
-                                
-                                local textLabel = Instance.new("TextLabel")
-                                textLabel.Size = UDim2.new(1, 0, 1, 0)
-                                textLabel.BackgroundTransparency = 1
-                                textLabel.Text = "⚠️ [BOT / ใช้สคริปต์]"
-                                textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-                                textLabel.TextScaled = true
-                                textLabel.Font = Enum.Font.GothamBold
-                                textLabel.TextStrokeTransparency = 0
-                                textLabel.Parent = bill
-                            end
+            -- 2. หาค่าของคนส่วนใหญ่
+            local baseline = {}
+            for _, prop in ipairs(PROPS) do
+                baseline[prop] = majorityValue(propCounts[prop])
+            end
+            local baseSpeed = math.max(baseline.WalkSpeed or 16, 16)
+
+            -- 3. เทียบทุกคนกับคนส่วนใหญ่
+            for _, player in ipairs(active) do
+                if not flagged[player] then
+                    local info = data[player]
+                    local suspicious = false
+
+                    for _, prop in ipairs(PROPS) do
+                        if info.props[prop] ~= baseline[prop] then
+                            suspicious = true
+                            break
+                        end
+                    end
+
+                    if info.moveSpeed and info.moveSpeed > baseSpeed * MOVE_TOLERANCE then
+                        suspicious = true
+                    end
+
+                    local t = tracker[player]
+                    if t then
+                        if suspicious then
+                            t.strikes += 1
+                        else
+                            t.strikes = 0
+                        end
+
+                        if t.strikes >= STRIKES_TO_FLAG then
+                            flagged[player] = true
+                            addTag(player.Character)
                         end
                     end
                 end
