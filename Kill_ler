@@ -1,3 +1,62 @@
+-- ==========================================================
+-- 👑 [MASTER HEADER] ระบบเคลียร์ค่าและป้องกันการรันสคริปต์ตัวแม่ซ้ำ
+-- ==========================================================
+pcall(function()
+    -- 1. สั่งยกเลิกและทำลายการทำงานของตัวแปร/ลูปเก่าทั้งหมด (ถ้ามีเก็บไว้ใน getgenv)
+    if getgenv().MainScript_Loaded and getgenv().MainScript_Cleanup then
+        getgenv().MainScript_Cleanup()
+    end
+
+    -- 2. กวาดล้าง UI, เมนู, Highlight และ BillboardGui เก่าทิ้งให้เกลี้ยงทั้งเกม
+    for _, obj in ipairs(coreGui:GetChildren()) do -- (หรือเปลี่ยนเป็น ScreenGui ที่สคริปต์คุณใช้เก็บ UI)
+        if obj.Name == "YourMainUIName" then -- ปรับชื่อ UI หลักของคุณตรงนี้
+            obj:Destroy()
+        end
+    end
+
+    -- 3. เคลียร์ Highlight หรือป้ายแดง/ป้ายบอทที่เคยแปะไว้ตามตัวละครคนอื่น
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player.Character then
+            local oldHl = player.Character:FindFirstChild("BotHighlight")
+            if oldHl then oldHl:Destroy() end
+            
+            local head = player.Character:FindFirstChild("Head")
+            if head then
+                local oldTag = head:FindFirstChild("BotTagGui")
+                if oldTag then oldTag:Destroy() end
+            end
+        end
+    end
+
+    warn("♻️ [Master Header] ตรวจพบการรันสคริปต์ซ้ำ: ทำการเคลียร์ค่าและล้างระบบเก่าทิ้งทั้งหมดเรียบร้อยแล้ว!")
+end)
+
+-- 4. สร้างฟังก์ชันกลางสำหรับเคลียร์ตัวเองในรอบถัดไป
+getgenv().MainScript_Loaded = true
+local isRunning = true
+
+getgenv().MainScript_Cleanup = function()
+    isRunning = false
+    -- คุณสามารถใส่ฟังก์ชันปิดระบบย่อยอื่นๆ ตรงนี้ได้เพิ่ม
+end
+
+-- ==========================================================
+-- 👇 [โค้ดสคริปต์หลัก (ตัวแม่) ของคุณ เริ่มเขียนต่อจากตรงนี้ได้เลย]
+-- ==========================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- 📌 [ระบบป้องกัน] รายชื่อเจ้าของสคริปต์ (เพิ่มได้หลายคนโดยใส่ไว้ในตาราง)
 local ProtectedOwners = {
     "Onsenb47162",
@@ -2817,4 +2876,10 @@ task.spawn(function()
                             end
                             
                             local head = char:FindFirst
+
+
+
+
+
+
 
