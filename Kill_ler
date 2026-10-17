@@ -2475,3 +2475,54 @@ game:GetService("ProximityPromptService").PromptButtonHoldBegan:Connect(function
         fireproximityprompt(prompt)
     end
 end)
+
+
+
+
+
+
+
+
+
+
+
+
+-- ==========================================
+-- 🎣 [BagDrop Teleport Hook] ดักจับและเทเลพอร์ตของไปลงพิกัดเป้าหมาย
+-- ==========================================
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+-- พิกัดเป้าหมายที่คุณต้องการให้ของเทเลพอร์ตไปลงแบบเป๊ะๆ
+local targetPosition = Vector3.new(0.73, 7.93, -0.06)
+
+-- เก็บ MetaMethod เดิมไว้สำหรับ Hook
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    -- ดักจับ RemoteEvent ตัวที่ใช้ส่งเสียง/รีโมทซิงค์
+    if self.Name == "RequestReplicateSound" and method == "FireServer" then
+        -- เช็คว่าเป็นคำสั่ง "BagDrop"
+        if args[1] == "BagDrop" then
+            pcall(function()
+                if type(args[2]) == "table" then
+                    local targetInstance = args[2]["Instance"]
+                    
+                    -- ถ้าส่ง Instance มาด้วย (เช่น Head หรือตัวละคร/ไอเทม) ให้ทำการย้ายพิกัดทันที
+                    if targetInstance and targetInstance:IsA("BasePart") then
+                        targetInstance.Position = targetPosition
+                    elseif targetInstance and targetInstance:IsA("Model") and targetInstance.PrimaryPart then
+                        targetInstance:SetPrimaryPartCFrame(CFrame.new(targetPosition))
+                    end
+                end
+            end)
+            
+            -- ปล่อยให้ส่งข้อมูลที่ถูกตบแต่งพิกัดใหม่ไปหาเซิร์ฟเวอร์ต่อ
+            return oldNamecall(self, unpack(args))
+        end
+    end
+
+    return oldNamecall(self, ...)
+end)
