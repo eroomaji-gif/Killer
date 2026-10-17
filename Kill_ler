@@ -1798,9 +1798,6 @@ end)
 
 
 
-
-
-
 -- ==========================================
 -- 📌 [ปุ่มตั้งค่า] ลบหมอกและปรับกลางวัน + ระบบจำค่า (Auto-Save)
 -- ==========================================
@@ -1815,9 +1812,16 @@ local originalSettings = {
     ClockTime = Lighting.ClockTime,
     Brightness = Lighting.Brightness,
     GlobalShadows = Lighting.GlobalShadows,
+    FogStart = Lighting.FogStart,
     FogEnd = Lighting.FogEnd,
-    Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+    FogColor = Lighting.FogColor,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    ExposureCompensation = Lighting.ExposureCompensation,
+    ColorShift_Top = Lighting.ColorShift_Top,
+    ColorShift_Bottom = Lighting.ColorShift_Bottom,
 }
+local savedEffects = {} -- เก็บสถานะเอฟเฟกต์/Atmosphere ที่ถูกปิดไป
 
 -- 1. โหลดค่าที่เคยบันทึกไว้ครั้งก่อน
 pcall(function()
@@ -1855,34 +1859,67 @@ CornerBright.Parent = BtnBright
 -- ฟังก์ชันปรับแต่งแสงและลบหมอก
 local RunService = game:GetService("RunService")
 
+local effectClasses = {
+    "BloomEffect", "BlurEffect", "ColorCorrectionEffect",
+    "DepthOfFieldEffect", "SunRaysEffect"
+}
+
 local function applyFullBright()
     pcall(function()
         Lighting.ClockTime = 14.0 -- ล็อคเวลาเป็น 14:00 น. (กลางวันแดดจัด)
-        Lighting.Brightness = 2.5 -- เพิ่มความสว่างรวม
-        Lighting.GlobalShadows = false -- ปิดเงาเพื่อความสว่างเคลียร์ชัด
-        Lighting.FogEnd = 100000 -- ดันระยะหมอกออกไปไกลสุดๆ จนมองไม่เห็นหมอก
-        
-        -- ถ้าในแมพมี Atmosphere (ระบบหมอกหนาของ Roblox) ให้ซ่อนหรือปรับค่าเป็น 0
-        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-        if atmosphere then
-            atmosphere.Density = 0
-            atmosphere.Haze = 0
+        Lighting.Brightness = 3 -- เพิ่มความสว่างรวม
+        Lighting.GlobalShadows = false -- ปิดเงา
+        Lighting.FogStart = 999999
+        Lighting.FogEnd = 1000000 -- ดันระยะหมอกออกไปไกลสุดๆ
+        Lighting.FogColor = Color3.new(1, 1, 1)
+        Lighting.Ambient = Color3.new(1, 1, 1) -- แสงรอบทิศขาวเต็ม ทำให้ไม่มีความมืด
+        Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        Lighting.ExposureCompensation = 0.5
+        Lighting.ColorShift_Top = Color3.new(0, 0, 0)
+        Lighting.ColorShift_Bottom = Color3.new(0, 0, 0)
+
+        -- ปิดเอฟเฟกต์ที่ทำให้มืด/เบลอ และลบ Atmosphere (ทั้งใน Lighting และ Camera)
+        local roots = {Lighting}
+        if workspace.CurrentCamera then
+            table.insert(roots, workspace.CurrentCamera)
+        end
+        for _, root in ipairs(roots) do
+            for _, v in ipairs(root:GetDescendants()) do
+                if v:IsA("Atmosphere") then
+                    if not savedEffects[v] then
+                        savedEffects[v] = {Density = v.Density, Haze = v.Haze, Glare = v.Glare}
+                    end
+                    v.Density = 0
+                    v.Haze = 0
+                    v.Glare = 0
+                else
+                    for _, cls in ipairs(effectClasses) do
+                        if v:IsA(cls) then
+                            if savedEffects[v] == nil then
+                                savedEffects[v] = {Enabled = v.Enabled}
+                            end
+                            v.Enabled = false
+                        end
+                    end
+                end
+            end
         end
     end)
 end
 
 local function restoreLighting()
     pcall(function()
-        Lighting.ClockTime = originalSettings.ClockTime
-        Lighting.Brightness = originalSettings.Brightness
-        Lighting.GlobalShadows = originalSettings.GlobalShadows
-        Lighting.FogEnd = originalSettings.FogEnd
-        
-        local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-        if atmosphere and originalSettings.Atmosphere then
-            atmosphere.Density = originalSettings.Atmosphere.Density
-            atmosphere.Haze = originalSettings.Atmosphere.Haze
+        for prop, val in pairs(originalSettings) do
+            Lighting[prop] = val
         end
+        for inst, data in pairs(savedEffects) do
+            if inst.Parent then
+                for k, val in pairs(data) do
+                    inst[k] = val
+                end
+            end
+        end
+        savedEffects = {}
     end)
 end
 
@@ -1918,11 +1955,6 @@ BtnBright.MouseButton1Click:Connect(function()
         restoreLighting()
     end
 end)
-
-
-
-
-
 
 
 
