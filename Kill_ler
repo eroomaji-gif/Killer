@@ -1262,6 +1262,85 @@ end)
 
 
 
+-- ==========================================
+-- 🎒 [เพิ่มใหม่] ปุ่มล็อกพิกัดยืนดรอปของ (Position Lock) ในหมวด "วาป+ฟาม"
+-- ==========================================
+do
+    getgenv().PositionLock_Active = false
+    local saveLockFile = "FlexibleMenu_PositionLockSetting.txt"
+
+    pcall(function()
+        if isfile and isfile(saveLockFile) then
+            local content = readfile(saveLockFile)
+            getgenv().PositionLock_Active = (content == "true")
+        end
+    end)
+
+    local RunService = game:GetService("RunService")
+    local targetPosition = Vector3.new(0.73, 7.93, -0.06)
+    local savedOriginalCFrame = nil
+    local lockConnection = nil
+
+    local function togglePositionLock(state)
+        local char = localPlayer.Character
+        local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
+
+        if state then
+            savedOriginalCFrame = rootPart.CFrame
+            rootPart.CFrame = CFrame.new(targetPosition)
+            
+            if lockConnection then lockConnection:Disconnect() end
+            lockConnection = RunService.RenderStepped:Connect(function()
+                if getgenv().PositionLock_Active and rootPart.Parent then
+                    rootPart.CFrame = CFrame.new(targetPosition)
+                    rootPart.AssemblyLinearVelocity = Vector3.zero
+                end
+            end)
+        else
+            if lockConnection then
+                lockConnection:Disconnect()
+                lockConnection = nil
+            end
+            
+            if savedOriginalCFrame then
+                rootPart.CFrame = savedOriginalCFrame
+                savedOriginalCFrame = nil
+            end
+        end
+    end
+
+    if getgenv().PositionLock_Active then
+        pcall(function()
+            task.wait(1)
+            togglePositionLock(true)
+        end)
+    end
+
+    createSwitchButton(TeleportContainer, "🔒 ล็อกพิกัดดรอปของ (ยืนแช่กล่องไฟ)", getgenv().PositionLock_Active, function(isActive)
+        getgenv().PositionLock_Active = isActive
+        
+        pcall(function()
+            if writefile then
+                writefile(saveLockFile, tostring(getgenv().PositionLock_Active))
+            end
+        end)
+        
+        togglePositionLock(isActive)
+    end)
+end
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1958,105 +2037,6 @@ end)
 
 
 
-
--- ==========================================
--- 🎒 [หมวดหมู่ Setting] ปุ่ม BagDrop Hook + วาร์ปดรอปของอัตโนมัติ (ฉบับสมบูรณ์ไม่บัค)
--- ==========================================
-getgenv().BagDropHook_Active = false
-
--- 1. ไฟล์เก็บบันทึกสถานะปุ่ม
-local saveBagDropFile = "FlexibleMenu_BagDropSetting.txt"
-
--- โหลดสถานะเดิมที่เคยเซฟไว้
-pcall(function()
-    if isfile and isfile(saveBagDropFile) then
-        local content = readfile(saveBagDropFile)
-        getgenv().BagDropHook_Active = (content == "true")
-    end
-end)
-
--- 2. สร้างปุ่มแคปซูลใน SettingsContainer
-local BtnBagDrop = Instance.new("TextButton")
-BtnBagDrop.Name = "BagDropHookButton"
-BtnBagDrop.Parent = SettingsContainer -- ⚙️ ใส่ในหมวดหมู่ Setting ของคุณ
-BtnBagDrop.Size = UDim2.new(1, 0, 0, 45)
-BtnBagDrop.Font = Enum.Font.GothamBold
-BtnBagDrop.TextSize = 14
-BtnBagDrop.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-local CornerBagDrop = Instance.new("UICorner")
-CornerBagDrop.CornerRadius = UDim.new(0, 6)
-CornerBagDrop.Parent = BtnBagDrop
-
--- ฟังก์ชันอัปเดตหน้าตาปุ่ม
-local function updateBagDropButtonState()
-    if getgenv().BagDropHook_Active then
-        BtnBagDrop.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
-        BtnBagDrop.Text = "🎒 วาร์ปดรอปของ (BagDrop): ON"
-    else
-        BtnBagDrop.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
-        BtnBagDrop.Text = "🎒 วาร์ปดรอปของ (BagDrop): OFF"
-    end
-end
-updateBagDropButtonState()
-
--- 3. ระบบ Hooking เบื้องหลัง (ทำงานเมื่อเปิด ON เท่านั้น - ปรับแก้ดีเลย์ให้ของตกถึงพื้นชัวร์)
-local Players = game:GetService("Players")
-local localPlayer = Players.LocalPlayer
-local targetPosition = Vector3.new(0.73, 7.93, -0.06)
-
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    -- ทำงานเฉพาะตอนที่ปุ่มถูกเปิด ON ไว้
-    if getgenv().BagDropHook_Active and self.Name == "RequestBagDropItem" and method == "FireServer" then
-        pcall(function()
-            local char = localPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local rootPart = char.HumanoidRootPart
-                local originalCFrame = rootPart.CFrame
-                
-                -- ล็อกความเร็วนิ่งๆ ป้องกันตัวละครสะดุด
-                rootPart.AssemblyLinearVelocity = Vector3.zero
-                
-                -- วาร์ปไปที่พิกัดเป้าหมายเพื่อปล่อยของ
-                rootPart.CFrame = CFrame.new(targetPosition)
-                
-                -- หน่วงเวลาตอนไปถึงจุดเป้าหมาย (0.3 วิ) ให้เซิร์ฟเวอร์รับคำสั่งและไอเทมหลุดจากมือ
-                task.wait(0.3)
-                
-                -- ดีเลย์ขากลับ (0.4 วิ) รอจนกว่าของจะตกลงไปนอนนิ่งอยู่ที่พื้นเรียบร้อย ค่อยดึงตัวละครกลับ
-                task.delay(0.4, function()
-                    pcall(function()
-                        if rootPart and originalCFrame then
-                            rootPart.CFrame = originalCFrame
-                            rootPart.AssemblyLinearVelocity = Vector3.zero
-                        end
-                    end)
-                end)
-            end
-        end)
-        
-        return oldNamecall(self, unpack(args))
-    end
-
-    return oldNamecall(self, ...)
-end)
-
--- 4. Event กดปุ่มเพื่อสลับสถานะ และ Save ลงไฟล์
-BtnBagDrop.MouseButton1Click:Connect(function()
-    getgenv().BagDropHook_Active = not getgenv().BagDropHook_Active
-    
-    pcall(function()
-        if writefile then
-            writefile(saveBagDropFile, tostring(getgenv().BagDropHook_Active))
-        end
-    end)
-    
-    updateBagDropButtonState()
-end)
 
 
 
