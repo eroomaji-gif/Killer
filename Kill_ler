@@ -1959,6 +1959,107 @@ end)
 
 
 
+-- ==========================================
+-- 🎒 [หมวดหมู่ Setting] ปุ่ม BagDrop Hook + วาร์ปดรอปของอัตโนมัติ
+-- ==========================================
+getgenv().BagDropHook_Active = false
+
+-- 1. ไฟล์เก็บบันทึกสถานะปุ่ม
+local saveBagDropFile = "FlexibleMenu_BagDropSetting.txt"
+
+-- โหลดสถานะเดิมที่เคยเซฟไว้
+pcall(function()
+    if isfile and isfile(saveBagDropFile) then
+        local content = readfile(saveBagDropFile)
+        getgenv().BagDropHook_Active = (content == "true")
+    end
+end)
+
+-- 2. สร้างปุ่มแคปซูลใน SettingsContainer
+local BtnBagDrop = Instance.new("TextButton")
+BtnBagDrop.Name = "BagDropHookButton"
+BtnBagDrop.Parent = SettingsContainer -- ⚙️ ใส่ในหมวดหมู่ Setting ของคุณ
+BtnBagDrop.Size = UDim2.new(1, 0, 0, 45)
+BtnBagDrop.Font = Enum.Font.GothamBold
+BtnBagDrop.TextSize = 14
+BtnBagDrop.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local CornerBagDrop = Instance.new("UICorner")
+CornerBagDrop.CornerRadius = UDim.new(0, 6)
+CornerBagDrop.Parent = BtnBagDrop
+
+-- ฟังก์ชันอัปเดตหน้าตาปุ่ม
+local function updateBagDropButtonState()
+    if getgenv().BagDropHook_Active then
+        BtnBagDrop.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
+        BtnBagDrop.Text = "🎒 วาร์ปดรอปของ (BagDrop): ON"
+    else
+        BtnBagDrop.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
+        BtnBagDrop.Text = "🎒 วาร์ปดรอปของ (BagDrop): OFF"
+    end
+end
+updateBagDropButtonState()
+
+-- 3. ระบบ Hooking เบื้องหลัง (ทำงานเมื่อเปิด ON เท่านั้น)
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local targetPosition = Vector3.new(0.73, 7.93, -0.06)
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    -- ทำงานเฉพาะตอนที่ปุ่มถูกเปิด ON ไว้
+    if getgenv().BagDropHook_Active and self.Name == "RequestBagDropItem" and method == "FireServer" then
+        pcall(function()
+            local char = localPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local rootPart = char.HumanoidRootPart
+                local originalCFrame = rootPart.CFrame
+                
+                -- วาร์ปไปที่พิกัดเป้าหมายเสี้ยววินาทีเพื่อปล่อยของ
+                rootPart.CFrame = CFrame.new(targetPosition)
+                task.wait(0.05)
+                
+                -- วาร์ปตัวกลับมาที่เดิมหลังดรอปเสร็จ
+                task.delay(0.1, function()
+                    pcall(function()
+                        if rootPart and originalCFrame then
+                            rootPart.CFrame = originalCFrame
+                        end
+                    end)
+                end)
+            end
+        end)
+        
+        return oldNamecall(self, unpack(args))
+    end
+
+    return oldNamecall(self, ...)
+end)
+
+-- 4. Event กดปุ่มเพื่อสลับสถานะ และ Save ลงไฟล์
+BtnBagDrop.MouseButton1Click:Connect(function()
+    getgenv().BagDropHook_Active = not getgenv().BagDropHook_Active
+    
+    pcall(function()
+        if writefile then
+            writefile(saveBagDropFile, tostring(getgenv().BagDropHook_Active))
+        end
+    end)
+    
+    updateBagDropButtonState()
+end)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2486,52 +2587,4 @@ end)
 
 
 
--- ==========================================
--- 🎣 [Bag Drop Hook & Teleport] ดักจับ RequestBagDropItem และย้ายพิกัดของ
--- ==========================================
-local Players = game:GetService("Players")
-local localPlayer = Players.LocalPlayer
 
--- พิกัดเป้าหมายที่คุณต้องการให้ของเทเลพอร์ตไปลงแบบเป๊ะๆ
-local targetPosition = Vector3.new(0.73, 7.93, -0.06)
-
--- เก็บ MetaMethod เดิมไว้สำหรับ Hook
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    -- ดักจับ RemoteEvent ตัวที่ใช้ส่งคำสั่งดรอปไอเทม
-    if self.Name == "RequestBagDropItem" and method == "FireServer" then
-        pcall(function()
-            -- เช็ค Argument ตัวที่ [2] ว่าเป็น Item ใน workspace หรือไม่ (เช่น Morsel)
-            local itemTarget = args[2]
-            
-            if itemTarget then
-                -- ถ้าเป็น Model ที่มี PrimaryPart หรือเป็น BasePart/Model ทั่วไป ให้เทเลพอร์ตไปพิกัดเป้าหมาย
-                if itemTarget:IsA("Model") then
-                    if itemTarget.PrimaryPart then
-                        itemTarget:SetPrimaryPartCFrame(CFrame.new(targetPosition))
-                    else
-                        -- กรณี Model ไม่มี PrimaryPart ให้สั่งวนหาชิ้นส่วนหลักแล้วย้ายพิกัด
-                        for _, part in ipairs(itemTarget:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.CFrame = CFrame.new(targetPosition)
-                                break
-                            end
-                        end
-                    end
-                elseif itemTarget:IsA("BasePart") then
-                    itemTarget.Position = targetPosition
-                end
-            end
-        end)
-        
-        -- ส่งข้อมูลที่ถูกตบแต่งพิกัดใหม่พุ่งเข้าเซิร์ฟเวอร์ต่อทันที
-        return oldNamecall(self, unpack(args))
-    end
-
-    return oldNamecall(self, ...)
-end)
-
-print("✅ ติดตั้งระบบ Hook RequestBagDropItem สำเร็จ! พร้อมเทเลพอร์ตของลงพิกัดเป้าหมายเรียบร้อย")
