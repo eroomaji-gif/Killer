@@ -890,11 +890,10 @@ local function getMurdererHead()
             local hum = char:FindFirstChild("Humanoid")
             local head = char:FindFirstChild("Head")
             local backpack = player:FindFirstChild("Backpack")
-            
-            -- เช็คว่าเป็นฆาตกรถือมีดอยู่หรือไม่
-            local isMurderer = char:FindFirstChild("Knife") or 
+
+            local isMurderer = char:FindFirstChild("Knife") or
                                (backpack and backpack:FindFirstChild("Knife"))
-            
+
             if isMurderer and hum and hum.Health > 0 and head then
                 return head
             end
@@ -903,42 +902,48 @@ local function getMurdererHead()
     return nil
 end
 
--- 2. ระบบ Hook ดักจับกระสุน (ทำงานเฉพาะตอนเปิดปุ่ม SilentAim_Active)
+-- 2. Hook ดักกระสุน
 if not getgenv().SilentAimHooked then
     getgenv().SilentAimHooked = true
-    
+
     local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
-        local args = {...}
-        
-        -- ทำงานเฉพาะตอนเปิดปุ่มสวิตช์
-        if getgenv().SilentAim_Active and method == "FireServer" then
-            local remoteName = self.Name:lower()
-            -- เช็คว่าเป็นการส่งข้อมูลยิงปืนหรือไม่
-            if remoteName:find("shoot") or remoteName:find("gun") or remoteName:find("fire") or remoteName:find("bullet") then
-                local targetHead = getMurdererHead()
-                if targetHead then
-                    -- สลับพิกัดกระสุนให้พุ่งไปที่หัวฆาตกรทันที
-                    for i, v in ipairs(args) do
-                        if typeof(v) == "Vector3" then
-                            args[i] = targetHead.Position
-                            break
-                        elseif typeof(v) == "CFrame" then
-                            args[i] = targetHead.CFrame
-                            break
-                        end
-                    end
-                    return oldNamecall(self, unpack(args))
-                end
+
+        -- ปล่อยผ่านทันทีถ้าปิดอยู่ หรือเป็นการเรียกจากสคริปต์เรา/ไม่ใช่ Remote ยิง
+        if not getgenv().SilentAim_Active
+            or checkcaller()
+            or (method ~= "FireServer" and method ~= "InvokeServer") then
+            return oldNamecall(self, ...)
+        end
+
+        -- เช็คชื่อ Remote แบบแคบลง (เฉพาะที่เป็นปืนจริง)
+        local remoteName = typeof(self) == "Instance" and self.Name:lower() or ""
+        if remoteName ~= "shoot" and remoteName ~= "shootgun" then
+            return oldNamecall(self, ...)
+        end
+
+        local targetHead = getMurdererHead()
+        if not targetHead then
+            return oldNamecall(self, ...)
+        end
+
+        -- ใช้ table.pack/unpack กัน nil กลาง argument ทำให้ข้อมูลเพี้ยน
+        local args = table.pack(...)
+        for i = 1, args.n do
+            local v = args[i]
+            if typeof(v) == "Vector3" then
+                args[i] = targetHead.Position
+                break
+            elseif typeof(v) == "CFrame" then
+                args[i] = targetHead.CFrame
+                break
             end
         end
-        
-        return oldNamecall(self, ...)
-    end)
+
+        return oldNamecall(self, table.unpack(args, 1, args.n))
+    end))
 end
-
-
 
 
 
