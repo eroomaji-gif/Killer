@@ -1960,47 +1960,8 @@ end)
 
 
 -- ==========================================
--- 🎒 [หมวดหมู่ Setting] ปุ่ม BagDrop Hook + วาร์ปดรอปของอัตโนมัติ
+-- 🎒 [BagDrop Hook V2] แก้บัคถุงรั่ว หน่วงเวลาให้ของตกถึงพื้นชัวร์ๆ
 -- ==========================================
-getgenv().BagDropHook_Active = false
-
--- 1. ไฟล์เก็บบันทึกสถานะปุ่ม
-local saveBagDropFile = "FlexibleMenu_BagDropSetting.txt"
-
--- โหลดสถานะเดิมที่เคยเซฟไว้
-pcall(function()
-    if isfile and isfile(saveBagDropFile) then
-        local content = readfile(saveBagDropFile)
-        getgenv().BagDropHook_Active = (content == "true")
-    end
-end)
-
--- 2. สร้างปุ่มแคปซูลใน SettingsContainer
-local BtnBagDrop = Instance.new("TextButton")
-BtnBagDrop.Name = "BagDropHookButton"
-BtnBagDrop.Parent = SettingsContainer -- ⚙️ ใส่ในหมวดหมู่ Setting ของคุณ
-BtnBagDrop.Size = UDim2.new(1, 0, 0, 45)
-BtnBagDrop.Font = Enum.Font.GothamBold
-BtnBagDrop.TextSize = 14
-BtnBagDrop.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-local CornerBagDrop = Instance.new("UICorner")
-CornerBagDrop.CornerRadius = UDim.new(0, 6)
-CornerBagDrop.Parent = BtnBagDrop
-
--- ฟังก์ชันอัปเดตหน้าตาปุ่ม
-local function updateBagDropButtonState()
-    if getgenv().BagDropHook_Active then
-        BtnBagDrop.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- สีเขียว
-        BtnBagDrop.Text = "🎒 วาร์ปดรอปของ (BagDrop): ON"
-    else
-        BtnBagDrop.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- สีแดง
-        BtnBagDrop.Text = "🎒 วาร์ปดรอปของ (BagDrop): OFF"
-    end
-end
-updateBagDropButtonState()
-
--- 3. ระบบ Hooking เบื้องหลัง (ทำงานเมื่อเปิด ON เท่านั้น)
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 local targetPosition = Vector3.new(0.73, 7.93, -0.06)
@@ -2010,7 +1971,6 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
 
-    -- ทำงานเฉพาะตอนที่ปุ่มถูกเปิด ON ไว้
     if getgenv().BagDropHook_Active and self.Name == "RequestBagDropItem" and method == "FireServer" then
         pcall(function()
             local char = localPlayer.Character
@@ -2018,15 +1978,23 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
                 local rootPart = char.HumanoidRootPart
                 local originalCFrame = rootPart.CFrame
                 
-                -- วาร์ปไปที่พิกัดเป้าหมายเสี้ยววินาทีเพื่อปล่อยของ
-                rootPart.CFrame = CFrame.new(targetPosition)
-                task.wait(0.05)
+                -- 1. ล็อกความเร็วนิ่งๆ ป้องกันตัวละครสะดุด
+                rootPart.AssemblyLinearVelocity = Vector3.zero
                 
-                -- วาร์ปตัวกลับมาที่เดิมหลังดรอปเสร็จ
-                task.delay(0.1, function()
+                -- 2. วาร์ปไปที่พิกัดเป้าหมายเพื่อปล่อยของ
+                rootPart.CFrame = CFrame.new(targetPosition)
+                
+                -- 3. ยืดเวลาหน่วงตรงนี้ให้ยาวขึ้น (จาก 0.05 เป็น 0.3 วินาที) 
+                -- เพื่อให้คำสั่ง FireServer ส่งข้อมูลไปหาเซิร์ฟเวอร์และไอเทมหลุดจากมือชัวร์ๆ
+                task.wait(0.3)
+                
+                -- 4. วาร์ปตัวละครกลับมาที่จุดเดิม (เพิ่มดีเลย์ขากลับเป็น 0.4 วินาที)
+                -- เพื่อให้มั่นใจว่าไอเทมกองอยู่ที่เป้าหมายเรียบร้อยแล้ว ค่อยดึงตัวเรากลับ
+                task.delay(0.4, function()
                     pcall(function()
                         if rootPart and originalCFrame then
                             rootPart.CFrame = originalCFrame
+                            rootPart.AssemblyLinearVelocity = Vector3.zero
                         end
                     end)
                 end)
@@ -2038,20 +2006,6 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 
     return oldNamecall(self, ...)
 end)
-
--- 4. Event กดปุ่มเพื่อสลับสถานะ และ Save ลงไฟล์
-BtnBagDrop.MouseButton1Click:Connect(function()
-    getgenv().BagDropHook_Active = not getgenv().BagDropHook_Active
-    
-    pcall(function()
-        if writefile then
-            writefile(saveBagDropFile, tostring(getgenv().BagDropHook_Active))
-        end
-    end)
-    
-    updateBagDropButtonState()
-end)
-
 
 
 
