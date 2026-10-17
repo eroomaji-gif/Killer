@@ -2768,108 +2768,75 @@ end)
 
 
 
-
--- ==========================================
--- 🛡️ [Background Service] ระบบสแกนหาคนโกง / บอท อัตโนมัติเบื้องหลัง
--- ==========================================
+-- ==========================================================
+-- 🛡️ [HUMANOID BASELINE COMPARISON] สแกนอ่านค่า Humanoid ทุกคนมาเทียบกัน
+-- ==========================================================
 task.spawn(function()
     local Players = game:GetService("Players")
-    local MarketplaceService = game:GetService("MarketplaceService")
     local localPlayer = Players.LocalPlayer
 
-    -- (ใส่ ID Game Pass VIP ของแมพนั้นๆ ลงไป ถ้ามี)
-    local VIP_GAMEPASS_IDS = {
-        -- ตัวอย่าง ID Game Pass
-    }
-
-    local function hasVipPass(player)
-        for _, passId in ipairs(VIP_GAMEPASS_IDS) do
-            local success, owns = pcall(function()
-                return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
-            end)
-            if success and owns then
-                return true
-            end
-        end
-        return false
-    end
-
-    local playerMetrics = {}
-
-    -- แจ้งเตือนเริ่มต้นการทำงานเบื้องหลัง
-    print("🛡️ [Anti-Exploit Radar] เริ่มต้นทำงานเบื้องหลังอัตโนมัติแล้ว...")
-
-    while true do
-        task.wait(1.5) -- เช็คทุกๆ 1.5 วินาทีแบบไม่กินทรัพยากรเครื่อง
+    while isRunning do
+        task.wait(1) -- อ่านค่ากวาดสแกนทุกๆ 1 วินาที
         
         pcall(function()
-            local allSpeeds = {}
+            local playerHumanoidData = {}
+            local speedCounts = {}
             local activePlayers = {}
 
-            -- 1. เก็บข้อมูลความเร็วและการเคลื่อนที่ของทุกคน
+            -- 1. วิ่งอ่านค่าจาก Humanoid ของผู้เล่นทุกคนในเซิร์ฟเวอร์
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= localPlayer and player.Character then
-                    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
                     local humanoid = player.Character:FindFirstChild("Humanoid")
+                    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
                     
-                    if rootPart and humanoid and humanoid.Health > 0 then
-                        local pos1 = rootPart.Position
-                        task.wait(0.1)
-                        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-                        local pos2 = player.Character.HumanoidRootPart.Position
+                    if humanoid and rootPart and humanoid.Health > 0 then
+                        -- อ่านค่าความเร็วจาก Humanoid โดยตรง
+                        local currentSpeed = math.floor(humanoid.WalkSpeed)
                         
-                        local moveSpeed = (pos2 - pos1).Magnitude * 10
-                        playerMetrics[player] = moveSpeed
-                        table.insert(allSpeeds, moveSpeed)
+                        -- เก็บข้อมูลรายคน
+                        playerHumanoidData[player] = currentSpeed
                         table.insert(activePlayers, player)
+                        
+                        -- นับจำนวนคนเพื่อหาค่ากลางของคนส่วนใหญ่
+                        speedCounts[currentSpeed] = (speedCounts[currentSpeed] or 0) + 1
                     end
                 end
             end
 
+            -- 2. ต้องมีคนให้เทียบตั้งแต่ 2 คนขึ้นไป
             if #activePlayers >= 2 then
-                local normalSpeedSample = allSpeeds[1] -- ค่าความเร็วมาตรฐานของคนส่วนใหญ่ในห้อง
+                -- หาความเร็วที่คนส่วนใหญ่ในห้องใช้ร่วมกัน (Baseline Speed)
+                local baselineSpeed = nil
+                local maxCount = 0
+                
+                for speed, count in pairs(speedCounts) do
+                    if count > maxCount then
+                        maxCount = count
+                        baselineSpeed = speed
+                    end
+                end
 
-                -- 2. ตรวจสอบเทียบทีละคน
-                for _, player in ipairs(activePlayers) do
-                    local speed = playerMetrics[player]
-                    local char = player.Character
-                    local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-                    
-                    if speed and rootPart then
-                        local isCheating = false
-                        local reason = ""
-
-                        -- A. เช็คความเร็วผิดปกติ (เทียบกับคนส่วนใหญ่)
-                        if math.abs(speed - normalSpeedSample) > 60 then
-                            if not hasVipPass(player) then
-                                isCheating = true
-                                reason = "Speed Hack"
-                            end
-                        end
-
-                        -- B. เช็ค No Clip / Ghost Mode (เช็คสถานะการชน)
-                        for _, part in ipairs(char:GetChildren()) do
-                            if part:IsA("BasePart") then
-                                local humanoid = char:FindFirstChild("Humanoid")
-                                if part.CanCollide == false and humanoid and humanoid.Health > 0 then
-                                    isCheating = true
-                                    reason = "No Clip"
-                                end
-                            end
-                        end
-
-                        -- 3. ถ้าเจอคนผิดปกติ และไม่ใช่พวกมี VIP -> แปะป้าย BOT ทันทีออโต้!
-                        if isCheating then
+                -- 3. นำค่าของทุกคนมาเทียบกับ Baseline คนส่วนใหญ่
+                if baselineSpeed then
+                    for _, player in ipairs(activePlayers) do
+                        local pSpeed = playerHumanoidData[player]
+                        
+                        -- ถ้าค่าความเร็วของใคร "ไม่เท่ากับคนส่วนใหญ่" -> ชี้เป้าว่าเป็น BOT / ใช้สคริปต์ทันที
+                        if pSpeed and pSpeed ~= baselineSpeed then
+                            local char = player.Character
+                            
+                            -- แปะ Highlight สีแดง
                             local hl = char:FindFirstChild("BotHighlight")
                             if not hl then
                                 hl = Instance.new("Highlight")
                                 hl.Name = "BotHighlight"
                                 hl.Adornee = char
-                                hl.FillColor = Color3.fromRGB(255, 50, 50) -- สีแดงเด่นชัด
+                                hl.FillColor = Color3.fromRGB(255, 0, 0)
                                 hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                                 hl.Parent = char
                             end
                             
+                            -- แปะป้าย BillboardGui แสดงบนหัว
                             local head = char:FindFirstChild("Head")
                             if head and not head:FindFirstChild("BotTagGui") then
                                 local bill = Instance.new("BillboardGui")
@@ -2889,8 +2856,6 @@ task.spawn(function()
                                 textLabel.Font = Enum.Font.GothamBold
                                 textLabel.TextStrokeTransparency = 0
                                 textLabel.Parent = bill
-                                
-                                warn("🚨 ตรวจพบคนโกงออโต้: " .. player.Name .. " (" .. reason .. ")")
                             end
                         end
                     end
