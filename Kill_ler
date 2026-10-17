@@ -2416,42 +2416,33 @@ workspace.DescendantAdded:Connect(instantPrompt)
 
 
 
--- ==========================================
--- 📱 [Mobile Specialized] ระบบตัดดีเลย์ / กดปุ๊บติดปั๊บ สำหรับมือถือ
--- ==========================================
-task.spawn(function()
-    local ProximityPromptService = game:GetService("ProximityPromptService")
-    local GuiService = game:GetService("GuiService")
-    local Players = game:GetService("Players")
-    local lp = Players.LocalPlayer
-
-    -- 1. บังคับเปลี่ยนคุณสมบัติ ProximityPrompt ทุกตัวในเกมให้เข้ากับ Touch Screen
-    local function fixPrompt(prompt)
-        pcall(function()
-            prompt.HoldDuration = 0                     -- ตัดเวลากดค้างเป็น 0
-            prompt.ClickablePrompt = true               -- บังคับให้แตะกดได้ทันทีบนจอ
-            prompt.RequiresLineOfSight = false          -- ไม่ต้องหันหน้ามองตรงๆ
-            prompt.MaxActivationDistance = 30           -- เพิ่มระยะการแตะถึง
-        end)
-    end
-
-    -- ดักจับเมื่อ Prompt แสดงขึ้นบนจอมือถือ
-    ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
-        fixPrompt(prompt)
-        -- สั่งกระตุ้นการทำงานทันทีที่ปุ่มโผล่มาบนหน้าจอ (Instant Auto Trigger)
-        pcall(function()
-            firepropmpttrigger(prompt) -- ใช้ฟังก์ชันเฉพาะของ Mobile Executor (ถ้ามี)
-        end)
+local function instant(prompt)
+    prompt.HoldDuration = 0
+    -- ถ้าเกมพยายามตั้งค่าดีเลย์กลับ ให้บังคับเป็น 0 ตลอด
+    prompt:GetPropertyChangedSignal("HoldDuration"):Connect(function()
+        if prompt.HoldDuration ~= 0 then
+            prompt.HoldDuration = 0
+        end
     end)
+end
 
-    -- 2. ลูปสแกนกวาดล้างเบื้องหลังสำหรับระบบ Mobile Touch
-    while task.wait(0.3) do
-        pcall(function()
-            for _, v in ipairs(workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") then
-                    fixPrompt(v)
-                end
-            end
-        end)
+-- Prompt ที่มีอยู่แล้ว
+for _, v in ipairs(workspace:GetDescendants()) do
+    if v:IsA("ProximityPrompt") then
+        instant(v)
+    end
+end
+
+-- Prompt ที่เกิดใหม่ระหว่างเล่น
+workspace.DescendantAdded:Connect(function(v)
+    if v:IsA("ProximityPrompt") then
+        instant(v)
+    end
+end)
+
+-- กันเหนียว: ถ้ายังมี hold เหลือ ให้ยิงทันทีตอนเริ่มกด
+game:GetService("ProximityPromptService").PromptButtonHoldBegan:Connect(function(prompt)
+    if fireproximityprompt then
+        fireproximityprompt(prompt)
     end
 end)
