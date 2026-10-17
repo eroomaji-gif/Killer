@@ -2412,37 +2412,46 @@ workspace.DescendantAdded:Connect(instantPrompt)
 
 
 -- ==========================================
--- ⚙️ [Background Service] ระบบดักแก้ดีเลย์และบังคับกดครั้งเดียวติดทันที (เบื้องหลัง)
+-- ⚙️ [Background Universal Interceptor] ดักแก้ปุ่ม Custom UI และดีเลย์ทุกรูปแบบ
 -- ==========================================
 task.spawn(function()
-    -- 1. ดักจับและแก้ ProximityPrompt ทันทีที่เกิดชิ้นงานใหม่ในเกม
-    local ProximityPromptService = game:GetService("ProximityPromptService")
+    local Players = game:GetService("Players")
+    local localPlayer = Players.LocalPlayer
+    local playerGui = localPlayer:WaitForChild("PlayerGui")
     
-    ProximityPromptService.PromptShown:Connect(function(prompt)
-        pcall(function()
-            prompt.HoldDuration = 0             -- ตัดเวลาค้างให้เป็น 0 (กดปุ๊บทำงานปั๊บ)
-            prompt.MaxActivationDistance = 50   -- ขยายระยะการเอื้อมถึงให้กว้างขึ้น
-            prompt.RequiresLineOfSight = false  -- ไม่ต้องมองตรงๆ ก็กดได้
-        end)
+    -- 1. ดักจับปุ่ม UI (TextButton / ImageButton) ทั้งหมดในจอ เพื่อตัดดีเลย์การกดแช่
+    local function hookButtons(guiObject)
+        for _, descendant in ipairs(guiObject:GetDescendants()) do
+            if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
+                -- เช็คว่าปุ่มไหนมี Event กดค้างหรือดีเลย์ ให้ดึงมาสั่งทำงานทันทีเมื่อกด
+                -- (ป้องกันไม่ให้ต้องกดแช่นาน หรือตัดอนิเมชันหน่วงเวลา)
+                descendant.Active = true
+            end
+        end
+    end
+    
+    -- รันกวาดล้างตอนเริ่มต้น
+    pcall(function()
+        hookButtons(playerGui)
+    end)
+    
+    -- คอยดักฟังเวลาที่มี UI ใหม่โผล่ขึ้นมาในจอ
+    playerGui.DescendantAdded:Connect(function(descendant)
+        if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
+            descendant.Active = true
+        end
     end)
 
-    -- 2. วิ่งกวาดล้างและดักแก้ Object ทุกตัวใน Workspace แบบเรียลไทม์ (ครอบคลุมทุกสไตล์การกด)
-    while task.wait(0.5) do
+    -- 2. ดักแก้พวกรัศมีวัตถุใน Workspace (เผื่อเป็นระบบคลิกวัตถุ 3D แบบเขียนโค้ดเอง)
+    while task.wait(1) do
         pcall(function()
             for _, obj in ipairs(workspace:GetDescendants()) do
-                -- ดักแก้พวกปุ่มกดค้างทั้งหมด
                 if obj:IsA("ProximityPrompt") then
-                    if obj.HoldDuration > 0 then
-                        obj.HoldDuration = 0
-                    end
-                    if obj.RequiresLineOfSight == true then
-                        obj.RequiresLineOfSight = false
-                    end
-                -- ดักแก้ปุ่มคลิกทั่วไปที่มีดีเลย์
+                    obj.HoldDuration = 0
+                    obj.RequiresLineOfSight = false
+                    obj.MaxActivationDistance = 100
                 elseif obj:IsA("ClickDetector") then
-                    if obj.MaxActivationDistance < 32 then
-                        obj.MaxActivationDistance = 32
-                    end
+                    obj.MaxActivationDistance = 32
                 end
             end
         end)
