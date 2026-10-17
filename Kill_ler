@@ -2486,9 +2486,8 @@ end)
 
 
 
-
 -- ==========================================
--- 🎣 [BagDrop Teleport Hook] ดักจับและเทเลพอร์ตของไปลงพิกัดเป้าหมาย
+-- 🎣 [Bag Drop Hook & Teleport] ดักจับ RequestBagDropItem และย้ายพิกัดของ
 -- ==========================================
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
@@ -2502,27 +2501,37 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
 
-    -- ดักจับ RemoteEvent ตัวที่ใช้ส่งเสียง/รีโมทซิงค์
-    if self.Name == "RequestReplicateSound" and method == "FireServer" then
-        -- เช็คว่าเป็นคำสั่ง "BagDrop"
-        if args[1] == "BagDrop" then
-            pcall(function()
-                if type(args[2]) == "table" then
-                    local targetInstance = args[2]["Instance"]
-                    
-                    -- ถ้าส่ง Instance มาด้วย (เช่น Head หรือตัวละคร/ไอเทม) ให้ทำการย้ายพิกัดทันที
-                    if targetInstance and targetInstance:IsA("BasePart") then
-                        targetInstance.Position = targetPosition
-                    elseif targetInstance and targetInstance:IsA("Model") and targetInstance.PrimaryPart then
-                        targetInstance:SetPrimaryPartCFrame(CFrame.new(targetPosition))
-                    end
-                end
-            end)
+    -- ดักจับ RemoteEvent ตัวที่ใช้ส่งคำสั่งดรอปไอเทม
+    if self.Name == "RequestBagDropItem" and method == "FireServer" then
+        pcall(function()
+            -- เช็ค Argument ตัวที่ [2] ว่าเป็น Item ใน workspace หรือไม่ (เช่น Morsel)
+            local itemTarget = args[2]
             
-            -- ปล่อยให้ส่งข้อมูลที่ถูกตบแต่งพิกัดใหม่ไปหาเซิร์ฟเวอร์ต่อ
-            return oldNamecall(self, unpack(args))
-        end
+            if itemTarget then
+                -- ถ้าเป็น Model ที่มี PrimaryPart หรือเป็น BasePart/Model ทั่วไป ให้เทเลพอร์ตไปพิกัดเป้าหมาย
+                if itemTarget:IsA("Model") then
+                    if itemTarget.PrimaryPart then
+                        itemTarget:SetPrimaryPartCFrame(CFrame.new(targetPosition))
+                    else
+                        -- กรณี Model ไม่มี PrimaryPart ให้สั่งวนหาชิ้นส่วนหลักแล้วย้ายพิกัด
+                        for _, part in ipairs(itemTarget:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CFrame = CFrame.new(targetPosition)
+                                break
+                            end
+                        end
+                    end
+                elseif itemTarget:IsA("BasePart") then
+                    itemTarget.Position = targetPosition
+                end
+            end
+        end)
+        
+        -- ส่งข้อมูลที่ถูกตบแต่งพิกัดใหม่พุ่งเข้าเซิร์ฟเวอร์ต่อทันที
+        return oldNamecall(self, unpack(args))
     end
 
     return oldNamecall(self, ...)
 end)
+
+print("✅ ติดตั้งระบบ Hook RequestBagDropItem สำเร็จ! พร้อมเทเลพอร์ตของลงพิกัดเป้าหมายเรียบร้อย")
