@@ -2411,47 +2411,45 @@ workspace.DescendantAdded:Connect(instantPrompt)
 
 
 
+
+
+
+
+
 -- ==========================================
--- ⚙️ [Background Universal Interceptor] ดักแก้ปุ่ม Custom UI และดีเลย์ทุกรูปแบบ
+-- 📱 [Mobile Specialized] ระบบตัดดีเลย์ / กดปุ๊บติดปั๊บ สำหรับมือถือ
 -- ==========================================
 task.spawn(function()
+    local ProximityPromptService = game:GetService("ProximityPromptService")
+    local GuiService = game:GetService("GuiService")
     local Players = game:GetService("Players")
-    local localPlayer = Players.LocalPlayer
-    local playerGui = localPlayer:WaitForChild("PlayerGui")
-    
-    -- 1. ดักจับปุ่ม UI (TextButton / ImageButton) ทั้งหมดในจอ เพื่อตัดดีเลย์การกดแช่
-    local function hookButtons(guiObject)
-        for _, descendant in ipairs(guiObject:GetDescendants()) do
-            if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
-                -- เช็คว่าปุ่มไหนมี Event กดค้างหรือดีเลย์ ให้ดึงมาสั่งทำงานทันทีเมื่อกด
-                -- (ป้องกันไม่ให้ต้องกดแช่นาน หรือตัดอนิเมชันหน่วงเวลา)
-                descendant.Active = true
-            end
-        end
+    local lp = Players.LocalPlayer
+
+    -- 1. บังคับเปลี่ยนคุณสมบัติ ProximityPrompt ทุกตัวในเกมให้เข้ากับ Touch Screen
+    local function fixPrompt(prompt)
+        pcall(function()
+            prompt.HoldDuration = 0                     -- ตัดเวลากดค้างเป็น 0
+            prompt.ClickablePrompt = true               -- บังคับให้แตะกดได้ทันทีบนจอ
+            prompt.RequiresLineOfSight = false          -- ไม่ต้องหันหน้ามองตรงๆ
+            prompt.MaxActivationDistance = 30           -- เพิ่มระยะการแตะถึง
+        end)
     end
-    
-    -- รันกวาดล้างตอนเริ่มต้น
-    pcall(function()
-        hookButtons(playerGui)
-    end)
-    
-    -- คอยดักฟังเวลาที่มี UI ใหม่โผล่ขึ้นมาในจอ
-    playerGui.DescendantAdded:Connect(function(descendant)
-        if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
-            descendant.Active = true
-        end
+
+    -- ดักจับเมื่อ Prompt แสดงขึ้นบนจอมือถือ
+    ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
+        fixPrompt(prompt)
+        -- สั่งกระตุ้นการทำงานทันทีที่ปุ่มโผล่มาบนหน้าจอ (Instant Auto Trigger)
+        pcall(function()
+            firepropmpttrigger(prompt) -- ใช้ฟังก์ชันเฉพาะของ Mobile Executor (ถ้ามี)
+        end)
     end)
 
-    -- 2. ดักแก้พวกรัศมีวัตถุใน Workspace (เผื่อเป็นระบบคลิกวัตถุ 3D แบบเขียนโค้ดเอง)
-    while task.wait(1) do
+    -- 2. ลูปสแกนกวาดล้างเบื้องหลังสำหรับระบบ Mobile Touch
+    while task.wait(0.3) do
         pcall(function()
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") then
-                    obj.HoldDuration = 0
-                    obj.RequiresLineOfSight = false
-                    obj.MaxActivationDistance = 100
-                elseif obj:IsA("ClickDetector") then
-                    obj.MaxActivationDistance = 32
+            for _, v in ipairs(workspace:GetDescendants()) do
+                if v:IsA("ProximityPrompt") then
+                    fixPrompt(v)
                 end
             end
         end)
