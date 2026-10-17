@@ -1413,6 +1413,77 @@ end)
 
 
 
+-- ==========================================
+-- 🔫 [หมวดหมู่ Farm] ออโต้ดูดปืนที่ดรอปบนพื้นมาหาตัว (Gun Magnet)
+-- ==========================================
+getgenv().GunMagnet_Active = false
+
+-- สร้างปุ่มสวิตช์แคปซูลในหน้าต่าง TeleportContainer (หมวดหมู่ วาป+ฟาม)
+createSwitchButton(TeleportContainer, "🔫 ออโต้ดูดปืนมาหาตัว", getgenv().GunMagnet_Active, function(isActive)
+    getgenv().GunMagnet_Active = isActive
+end)
+
+-- ระบบลูปคอยสแกนและดูดปืน
+task.spawn(function()
+    local TweenService = game:GetService("TweenService")
+    
+    while true do
+        task.wait(0.5) -- สแกนหาไอเทมทุกๆ ครึ่งวินาที
+        if getgenv().GunMagnet_Active then
+            pcall(function()
+                local character = localPlayer.Character
+                if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+                local rootPart = character.HumanoidRootPart
+
+                -- วนหาวัตถุทั้งหมดใน Workspace
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if not getgenv().GunMagnet_Active then break end
+                    
+                    -- เช็คว่าเป็นปืนที่ตกอยู่ (อิงจากชื่อที่มีคำว่า Gun, Revolver, Sheriff หรือเช็คจาก Tool/Model)
+                    if obj:IsA("Model") or obj:IsA("BasePart") or obj:IsA("Tool") then
+                        local nameLower = string.lower(obj.Name)
+                        
+                        -- เงื่อนไขชื่อปืนที่มักจะดรอปในแมพ (เช่น ปืนนายอำเภอ / ปืนพก)
+                        if nameLower:find("gun") or nameLower:find("revolver") or nameLower:find("pistol") or nameLower:find("sheriff") then
+                            local targetPart = nil
+                            
+                            if obj:IsA("Model") then
+                                targetPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                            elseif obj:IsA("BasePart") then
+                                targetPart = obj
+                            elseif obj:IsA("Tool") and obj:FindFirstChild("Handle") then
+                                targetPart = obj.Handle
+                            end
+                            
+                            if targetPart then
+                                -- เช็คระยะว่าปืนไม่ได้อยู่ใกล้ตัวเกินไป และไม่อยู่ในกระเป๋าใคร
+                                local distance = (rootPart.Position - targetPart.Position).Magnitude
+                                
+                                -- ถ้าปืนตกอยู่ห่างจากเราไม่เกิน 150 เมตร และไม่ได้ถูกถืออยู่
+                                if distance <= 150 and not targetPart:IsDescendantOf(workspace) and not targetPart.Parent:IsA("Model") and targetPart.Parent.Name ~= "Backpack" then
+                                    
+                                    -- (ทางเลือก): ลองยิงรีโมทขอดึงไอเทมก่อน (ถ้าเกมมีระบบ Drag Item)
+                                    pcall(function()
+                                        local remoteDrag = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvents") 
+                                            and game:GetService("ReplicatedStorage").RemoteEvents:FindFirstChild("RequestStartDraggingItem")
+                                        if remoteDrag then
+                                            remoteDrag:FireServer(obj)
+                                        end
+                                    end)
+
+                                    -- สั่งให้ปืนค่อยๆ ลอยพุ่งเข้ามาหาตัวเราอย่างสมูท
+                                    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+                                    local tween = TweenService:Create(targetPart, tweenInfo, {CFrame = rootPart.CFrame})
+                                    tween:Play()
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
 
 
 
