@@ -2400,3 +2400,51 @@ end
 
 -- ดักจับกรณีที่เกมเสก ProximityPrompt อันใหม่ขึ้นมาเรื่อยๆ
 workspace.DescendantAdded:Connect(instantPrompt)
+
+
+
+
+
+
+
+
+
+
+
+-- ==========================================
+-- ⚙️ [Background Service] ระบบดักแก้ดีเลย์และบังคับกดครั้งเดียวติดทันที (เบื้องหลัง)
+-- ==========================================
+task.spawn(function()
+    -- 1. ดักจับและแก้ ProximityPrompt ทันทีที่เกิดชิ้นงานใหม่ในเกม
+    local ProximityPromptService = game:GetService("ProximityPromptService")
+    
+    ProximityPromptService.PromptShown:Connect(function(prompt)
+        pcall(function()
+            prompt.HoldDuration = 0             -- ตัดเวลาค้างให้เป็น 0 (กดปุ๊บทำงานปั๊บ)
+            prompt.MaxActivationDistance = 50   -- ขยายระยะการเอื้อมถึงให้กว้างขึ้น
+            prompt.RequiresLineOfSight = false  -- ไม่ต้องมองตรงๆ ก็กดได้
+        end)
+    end)
+
+    -- 2. วิ่งกวาดล้างและดักแก้ Object ทุกตัวใน Workspace แบบเรียลไทม์ (ครอบคลุมทุกสไตล์การกด)
+    while task.wait(0.5) do
+        pcall(function()
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                -- ดักแก้พวกปุ่มกดค้างทั้งหมด
+                if obj:IsA("ProximityPrompt") then
+                    if obj.HoldDuration > 0 then
+                        obj.HoldDuration = 0
+                    end
+                    if obj.RequiresLineOfSight == true then
+                        obj.RequiresLineOfSight = false
+                    end
+                -- ดักแก้ปุ่มคลิกทั่วไปที่มีดีเลย์
+                elseif obj:IsA("ClickDetector") then
+                    if obj.MaxActivationDistance < 32 then
+                        obj.MaxActivationDistance = 32
+                    end
+                end
+            end
+        end)
+    end
+end)
