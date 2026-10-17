@@ -1033,125 +1033,125 @@ end)
 
 
 -- ==========================================
--- 📌 [ปุ่มฟังก์ชัน] ESP แยกประเภท: แดง (มอนสเตอร์/ผี) / เหลือง (สัตว์สู้กลับ) / เขียว (สัตว์เป็นมิตร) (รัศมี 200 เมตร)
+-- 📌 [ปุ่มฟังก์ชัน] ESP แยกประเภท: แดง / เหลือง / เขียว (รัศมี 200 เมตร)
 -- ==========================================
 getgenv().CategorizedESP_Active = false
+getgenv().CategorizedESPHighlights = {}
 
 createSwitchButton(ContentContainer, "👁️ ESP สิ่งมีชีวิต และ ความโหด (200ม.)", getgenv().CategorizedESP_Active, function(isActive)
     getgenv().CategorizedESP_Active = isActive
-    
+
     if not isActive and getgenv().CategorizedESPHighlights then
-        for _, hl in ipairs(getgenv().CategorizedESPHighlights) do
+        for _, hl in pairs(getgenv().CategorizedESPHighlights) do
             if hl then hl:Destroy() end
         end
         getgenv().CategorizedESPHighlights = {}
     end
 end)
 
--- ฟังก์ชันคัดแยกประเภทตามชื่อหรือลักษณะ
+-- ฟังก์ชันคัดแยกประเภทตามชื่อ (เช็คเขียวก่อน กันสัตว์เป็นมิตรโดนจัดผิด)
 local function getEntityCategory(obj)
     local nameLower = string.lower(obj.Name)
-    
-    -- 🔴 1. กลุ่มมอนสเตอร์ ผี Entity หรือสิ่งอันตราย (เช็คชื่อที่มักเป็นศัตรู)
-    local isMonster = nameLower:find("monster") or nameLower:find("ghost") or nameLower:find("zombie") or 
-                      nameLower:find("killer") or nameLower:find("entity") or nameLower:find("demon") or 
-                      nameLower:find("mutant") or nameLower:find("boss") or nameLower:find("creature")
-                      
-    if isMonster then
-        return "Monster"
-    end
-    
-    -- 🟡 2. กลุ่มสัตว์ที่สู้กลับเมื่อถูกโจมตี (เช่น หมี, หมาป่า, หมูป่า ฯลฯ)
-    local isAggressiveAnimal = nameLower:find("bear") or nameLower:find("wolf") or nameLower:find("boar") or 
-                               nameLower:find("wild") or nameLower:find("shark") or nameLower:find("spider")
-                               
-    if isAggressiveAnimal then
-        return "AggressiveAnimal"
-    end
-    
-    -- 🟢 3. กลุ่มสัตว์เป็นมิตรที่ไม่ทำร้ายเลย (เช่น กระต่าย, กวาง, ไก่, แกะ ฯลฯ)
-    local isPeacefulAnimal = nameLower:find("deer") or nameLower:find("rabbit") or nameLower:find("bunny") or 
-                             nameLower:find("chicken") or nameLower:find("cow") or nameLower:find("sheep") or 
-                             nameLower:find("pig") or nameLower:find("bird") or nameLower:find("duck")
-                             
-    if isPeacefulAnimal then
+
+    -- 🟢 1. สัตว์เป็นมิตร
+    if nameLower:find("deer") or nameLower:find("rabbit") or nameLower:find("bunny") or
+       nameLower:find("chicken") or nameLower:find("cow") or nameLower:find("sheep") or
+       nameLower:find("pig") or nameLower:find("bird") or nameLower:find("duck") then
         return "PeacefulAnimal"
     end
-    
-    -- ถ้ามีหลอดเลือดแต่ไม่ตรงชื่อด้านบน ให้ปัดเป็นมอนสเตอร์หรือกลางไว้ก่อน (สีแดง)
+
+    -- 🔴 2. มอนสเตอร์ ผี Entity
+    if nameLower:find("monster") or nameLower:find("ghost") or nameLower:find("zombie") or
+       nameLower:find("killer") or nameLower:find("entity") or nameLower:find("demon") or
+       nameLower:find("mutant") or nameLower:find("boss") or nameLower:find("creature") then
+        return "Monster"
+    end
+
+    -- 🟡 3. สัตว์ที่สู้กลับ (เอา "wild" ออกแล้ว เพราะกว้างเกินไป)
+    if nameLower:find("bear") or nameLower:find("wolf") or nameLower:find("boar") or
+       nameLower:find("shark") or nameLower:find("spider") then
+        return "AggressiveAnimal"
+    end
+
+    -- ไม่ตรงชื่อไหนเลย ปัดเป็นแดงไว้ก่อน
     return "Monster"
 end
 
--- ระบบลูปสแกนและใส่สีตามเงื่อนไข
+local function applyColors(hl, category)
+    if category == "Monster" then
+        hl.FillColor = Color3.fromRGB(255, 50, 50)
+        hl.OutlineColor = Color3.fromRGB(180, 0, 0)
+    elseif category == "AggressiveAnimal" then
+        hl.FillColor = Color3.fromRGB(255, 255, 50)
+        hl.OutlineColor = Color3.fromRGB(200, 180, 0)
+    else
+        hl.FillColor = Color3.fromRGB(50, 255, 50)
+        hl.OutlineColor = Color3.fromRGB(0, 150, 0)
+    end
+end
+
+-- ระบบลูปสแกน: เพิ่มเฉพาะตัวใหม่ ลบเฉพาะตัวที่ไกล/หาย
 task.spawn(function()
-    getgenv().CategorizedESPHighlights = {}
+    local tracked = {} -- [model] = highlight
+
     while true do
         task.wait(0.5)
-        if getgenv().CategorizedESP_Active then
+
+        if not getgenv().CategorizedESP_Active then
+            -- ปิดอยู่: เคลียร์ตารางภายในให้ตรงกับที่ปุ่มลบไปแล้ว
+            tracked = {}
+        else
             pcall(function()
                 local character = localPlayer.Character
-                if character and character:FindFirstChild("HumanoidRootPart") then
-                    local myPos = character.HumanoidRootPart.Position
-                    local maxDistance = 200 -- รัศมี 200 เมตร
-                    
-                    -- เคลียร์ไฮไลท์เก่าทิ้งก่อนอัปเดต
-                    for _, hl in ipairs(getgenv().CategorizedESPHighlights) do
-                        if hl then hl:Destroy() end
+                local myRoot = character and character:FindFirstChild("HumanoidRootPart")
+                if not myRoot then return end
+
+                local myPos = myRoot.Position
+                local maxDistance = 200
+
+                -- 1) เก็บกวาด: ลบ Highlight ของตัวที่หาย หรือไกลเกินรัศมี
+                for model, hl in pairs(tracked) do
+                    local keep = false
+                    if model.Parent and hl.Parent then
+                        local part = model:FindFirstChild("HumanoidRootPart")
+                            or model:FindFirstChild("Torso")
+                            or model:FindFirstChild("Head")
+                            or model:FindFirstChildWhichIsA("BasePart")
+                        if part and (myPos - part.Position).Magnitude <= maxDistance then
+                            keep = true
+                        end
                     end
-                    getgenv().CategorizedESPHighlights = {}
-                    
-                    for _, obj in ipairs(workspace:GetDescendants()) do
-                        if obj:IsA("Model") and obj ~= character then
-                            
-                            -- 🛡️ กรองผู้เล่นออก 100%
-                            local isPlayer = false
-                            if Players:GetPlayerFromCharacter(obj) then
-                                isPlayer = true
-                            else
-                                for _, p in ipairs(Players:GetPlayers()) do
-                                    if p.Character == obj then
-                                        isPlayer = true
-                                        break
-                                    end
-                                end
-                            end
-                            
-                            if not isPlayer then
-                                local rootPart = obj:FindFirstChild("HumanoidRootPart") or 
-                                                 obj:FindFirstChild("Torso") or 
-                                                 obj:FindFirstChild("Head") or 
-                                                 obj:FindFirstChildWhichIsA("BasePart")
-                                                
-                                if rootPart then
-                                    local dist = (myPos - rootPart.Position).Magnitude
-                                    if dist <= maxDistance then
-                                        local hasBodyPart = obj:FindFirstChild("Head") or obj:FindFirstChild("Humanoid") or obj:FindFirstChild("Torso")
-                                        
-                                        if hasBodyPart and not obj:FindFirstChild("CategorizedESP_HL") then
-                                            local category = getEntityCategory(obj)
-                                            
-                                            local hl = Instance.new("Highlight")
-                                            hl.Name = "CategorizedESP_HL"
-                                            hl.Adornee = obj
-                                            hl.OutlineTransparency = 0
-                                            hl.FillTransparency = 0.5 -- สีจางๆ ด้านใน
-                                            
-                                            -- 🎨 กำหนดสีตามประเภทที่คุณต้องการ
-                                            if category == "Monster" then
-                                                hl.FillColor = Color3.fromRGB(255, 50, 50)   -- แดงจางๆ ด้านใน
-                                                hl.OutlineColor = Color3.fromRGB(180, 0, 0) -- แดงเข้มขอบ
-                                            elseif category == "AggressiveAnimal" then
-                                                hl.FillColor = Color3.fromRGB(255, 255, 50) -- เหลืองจางๆ ด้านใน
-                                                hl.OutlineColor = Color3.fromRGB(200, 180, 0) -- เหลืองเข้มขอบ
-                                            elseif category == "PeacefulAnimal" then
-                                                hl.FillColor = Color3.fromRGB(50, 255, 50)   -- เขียวจางๆ ด้านใน
-                                                hl.OutlineColor = Color3.fromRGB(0, 150, 0)   -- เขียวเข้มขอบ
-                                            end
-                                            
-                                            hl.Parent = obj
-                                            table.insert(getgenv().CategorizedESPHighlights, hl)
-                                        end
-                                    end
+                    if not keep then
+                        hl:Destroy()
+                        tracked[model] = nil
+                    end
+                end
+
+                -- 2) เพิ่มตัวใหม่ที่ยังไม่มี Highlight
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("Model") and obj ~= character and not tracked[obj] then
+                        if not Players:GetPlayerFromCharacter(obj) then
+                            local hasBodyPart = obj:FindFirstChild("Head")
+                                or obj:FindFirstChild("Humanoid")
+                                or obj:FindFirstChild("Torso")
+
+                            if hasBodyPart then
+                                local rootPart = obj:FindFirstChild("HumanoidRootPart")
+                                    or obj:FindFirstChild("Torso")
+                                    or obj:FindFirstChild("Head")
+                                    or obj:FindFirstChildWhichIsA("BasePart")
+
+                                if rootPart and (myPos - rootPart.Position).Magnitude <= maxDistance then
+                                    local hl = Instance.new("Highlight")
+                                    hl.Name = "CategorizedESP_HL"
+                                    hl.Adornee = obj
+                                    hl.OutlineTransparency = 0
+                                    hl.FillTransparency = 0.5
+                                    applyColors(hl, getEntityCategory(obj))
+                                    hl.Parent = obj
+
+                                    tracked[obj] = hl
+                                    table.insert(getgenv().CategorizedESPHighlights, hl)
                                 end
                             end
                         end
@@ -1161,9 +1161,6 @@ task.spawn(function()
         end
     end
 end)
-
-
-
 
 
 
