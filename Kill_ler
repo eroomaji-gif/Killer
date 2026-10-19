@@ -3101,10 +3101,17 @@ end)
 
 
 local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
--- ฟังก์ชันหลักสำหรับปลดล็อก
 local function unlockAllUI()
+    -- 1. บังคับเปิดปุ่มกระโดดและปุ่มหลักของ Roblox (สำหรับมือถือ)
+    pcall(function()
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Jump, true)
+    end)
+
+    -- 2. วนลูปปลดล็อก UI ทุกชิ้นในหน้าจอเหมือนเดิม
     local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
     if not playerGui then return end
 
@@ -3122,17 +3129,17 @@ local function unlockAllUI()
     end
 end
 
--- ให้มันคอยทำงานเบื้องหลังแบบวนลูปเช็กทุกๆ 1 วินาที (ป้องกันแมพแอบซ่อนซ้ำ)
+-- รันแบบวนลูปเช็กต่อเนื่อง เพื่อกันแมพแอบปิดซ้ำ
 task.spawn(function()
     while true do
         pcall(function()
             unlockAllUI()
         end)
-        task.wait(1) -- เช็กทุกๆ 1 วินาที เพื่อไม่ให้กินทรัพยากรเครื่องจนแลค
+        task.wait(1)
     end
 end)
 
--- ดักจับตอนตัวละครเกิดใหม่ (Respawn) เพื่อเคลียร์ UI ให้ปลดล็อกทันที
+-- ดักตอนเกิดใหม่
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.5)
     unlockAllUI()
