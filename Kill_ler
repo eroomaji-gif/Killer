@@ -1,3 +1,139 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- 📌 ฟังก์ชันแอนิเมชันหลุมดำเปิดตัว Dev (Smooth & Fast ภายใน 6 วินาที)
+local function playDevIntro(devPlayer)
+    -- 1. สร้าง ScreenGui หลัก
+    local IntroGui = Instance.new("ScreenGui")
+    IntroGui.Name = "DevIntroGui"
+    IntroGui.ResetOnSpawn = false
+    IntroGui.DisplayOrder = 99999
+    IntroGui.Parent = playerGui
+
+    -- 2. หน้าจอดำค่อยๆ มืดลงอย่างนุ่มนวล
+    local BlackFrame = Instance.new("Frame")
+    BlackFrame.Size = UDim2.new(1, 0, 1, 0)
+    BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    BlackFrame.BackgroundTransparency = 1
+    BlackFrame.Parent = IntroGui
+
+    -- 3. หลุมดำ (เริ่มต้นที่ 0 ตรงกลางจอ)
+    local BlackHole = Instance.new("ImageLabel")
+    BlackHole.AnchorPoint = Vector2.new(0.5, 0.5)
+    BlackHole.Position = UDim2.new(0.5, 0, 0.5, -25)
+    BlackHole.Size = UDim2.new(0, 0, 0, 0)
+    BlackHole.BackgroundTransparency = 1
+    BlackHole.Image = "rbxassetid://13112068153"
+    BlackHole.Parent = BlackFrame
+
+    local HoleCorner = Instance.new("UICorner")
+    HoleCorner.CornerRadius = UDim.new(1, 0)
+    HoleCorner.Parent = BlackHole
+
+    -- 4. รูปโปรไฟล์ Dev (ดึงจาก Roblox ให้อัตโนมัติ)
+    local DevAvatar = Instance.new("ImageLabel")
+    DevAvatar.AnchorPoint = Vector2.new(0.5, 0.5)
+    DevAvatar.Position = UDim2.new(0.5, 0, 0.5, 0)
+    DevAvatar.Size = UDim2.new(0.85, 0, 0.85, 0)
+    DevAvatar.BackgroundTransparency = 1
+    DevAvatar.ImageTransparency = 1
+    DevAvatar.Parent = BlackHole
+
+    local AvatarCorner = Instance.new("UICorner")
+    AvatarCorner.CornerRadius = UDim.new(1, 0)
+    AvatarCorner.Parent = DevAvatar
+
+    task.spawn(function()
+        pcall(function()
+            local content = Players:GetUserThumbnailAsync(
+                devPlayer.UserId, 
+                Enum.ThumbnailType.HeadShot, 
+                Enum.ThumbnailSize.Size420x420
+            )
+            DevAvatar.Image = content
+        end)
+    end)
+
+    -- 5. ข้อความแจ้งเตือนด้านล่าง + ทิ้งชื่อ Dev
+    local NoticeText = Instance.new("TextLabel")
+    NoticeText.AnchorPoint = Vector2.new(0.5, 0)
+    NoticeText.Position = UDim2.new(0.5, 0, 0.65, 0)
+    NoticeText.Size = UDim2.new(0.8, 0, 0.15, 0)
+    NoticeText.BackgroundTransparency = 1
+    NoticeText.Font = Enum.Font.GothamBold
+    NoticeText.Text = "👑 ผู้พัฒนาสคริปต์อยู่ในห้องนี้! อย่าลืมไปทักทายเขากันด้วยล่ะ\n✨ [ Dev: " .. devPlayer.Name .. " ]"
+    NoticeText.TextColor3 = Color3.fromRGB(255, 215, 0)
+    NoticeText.TextSize = 16
+    NoticeText.TextWrapped = true
+    NoticeText.TextTransparency = 1
+    NoticeText.TextStrokeTransparency = 1
+    NoticeText.Parent = BlackFrame
+
+    -- ==========================================
+    -- 🎬 ระบบเล่นแอนิเมชันแบบ Smooth (คุมเวลาจบใน 6 วิ)
+    -- ==========================================
+    
+    -- [วินาทีที่ 0.0 - 0.5]: หน้าจอค่อยๆ ดำมืดลงอย่างนุ่มนวล
+    TweenService:Create(BlackFrame, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {BackgroundTransparency = 0.3}):Play()
+    task.wait(0.3)
+
+    -- [วินาทีที่ 0.5 - 2.0]: หลุมดำขยายใหญ่ขึ้นเป็นสเต็ปเปอร์เซ็นต์อย่างสมูท (สมจริงและนุ่มนวล)
+    BlackHole:TweenSize(UDim2.new(0, 50, 0, 50), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+    task.wait(0.2)
+    BlackHole:TweenSize(UDim2.new(0, 100, 0, 100), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+    task.wait(0.2)
+    BlackHole:TweenSize(UDim2.new(0, 150, 0, 150), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+    task.wait(0.2)
+    BlackHole:TweenSize(UDim2.new(0, 190, 0, 190), Enum.EasingDirection.Out, Enum.EasingStyle.Back, 0.3, true) -- ขนาดพอดีกลางจอ
+
+    -- [วินาทีที่ 2.0 - 2.5]: ค่อยๆ เฟดรูปโปรไฟล์และข้อความขึ้นมา
+    TweenService:Create(DevAvatar, TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {ImageTransparency = 0}):Play()
+    TweenService:Create(NoticeText, TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {TextTransparency = 0, TextStrokeTransparency = 0}):Play()
+
+    -- [วินาทีที่ 2.5 - 5.0]: ค้างหน้าจอไว้ให้คนดูอ่านข้อความและชมความเท่ (2.5 วินาที)
+    task.wait(2.5)
+
+    -- [วินาทีที่ 5.0 - 6.0]: เฟดทุกอย่างจางหายไปพร้อมกันอย่างสมูท แล้วปิดระบบจบภายใน 6 วิพอดีเป๊ะ
+    TweenService:Create(BlackFrame, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(BlackHole, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {ImageTransparency = 1}):Play()
+    TweenService:Create(DevAvatar, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {ImageTransparency = 1}):Play()
+    TweenService:Create(NoticeText, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
+
+    task.wait(0.8)
+    IntroGui:Destroy() -- เคลียร์ข้อมูลทิ้งเกลี้ยง ไม่กินแรม
+end
+
+-- ==========================================
+-- 🔍 ระบบตรวจสอบเบื้องหลัง (Background Checker)
+-- ==========================================
+task.spawn(function()
+    task.wait(1.5) -- รอผู้เล่นโหลดเข้าห้องเรียบร้อย
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if type(isOwner) == "function" and isOwner(plr) then
+            playDevIntro(plr) -- เจอรันปุ๊บ เล่นแอนิเมชัน 6 วิทันที
+            break
+        end
+    end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- ==========================================================
 -- 👑 [MASTER HEADER] ระบบเคลียร์ค่าและป้องกันการรันสคริปต์ตัวแม่ซ้ำ
 -- ==========================================================
