@@ -1142,15 +1142,61 @@ end
 
 
 -- ==========================================
--- 📌 [ปุ่มที่ 4] ระบบบิน (Fly) - ฉบับสมบูรณ์ 100%
+-- 📌 [ปุ่มที่ 4] ระบบดูดไม้ (Auto PickUp Logs)
 -- ==========================================
-getgenv().Script4_FlyToggle = false
-createSwitchButton(ContentContainer, "✈️ บิน", getgenv().Script4_FlyToggle, function(isActive)
-    getgenv().Script4_FlyToggle = isActive
+getgenv().Script4_AutoPickUp = false
+
+createSwitchButton(ContentContainer, "🪵 ดูดไม้", getgenv().Script4_AutoPickUp, function(isActive)
+    getgenv().Script4_AutoPickUp = isActive
 end)
 
+-- ลูปการทำงานเบื้องหลังของระบบดูดไม้
+task.spawn(function()
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local LocalPlayer = Players.LocalPlayer
 
+    -- ดึงเส้นทาง RemoteEvent ของการเก็บไม้
+    local success, pickUpRemote = pcall(function()
+        return ReplicatedStorage:WaitForChild("Shared")
+            :WaitForChild("Services")
+            :WaitForChild("ChopRemotes")
+            :WaitForChild("PickUpLog")
+    end)
 
+    while true do
+        pcall(function()
+            -- เช็กว่าเปิดสวิตช์ใช้งานอยู่ไหม
+            if getgenv().Script4_AutoPickUp and success and pickUpRemote then
+                local char = LocalPlayer.Character
+                local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+                local logsFolder = workspace:FindFirstChild("Logs")
+                
+                if myRoot and logsFolder then
+                    for _, log in ipairs(logsFolder:GetChildren()) do
+                        -- เช็กสวิตช์ซ้ำอีกรอบเผื่อกดปิดกลางคัน
+                        if not getgenv().Script4_AutoPickUp then break end
+                        
+                        local logPart = log:IsA("BasePart") and log or log:FindFirstChildWhichIsA("BasePart")
+                        
+                        if logPart then
+                            -- เช็กระยะ (กำหนดให้ดูดไม้ได้ทั่วแมพหรือในรัศมีกว้างๆ ได้เลย)
+                            local distance = (myRoot.Position - logPart.Position).Magnitude
+                            
+                            -- ถ้าอยู่ในรัศมี (เช่น 50 Studs หรืออยากให้ดูดทั้งหมดเอาออกเงื่อนไขระยะได้เลยครับ)
+                            if distance <= 50 then
+                                pickUpRemote:FireServer(log)
+                                task.wait(0.05) -- หน่วงเวลานิดหน่อยไม่ให้ส่งรัวเกินไป
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        
+        task.wait(0.3) -- เช็กสถานะวนไปเรื่อยๆ
+    end
+end)
 
 
 
