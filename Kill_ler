@@ -3087,3 +3087,53 @@ task.spawn(function()
         end)
     end
 end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ฟังก์ชันหลักสำหรับปลดล็อก
+local function unlockAllUI()
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then return end
+
+    for _, guiElement in ipairs(playerGui:GetDescendants()) do
+        if guiElement:IsA("LayerCollector") then
+            guiElement.Enabled = true
+        end
+        
+        if guiElement:IsA("GuiObject") then
+            guiElement.Visible = true
+            if guiElement:IsA("GuiButton") then
+                guiElement.Active = true
+            end
+        end
+    end
+end
+
+-- ให้มันคอยทำงานเบื้องหลังแบบวนลูปเช็กทุกๆ 1 วินาที (ป้องกันแมพแอบซ่อนซ้ำ)
+task.spawn(function()
+    while true do
+        pcall(function()
+            unlockAllUI()
+        end)
+        task.wait(1) -- เช็กทุกๆ 1 วินาที เพื่อไม่ให้กินทรัพยากรเครื่องจนแลค
+    end
+end)
+
+-- ดักจับตอนตัวละครเกิดใหม่ (Respawn) เพื่อเคลียร์ UI ให้ปลดล็อกทันที
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    unlockAllUI()
+end)
