@@ -3104,43 +3104,45 @@ local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
-local function unlockAllUI()
-    -- 1. บังคับเปิดปุ่มกระโดดและปุ่มหลักของ Roblox (สำหรับมือถือ)
+local function restoreOriginalJumpButton()
+    -- 1. สั่งเปิดสิทธิ์การใช้งานปุ่มทั้งหมดในระดับระบบ (CoreGui)
     pcall(function()
         StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
         StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Jump, true)
     end)
 
-    -- 2. วนลูปปลดล็อก UI ทุกชิ้นในหน้าจอเหมือนเดิม
-    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-    if not playerGui then return end
+    local character = LocalPlayer.Character
+    if not character then return end
 
-    for _, guiElement in ipairs(playerGui:GetDescendants()) do
-        if guiElement:IsA("LayerCollector") then
-            guiElement.Enabled = true
-        end
-        
-        if guiElement:IsA("GuiObject") then
-            guiElement.Visible = true
-            if guiElement:IsA("GuiButton") then
-                guiElement.Active = true
+    -- 2. ค้นหาและบังคับเปิด TouchGui (ระบบควบคุมมือถือดั้งเดิมของ Roblox เช่น จอยสติ๊กและปุ่มกระโดด)
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if playerGui then
+        local touchGui = playerGui:FindFirstChild("TouchGui")
+        if touchGui then
+            touchGui.Enabled = true
+            -- เจาะลึกเข้าไปเปิดปุ่มกระโดดด้านใน TouchGui ถ้ามี
+            for _, descendant in ipairs(touchGui:GetDescendants()) do
+                if descendant:IsA("GuiObject") then
+                    descendant.Visible = true
+                    descendant.Active = true
+                end
             end
         end
     end
 end
 
--- รันแบบวนลูปเช็กต่อเนื่อง เพื่อกันแมพแอบปิดซ้ำ
+-- ให้มันคอยเช็กและบังคับคืนค่าต่อเนื่องแบบเรียลไทม์
 task.spawn(function()
     while true do
         pcall(function()
-            unlockAllUI()
+            restoreOriginalJumpButton()
         end)
         task.wait(1)
     end
 end)
 
--- ดักตอนเกิดใหม่
+-- คืนค่าทันทีเมื่อตัวละครเกิดใหม่
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.5)
-    unlockAllUI()
+    restoreOriginalJumpButton()
 end)
