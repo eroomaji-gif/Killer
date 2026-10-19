@@ -3096,88 +3096,45 @@ end)
 
 
 
-
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. สร้างปุ่มสำรองเตรียมไว้ก่อน (แต่ยังซ่อนไว้)
-if CoreGui:FindFirstChild("SmartJumpButtonGui") then
-    CoreGui.SmartJumpButtonGui:Destroy()
+-- ลบของเก่ากันซ้ำ
+if PlayerGui:FindFirstChild("DeltaJumpBtn_Safe") then
+    PlayerGui.DeltaJumpBtn_Safe:Destroy()
 end
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SmartJumpButtonGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = CoreGui
+-- สร้าง ScreenGui ไว้ใน PlayerGui แทน CoreGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "DeltaJumpBtn_Safe"
+gui.ResetOnSpawn = false --เวลาตายปุ่มไม่หาย
+gui.Parent = PlayerGui
 
-local jumpButton = Instance.new("TextButton")
-jumpButton.Name = "JumpButton"
-jumpButton.Size = UDim2.new(0, 80, 0, 80)
-jumpButton.Position = UDim2.new(1, -100, 1, -110)
-jumpButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-jumpButton.BackgroundTransparency = 0.4
-jumpButton.Text = "JUMP"
-jumpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-jumpButton.TextSize = 20
-jumpButton.Font = Enum.Font.GothamBold
-jumpButton.Visible = CFrame -- เริ่มต้นซ่อนไว้ก่อน
-jumpButton.Parent = screenGui
+-- สร้างปุ่มสีแดงเด่นๆ
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 90, 0, 90)
+btn.Position = UDim2.new(1, -110, 1, -130)
+btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+btn.Text = "JUMP"
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn.TextSize = 20
+btn.Font = Enum.Font.GothamBold
+btn.Parent = gui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
-corner.Parent = jumpButton
+corner.Parent = btn
 
--- ฟังก์ชันสั่งกระโดด
+-- ฟังก์ชันกดกระโดด
 local function doJump()
-    local character = LocalPlayer.Character
-    if character then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.Jump = true
-        end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChildOfClass("Humanoid") then
+        char:FindFirstChildOfClass("Humanoid").Jump = true
     end
 end
 
-jumpButton.MouseButton1Click:Connect(doJump)
-jumpButton.TouchTap:Connect(doJump)
+btn.MouseButton1Click:Connect(doJump)
+btn.TouchTap:Connect(doJump)
 
--- 2. ระบบอัจฉริยะคอยเช็กว่าปุ่มเดิม (TouchGui) อยู่หรือหายไป
-local function checkOriginalJump()
-    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-    if not playerGui then 
-        jumpButton.Visible = true
-        return 
-    end
-
-    -- ค้นหา TouchGui และปุ่มกระโดดดั้งเดิมของเกม
-    local touchGui = playerGui:FindFirstChild("TouchGui")
-    local hasOriginalJump = false
-
-    if touchGui then
-        for _, desc in ipairs(touchGui:GetDescendants()) do
-            -- เช็กว่ามีปุ่มหรือสลักที่เกี่ยวข้องกับการกระโดดอยู่ และแสดงผลอยู่จริงไหม
-            if (desc.Name:lower():find("jump") or desc.Name:lower():find("button")) and desc:IsA("GuiObject") and desc.Visible then
-                hasOriginalJump = true
-                break
-            end
-        end
-    end
-
-    -- ถ้าหาปุ่มเดิมเจอ -> ซ่อนปุ่มสำรองของเรา / ถ้าหาไม่เจอ -> โผล่ปุ่มสำรองขึ้นมาทันที
-    if hasOriginalJump then
-        jumpButton.Visible = false
-    else
-        jumpButton.Visible = true
-    end
-end
-
--- รันลูปเช็กต่อเนื่องทุกๆ 0.5 วินาที
-task.spawn(function()
-    while true do
-        pcall(function()
-            checkOriginalJump()
-        end)
-        task.wait(0.5)
-    end
-end)
+print("สร้างปุ่มใน PlayerGui สำเร็จ!")
