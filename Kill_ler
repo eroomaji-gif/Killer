@@ -3155,3 +3155,80 @@ task.spawn(function()
 		task.wait(0.5)
 	end
 end)
+
+
+
+
+
+
+
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ลบของเก่าที่ค้างจากการรันก่อนหน้า
+for _, p in ipairs({playerGui, game:GetService("CoreGui"), gethui and gethui()}) do
+	if p then
+		local old = p:FindFirstChild("CustomJumpGui")
+		if old then old:Destroy() end
+	end
+end
+
+local function makeGui()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "CustomJumpGui"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 999
+	gui.IgnoreGuiInset = true
+
+	local ok = pcall(function()
+		gui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
+	end)
+	if not ok or not gui.Parent then
+		gui.Parent = playerGui
+	end
+
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.fromOffset(100, 100)
+	btn.Position = UDim2.new(1, -130, 1, -150)
+	btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	btn.BackgroundTransparency = 0.3
+	btn.Text = "JUMP"
+	btn.TextScaled = true
+	btn.Parent = gui
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+	btn.Activated:Connect(function()
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.Jump = true
+			hum:ChangeState(Enum.HumanoidStateType.Jumping)
+		end
+	end)
+	return gui
+end
+
+local function originalExists()
+	local touchGui = playerGui:FindFirstChild("TouchGui")
+	if not touchGui or not touchGui.Enabled then return false end
+	local btn = touchGui:FindFirstChild("JumpButton", true)
+	return btn ~= nil
+		and btn.Visible
+		and btn.AbsoluteSize.X > 0
+		and btn.AbsoluteSize.Y > 0
+end
+
+local customGui
+task.spawn(function()
+	while true do
+		local exists = originalExists()
+		print("[JumpFix] original:", exists, "| custom:", customGui ~= nil)
+		if exists then
+			if customGui then customGui:Destroy() customGui = nil end
+		elseif not customGui then
+			customGui = makeGui()
+		end
+		task.wait(0.5)
+	end
+end)
