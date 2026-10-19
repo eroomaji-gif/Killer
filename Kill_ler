@@ -2902,33 +2902,3 @@ lp.CharacterAdded:Connect(setup)
 
 
 
-
-
-
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local lp = Players.LocalPlayer
-
-local function unlockCamera()
-	local cam = workspace.CurrentCamera
-
-	-- ปลดล็อกระยะซูม (0.5 = บุคคลที่หนึ่ง)
-	lp.CameraMinZoomDistance = 0.5
-	lp.CameraMaxZoomDistance = 128
-	lp.CameraMode = Enum.CameraMode.Classic
-
-	-- คืนกล้องให้ตามตัวเรา (กรณีเกมเปลี่ยนเป็น Scriptable/Fixed)
-	if cam.CameraType ~= Enum.CameraType.Custom then
-		cam.CameraType = Enum.CameraType.Custom
-	end
-	local char = lp.Character
-	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	if hum and cam.CameraSubject ~= hum then
-		cam.CameraSubject = hum
-	end
-end
-
-RunService.RenderStepped:Connect(function()
-	pcall(unlockCamera)
-end)
