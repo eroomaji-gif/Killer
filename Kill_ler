@@ -3097,44 +3097,61 @@ end)
 
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- ลบของเก่ากันซ้ำ
-if PlayerGui:FindFirstChild("DeltaJumpBtn_Safe") then
-    PlayerGui.DeltaJumpBtn_Safe:Destroy()
+-- กันรันซ้ำตอนกด execute หลายรอบ
+if getgenv then
+	if getgenv().JumpFixLoaded then return end
+	getgenv().JumpFixLoaded = true
 end
 
--- สร้าง ScreenGui ไว้ใน PlayerGui แทน CoreGui
-local gui = Instance.new("ScreenGui")
-gui.Name = "DeltaJumpBtn_Safe"
-gui.ResetOnSpawn = false --เวลาตายปุ่มไม่หาย
-gui.Parent = PlayerGui
+local guiParent = (gethui and gethui()) or game:GetService("CoreGui")
+local customGui
 
--- สร้างปุ่มสีแดงเด่นๆ
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0, 90, 0, 90)
-btn.Position = UDim2.new(1, -110, 1, -130)
-btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-btn.Text = "JUMP"
-btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-btn.TextSize = 20
-btn.Font = Enum.Font.GothamBold
-btn.Parent = gui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(1, 0)
-corner.Parent = btn
-
--- ฟังก์ชันกดกระโดด
-local function doJump()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChildOfClass("Humanoid") then
-        char:FindFirstChildOfClass("Humanoid").Jump = true
-    end
+local function hasOriginalJumpButton()
+	local touchGui = playerGui:FindFirstChild("TouchGui")
+	local frame = touchGui and touchGui:FindFirstChild("TouchControlFrame")
+	local btn = frame and frame:FindFirstChild("JumpButton")
+	return btn ~= nil and btn.Visible and touchGui.Enabled
 end
 
-btn.MouseButton1Click:Connect(doJump)
-btn.TouchTap:Connect(doJump)
+local function createCustomButton()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "CustomJumpGui"
+	gui.ResetOnSpawn = false
+	gui.Parent = guiParent
 
-print("สร้างปุ่มใน PlayerGui สำเร็จ!")
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.fromOffset(90, 90)
+	btn.Position = UDim2.new(1, -120, 1, -140)
+	btn.BackgroundColor3 = Color3.new(1, 1, 1)
+	btn.BackgroundTransparency = 0.5
+	btn.Text = "JUMP"
+	btn.Parent = gui
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+	btn.Activated:Connect(function()
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum:ChangeState(Enum.HumanoidStateType.Jumping)
+		end
+	end)
+
+	return gui
+end
+
+task.spawn(function()
+	while true do
+		if hasOriginalJumpButton() then
+			if customGui then
+				customGui:Destroy()
+				customGui = nil
+			end
+		elseif not customGui then
+			customGui = createCustomButton()
+		end
+		task.wait(0.5)
+	end
+end)
