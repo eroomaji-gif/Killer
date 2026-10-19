@@ -2820,3 +2820,79 @@ task.spawn(function()
 		task.wait(0.3)
 	end
 end)
+
+
+
+
+
+
+
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local lp = Players.LocalPlayer
+
+-- แรงที่เกมมักใช้ตรึง/ลากตัวเรา
+local FORCE_CLASSES = {
+	BodyPosition = true, BodyVelocity = true, BodyGyro = true,
+	BodyAngularVelocity = true, BodyForce = true, BodyThrust = true,
+	AlignPosition = true, AlignOrientation = true,
+	LinearVelocity = true, AngularVelocity = true,
+	VectorForce = true, LineForce = true, Torque = true,
+}
+
+local BAD_STATES = {
+	[Enum.HumanoidStateType.Physics] = true,
+	[Enum.HumanoidStateType.FallingDown] = true,
+	[Enum.HumanoidStateType.Ragdoll] = true,
+	[Enum.HumanoidStateType.PlatformStanding] = true,
+}
+
+local normal = {WalkSpeed = 16, JumpPower = 50, JumpHeight = 7.2}
+local conn
+
+local function setup(char)
+	if conn then conn:Disconnect() end
+	local hum = char:WaitForChild("Humanoid")
+	local root = char:WaitForChild("HumanoidRootPart")
+
+	-- จำค่าปกติตอนเกิด (ก่อนเกมจะล็อก)
+	if hum.WalkSpeed > 0 then normal.WalkSpeed = hum.WalkSpeed end
+	if hum.JumpPower > 0 then normal.JumpPower = hum.JumpPower end
+	if hum.JumpHeight > 0 then normal.JumpHeight = hum.JumpHeight end
+
+	conn = RunService.Heartbeat:Connect(function()
+		if not hum.Parent then return end
+
+		-- 1) ปลดตรึงทุกชิ้นส่วนของตัวละคร
+		for _, p in ipairs(char:GetDescendants()) do
+			if p:IsA("BasePart") and p.Anchored then
+				p.Anchored = false
+			elseif FORCE_CLASSES[p.ClassName] then
+				p:Destroy()
+			end
+		end
+
+		-- 2) คืนค่าเดิน/กระโดด
+		if hum.WalkSpeed <= 0 then hum.WalkSpeed = normal.WalkSpeed end
+		if hum.UseJumpPower then
+			if hum.JumpPower <= 0 then hum.JumpPower = normal.JumpPower end
+		else
+			if hum.JumpHeight <= 0 then hum.JumpHeight = normal.JumpHeight end
+		end
+
+		-- 3) ปลดท่านั่ง/ล้ม/ล็อกสถานะ
+		if hum.PlatformStand then hum.PlatformStand = false end
+		if hum.Sit and not hum.SeatPart then hum.Sit = false end
+		hum.AutoRotate = true
+		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+		if BAD_STATES[hum:GetState()] then
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end)
+end
+
+if lp.Character then task.spawn(setup, lp.Character) end
+lp.CharacterAdded:Connect(setup)
