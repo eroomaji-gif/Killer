@@ -1272,96 +1272,228 @@ end)
 
 
 
+    -- ==========================================================
+-- 🔎 ตัวสแกนสิ่งมีชีวิต (2 สี: เขียว = สัตว์ปลอดภัย / แดง = ที่เหลือทั้งหมด)
+-- วิธีใส่: ลบบล็อกสแกนเก่า (บรรทัด ~1264–1364) แล้ววางไฟล์นี้แทน
+-- ต้องวางหลัง createSwitchButton และ ContentContainer ถูกสร้างแล้ว
+-- ==========================================================
+local function createLivingScannerSwitch(parent)
+    local Players = game:GetService("Players")
+    local lp = Players.LocalPlayer
+
     local MAX_DISTANCE = 200
-local MAX_HIGHLIGHTS = 30
+    local MAX_HIGHLIGHTS = 30
+    local CHECK_INTERVAL = 1.5   -- ยิ่งเยอะยิ่งเบา (วินาทีต่อรอบ)
+    local SLICE = 40             -- ตรวจกี่ตัวต่อเฟรม ก่อนพักให้เกมหายใจ
 
-local candidates = {}   -- [model] = true
-local scanned = false
+    local GREEN = Color3.fromRGB(80, 255, 120)
+    local RED = Color3.fromRGB(255, 60, 60)
 
-local function addCandidate(inst)
-    if inst:IsA("Humanoid") or inst.Name == "Head" or inst.Name == "Torso" then
-        local model = inst.Parent
-        if model and model:IsA("Model") and model ~= workspace then
-            candidates[model] = true
+    -- 🟢 สัตว์ปลอดภัย (ตีหรือเข้าใกล้ก็ไม่ทำร้ายกลับ) — เพิ่ม/ลบชื่อได้ตามเกม
+    local SAFE_KEYWORDS = {
+        "deer", "rabbit", "bunny", "chicken", "cow", "pig", "sheep", "goat",
+        "fish", "bird", "duck", "butterfly", "frog", "turtle", "squirrel", "horse", "cat", "dog",
+    }
+
+    -- ❌ NPC: ไม่สแกนเลย
+    local NPC_KEYWORDS = { "npc", "shop", "vendor", "guard", "villager", "merchant", "trader", "quest", "dealer", "seller" }
+
+    local function matchAny(name, list)
+        for _, kw in ipairs(list) do
+            if string.find(name, kw, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- ตรวจครั้งเดียวต่อโมเดลแล้วจำผลไว้ (ไม่ต้องคำนวณซ้ำทุกรอบ)
+    local function classify(model)
+        local name = string.lower(model.Name)
+        if matchAny(name, NPC_KEYWORDS)
+            or model:FindFirstChildWhichIsA("ProximityPrompt", true)
+            or model:FindFirstChildWhichIsA("ClickDetector", true)
+            or model:FindFirstChildOfClass("Shirt")
+            or model:FindFirstChildOfClass("Pants")
+            or model:FindFirstChildOfClass("BodyColors") then
+            return "NPC"
+        end
+        if matchAny(name, SAFE_KEYWORDS) then
+            return "Safe"
+        end
+        return "Danger"
+    end
+
+    -- รีเซ็ตสถานะเดิม (กันซ้อนตอนรันสคริปต์ซ้ำ)
+    getgenv().CategorizedESP_Active = false
+    if getgenv().CategorizedESPHighlights then
+        for _, hl in pairs(getgenv().CategorizedESPHighlights) do
+            pcall(function() hl:Destroy() end)
         end
     end
-end
+    getgenv().CategorizedESPHighlights = {}
 
--- จับตัวใหม่ที่เกิดทีหลัง (ถูกมาก ไม่ต้องสแกนซ้ำ)
-workspace.DescendantAdded:Connect(function(inst)
-    if getgenv().CategorizedESP_Active then
-        addCandidate(inst)
-    end
-end)
+    local candidates = {} -- [model] = { kind = nil | "Safe" | "Danger" | "NPC", part = BasePart }
+    local addedConn
+    local generation = 0
 
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-
-        if not getgenv().CategorizedESP_Active then
-            candidates = {}
-            scanned = false
-        else
-            -- สแกนทั้งแมพครั้งเดียว แบ่งเฟรมไม่ให้ค้าง
-            if not scanned then
-                scanned = true
-                local n = 0
-                for _, inst in ipairs(workspace:GetDescendants()) do
-                    addCandidate(inst)
-                    n += 1
-                    if n % 1000 == 0 then task.wait() end
-                end
+    local function addCandidate(inst)
+        if inst:IsA("Humanoid") or inst.Name == "Head" or inst.Name == "Torso" then
+            local model = inst.Parent
+            if model and model:IsA("Model") and model ~= workspace and not candidates[model] then
+                candidates[model] = {}
             end
+        end
+    end
 
-            local character = localPlayer.Character
-            local myRoot = character and character:FindFirstChild("HumanoidRootPart")
-            if myRoot then
-                local myPos = myRoot.Position
-                local active = getgenv().CategorizedESPHighlights
-                local count = 0
-                for _ in pairs(active) do count += 1 end
+    local function clearAll()
+        for model, hl in pairs(getgenv().CategorizedESPHighlights) do
+            pcall(function() hl:Destroy() end)
+            getgenv().CategorizedESPHighlights[model] = nil
+        end
+        candidates = {}
+    end
 
-                for model in pairs(candidates) do
-                    if not model.Parent then
-                        -- ตัวหาย ลบทิ้ง
-                        candidates[model] = nil
-                        if active[model] then
-                            active[model]:Destroy()
-                            active[model] = nil
-                            count -= 1
+    local function start()
+        generation += 1
+        local myGen = generation
+
+        addedConn = workspace.DescendantAdded:Connect(function(inst)
+            if getgenv().CategorizedESP_Active then
+                addCandidate(inst)
+            end
+        end)
+
+        -- สแกนทั้งแมพครั้งเดียว พักทุก 500 ชิ้นไม่ให้กระตุก
+        task.spawn(function()
+            local n = 0
+            for _, inst in ipairs(workspace:GetDescendants()) do
+                if generation ~= myGen or not getgenv().CategorizedESP_Active then return end
+                addCandidate(inst)
+                n += 1
+                if n % 500 == 0 then task.wait() end
+            end
+        end)
+    end
+
+    local function stop()
+        generation += 1
+        if addedConn then
+            addedConn:Disconnect()
+            addedConn = nil
+        end
+        clearAll()
+    end
+
+    local function removeHighlight(active, model)
+        local hl = active[model]
+        if hl then
+            pcall(function() hl:Destroy() end)
+            active[model] = nil
+        end
+    end
+
+    -- ลูปเช็คแบบเบา: รอบละ 1.5 วิ + แบ่งตรวจเป็นชุดเล็กๆ
+    task.spawn(function()
+        while isRunning ~= false do
+            task.wait(CHECK_INTERVAL)
+            if getgenv().CategorizedESP_Active then
+                pcall(function()
+                    local character = lp.Character
+                    local myRoot = character and character:FindFirstChild("HumanoidRootPart")
+                    if not myRoot then return end
+
+                    local myPos = myRoot.Position
+                    local active = getgenv().CategorizedESPHighlights
+                    local count = 0
+                    for _ in pairs(active) do count += 1 end
+
+                    local checked = 0
+                    for model, info in pairs(candidates) do
+                        checked += 1
+                        if checked % SLICE == 0 then
+                            task.wait()
+                            if not getgenv().CategorizedESP_Active then return end
                         end
-                    else
-                        local part = model:FindFirstChild("HumanoidRootPart")
-                            or model:FindFirstChild("Torso")
-                            or model:FindFirstChild("Head")
-                        local inRange = part and model ~= character
-                            and not Players:GetPlayerFromCharacter(model)
-                            and (myPos - part.Position).Magnitude <= MAX_DISTANCE
 
-                        local hl = active[model]
-                        if inRange then
-                            if not hl and count < MAX_HIGHLIGHTS then
-                                hl = Instance.new("Highlight")
-                                hl.Name = "CategorizedESP_HL"
-                                hl.Adornee = model
-                                hl.OutlineTransparency = 0
-                                hl.FillTransparency = 0.5
-                                applyColors(hl, getEntityCategory(model))
-                                hl.Parent = model
-                                active[model] = hl
-                                count += 1
+                        if not model.Parent then
+                            candidates[model] = nil
+                            if active[model] then
+                                removeHighlight(active, model)
+                                count -= 1
                             end
-                        elseif hl then
-                            hl:Destroy()
-                            active[model] = nil
-                            count -= 1
+                        elseif info.kind == "NPC" then
+                            -- NPC จำไว้แล้ว ข้ามเลย ไม่ต้องคำนวณอีก
+                        else
+                            -- จำชิ้นส่วนที่ใช้วัดระยะไว้ ไม่ต้องหาใหม่ทุกรอบ
+                            local part = info.part
+                            if not part or not part.Parent then
+                                part = model:FindFirstChild("HumanoidRootPart")
+                                    or model:FindFirstChild("Torso")
+                                    or model:FindFirstChild("Head")
+                                info.part = part
+                            end
+
+                            local inRange = part
+                                and model ~= character
+                                and (myPos - part.Position).Magnitude <= MAX_DISTANCE
+
+                            local hl = active[model]
+                            if inRange then
+                                if not info.kind then
+                                    if Players:GetPlayerFromCharacter(model) then
+                                        info.kind = "NPC" -- ผู้เล่น ไม่ต้องสแกน
+                                    else
+                                        info.kind = classify(model)
+                                    end
+                                end
+                                if info.kind ~= "NPC" and not hl and count < MAX_HIGHLIGHTS then
+                                    hl = Instance.new("Highlight")
+                                    hl.Name = "CategorizedESP_HL"
+                                    hl.Adornee = model
+                                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                                    hl.OutlineTransparency = 0
+                                    hl.FillTransparency = 0.5
+                                    local color = (info.kind == "Safe") and GREEN or RED
+                                    hl.FillColor = color
+                                    hl.OutlineColor = color
+                                    hl.Parent = model
+                                    active[model] = hl
+                                    count += 1
+                                end
+                            elseif hl then
+                                removeHighlight(active, model)
+                                count -= 1
+                            end
                         end
                     end
-                end
+                end)
             end
         end
+        stop()
+    end)
+
+    -- ผูกกับ Master Header ให้ล้างไฮไลต์ตอนรันสคริปต์ซ้ำ
+    local prevCleanup = getgenv().MainScript_Cleanup
+    getgenv().MainScript_Cleanup = function()
+        getgenv().CategorizedESP_Active = false
+        stop()
+        if prevCleanup then prevCleanup() end
     end
-end)
+
+    return createSwitchButton(parent, "🔎 สแกนสิ่งมีชีวิต (200m)", false, function(isActive)
+        getgenv().CategorizedESP_Active = isActive
+        if isActive then
+            start()
+        else
+            stop()
+        end
+    end)
+end
+
+-- 👇 เรียกใช้ (เปลี่ยน ContentContainer เป็นหมวดที่ต้องการได้)
+createLivingScannerSwitch(ContentContainer)
+
 
 
 
@@ -2193,216 +2325,7 @@ end)
 
 
 
--- ==========================================================
--- 🚀 ฟังก์ชันโหมดลดแลค (ลบหญ้า/แสง/เงา/เอฟเฟกต์) — แยกเป็นฟังก์ชันเดียว
--- วางไว้ "หลัง" createSwitchButton และ SettingsContainer ถูกสร้างแล้ว
--- เรียกใช้: createAntiLagSwitch(SettingsContainer)
--- ==========================================================
-local function createAntiLagSwitch(parent)
-    local Lighting = game:GetService("Lighting")
-    local Workspace = game:GetService("Workspace")
-    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
-
-    getgenv().AntiLag_Active = false
-
-    local saved = {
-        lighting = nil,
-        terrain = nil,
-        quality = nil,
-        renderQuality = nil,
-        props = setmetatable({}, { __mode = "k" }),
-    }
-    local addedConn
-
-    local EFFECT_ENABLED = {
-        ParticleEmitter = true, Trail = true, Beam = true,
-        Fire = true, Smoke = true, Sparkles = true,
-        PointLight = true, SpotLight = true, SurfaceLight = true,
-        BloomEffect = true, BlurEffect = true, SunRaysEffect = true,
-        ColorCorrectionEffect = true, DepthOfFieldEffect = true,
-    }
-
-    local function remember(inst, prop)
-        local t = saved.props[inst]
-        if not t then
-            t = {}
-            saved.props[inst] = t
-        end
-        if t[prop] == nil then
-            t[prop] = inst[prop]
-        end
-    end
-
-    local function lighten(obj)
-        pcall(function()
-            if EFFECT_ENABLED[obj.ClassName] then
-                remember(obj, "Enabled")
-                obj.Enabled = false
-            elseif obj:IsA("BasePart") then
-                remember(obj, "CastShadow")
-                obj.CastShadow = false
-                if not obj:IsA("Terrain") then
-                    remember(obj, "Material")
-                    obj.Material = Enum.Material.SmoothPlastic
-                end
-            elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                remember(obj, "Transparency")
-                obj.Transparency = 1
-            elseif obj:IsA("Atmosphere") then
-                remember(obj, "Density")
-                obj.Density = 0
-            end
-        end)
-    end
-
-    local function setDecoration(value)
-        pcall(function()
-            if sethiddenproperty then
-                sethiddenproperty(Terrain, "Decoration", value)
-            else
-                Terrain.Decoration = value
-            end
-        end)
-    end
-
-    local function enable()
-        saved.lighting = {
-            GlobalShadows = Lighting.GlobalShadows,
-            FogEnd = Lighting.FogEnd,
-            Brightness = Lighting.Brightness,
-            EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
-            EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
-        }
-        pcall(function()
-            Lighting.GlobalShadows = false
-            Lighting.FogEnd = 9e9
-            Lighting.Brightness = 2
-            Lighting.EnvironmentDiffuseScale = 0
-            Lighting.EnvironmentSpecularScale = 0
-        end)
-
-        if Terrain then
-            saved.terrain = {
-                WaterWaveSize = Terrain.WaterWaveSize,
-                WaterWaveSpeed = Terrain.WaterWaveSpeed,
-                WaterReflectance = Terrain.WaterReflectance,
-                WaterTransparency = Terrain.WaterTransparency,
-            }
-            pcall(function()
-                saved.terrain.Decoration = gethiddenproperty and gethiddenproperty(Terrain, "Decoration") or Terrain.Decoration
-            end)
-            pcall(function()
-                Terrain.WaterWaveSize = 0
-                Terrain.WaterWaveSpeed = 0
-                Terrain.WaterReflectance = 0
-                Terrain.WaterTransparency = 1
-            end)
-            setDecoration(false) -- ลบหญ้า
-        end
-
-        pcall(function()
-            local gs = UserSettings():GetService("UserGameSettings")
-            saved.quality = gs.SavedQualityLevel
-            gs.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
-        end)
-        pcall(function()
-            saved.renderQuality = settings().Rendering.QualityLevel
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        end)
-
-        task.spawn(function()
-            for _, obj in ipairs(Lighting:GetDescendants()) do
-                lighten(obj)
-            end
-            local count = 0
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if not getgenv().AntiLag_Active then return end
-                lighten(obj)
-                count += 1
-                if count % 300 == 0 then task.wait() end
-            end
-        end)
-
-        addedConn = Workspace.DescendantAdded:Connect(function(obj)
-            if getgenv().AntiLag_Active then
-                lighten(obj)
-            end
-        end)
-    end
-
-    local function disable()
-        if addedConn then
-            addedConn:Disconnect()
-            addedConn = nil
-        end
-
-        local oldProps = saved.props
-        saved.props = setmetatable({}, { __mode = "k" })
-        task.spawn(function()
-            local count = 0
-            for inst, props in pairs(oldProps) do
-                if inst and inst.Parent then
-                    for prop, value in pairs(props) do
-                        pcall(function() inst[prop] = value end)
-                    end
-                end
-                count += 1
-                if count % 300 == 0 then task.wait() end
-            end
-        end)
-
-        if saved.lighting then
-            for k, v in pairs(saved.lighting) do
-                pcall(function() Lighting[k] = v end)
-            end
-        end
-
-        if Terrain and saved.terrain then
-            for k, v in pairs(saved.terrain) do
-                if k == "Decoration" then
-                    if v ~= nil then setDecoration(v) end
-                else
-                    pcall(function() Terrain[k] = v end)
-                end
-            end
-        end
-
-        pcall(function()
-            if saved.quality then
-                UserSettings():GetService("UserGameSettings").SavedQualityLevel = saved.quality
-            end
-        end)
-        pcall(function()
-            if saved.renderQuality then
-                settings().Rendering.QualityLevel = saved.renderQuality
-            end
-        end)
-    end
-
-    -- ให้ Master Header เรียกปิดระบบนี้ได้ตอนรันสคริปต์ซ้ำ
-    local prevCleanup = getgenv().MainScript_Cleanup
-    getgenv().MainScript_Cleanup = function()
-        if getgenv().AntiLag_Active then
-            getgenv().AntiLag_Active = false
-            disable()
-        end
-        if prevCleanup then prevCleanup() end
-    end
-
-    return createSwitchButton(parent, "🚀 โหมดลดแลค (ลบหญ้า/แสง/เงา)", false, function(isActive)
-        getgenv().AntiLag_Active = isActive
-        if isActive then
-            enable()
-        else
-            disable()
-        end
-    end)
-end
-
--- 👇 เรียกใช้ในหมวดตั้งค่า
-createAntiLagSwitch(SettingsContainer)
-
-
+            
 
 
 
