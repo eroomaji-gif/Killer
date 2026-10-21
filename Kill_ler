@@ -2274,13 +2274,17 @@ end)
 
 
 
+-- แสดงแสงในมือ🌟🌟🌟🌟🌟🌟🌟🌟🌟
 
 
 
--- ==========================================================
+         
+
+    -- ==========================================================
 -- ✨ แสงลากที่มือสองข้าง (เฉพาะฝั่งเรา ใครไม่เห็น) — แคปซูลสวิตช์ + ลูกศร ▼ เลือกสี
 -- สี: แดง / ส้ม / เหลือง / เขียว / สีรุ้ง
 -- รองรับ R6, R15 และตัวละครแปลกๆ (หาชิ้นส่วนมือจากชื่อให้เอง)
+-- จำค่าเปิด/ปิดและสีที่เลือกไว้ในไฟล์ HandTrail_Settings.json (ต้องใช้ executor ที่มี writefile)
 -- วางหลัง createSwitchButton และ SettingsContainer ถูกสร้างแล้ว
 -- เรียกใช้: createHandTrailSwitch(SettingsContainer)
 -- ==========================================================
@@ -2306,8 +2310,47 @@ local function createHandTrailSwitch(parent)
         ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 200)),
     })
 
-    getgenv().HandTrail_Active = false
-    getgenv().HandTrail_Color = getgenv().HandTrail_Color or "Red"
+    -- ===== ระบบจำค่า เปิด/ปิด + สี (บันทึกลงไฟล์ ข้ามเกม/ข้ามการรันได้) =====
+    local HttpService = game:GetService("HttpService")
+    local SAVE_FILE = "HandTrail_Settings.json"
+
+    local function isValidColor(id)
+        for _, c in ipairs(COLORS) do
+            if c.id == id then return true end
+        end
+        return false
+    end
+
+    local function loadSettings()
+        local data = { active = false, color = "Red" }
+        pcall(function()
+            if isfile and readfile and isfile(SAVE_FILE) then
+                local decoded = HttpService:JSONDecode(readfile(SAVE_FILE))
+                if type(decoded) == "table" then
+                    data.active = decoded.active == true
+                    if isValidColor(decoded.color) then
+                        data.color = decoded.color
+                    end
+                end
+            end
+        end)
+        return data
+    end
+
+    local function saveSettings()
+        pcall(function()
+            if writefile then
+                writefile(SAVE_FILE, HttpService:JSONEncode({
+                    active = getgenv().HandTrail_Active == true,
+                    color = getgenv().HandTrail_Color,
+                }))
+            end
+        end)
+    end
+
+    local saved = loadSettings()
+    getgenv().HandTrail_Active = saved.active
+    getgenv().HandTrail_Color = saved.color
 
     local trails = {}          -- Trail ที่สร้างไว้ (เอาไว้เปลี่ยนสี/ลบ)
     local objects = {}         -- ทุกอย่างที่สร้าง (Attachment + Trail) เอาไว้ลบทีเดียว
@@ -2492,8 +2535,9 @@ local function createHandTrailSwitch(parent)
     Wrapper.Size = UDim2.new(1, 0, 0, COLLAPSED)
     Wrapper.Parent = parent
 
-    local Switch = createSwitchButton(Wrapper, "✨ แสงลากมือ", false, function(isActive)
+    local Switch = createSwitchButton(Wrapper, "✨ แสงลากมือ", getgenv().HandTrail_Active, function(isActive)
         getgenv().HandTrail_Active = isActive
+        saveSettings()
         if isActive then
             start()
         else
@@ -2580,6 +2624,7 @@ local function createHandTrailSwitch(parent)
         chips[c.id] = chip
         chip.MouseButton1Click:Connect(function()
             getgenv().HandTrail_Color = c.id
+            saveSettings()
             applyColor()
             refreshChips()
         end)
@@ -2594,14 +2639,16 @@ local function createHandTrailSwitch(parent)
         Wrapper.Size = UDim2.new(1, 0, 0, open and EXPANDED or COLLAPSED)
     end)
 
+    -- ถ้าครั้งก่อนเปิดค้างไว้ ให้เริ่มทำงานเลยตอนรันสคริปต์
+    if getgenv().HandTrail_Active then
+        start()
+    end
+
     return Wrapper
 end
 
 -- 👇 เรียกใช้ในหมวดตั้งค่า
 createHandTrailSwitch(SettingsContainer)
-
-
-
 
             
 
