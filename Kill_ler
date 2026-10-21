@@ -3369,4 +3369,94 @@ lp.CharacterAdded:Connect(setup)
 
 
 
+-- ==========================================================
+-- 🤖 หมวดหมู่ใหม่ "ออโต้" (แทรกระหว่าง "ฆ่า+วาป" กับ "วาป+ฟาม")
+-- วิธีใส่: วางบล็อกนี้ "หลัง" ระบบกดสลับหน้าต่างอันสุดท้าย (หลัง CatBtnCreator.MouseButton1Click ~บรรทัด 2524)
+-- เพราะต้องใช้ตัวแปร SidebarFrame, MainFrame, CatBtn1, CatBtnTp, CatBtnInfo, CatBtnSettings,
+-- CatBtnCreator และ Container ทุกหมวดที่สร้างไว้ก่อนแล้ว
+-- ปุ่มฟังก์ชันออโต้ทั้งหลายให้ใส่ Parent เป็น AutoContainer
+-- ==========================================================
+
+-- 1) ปุ่มหมวดหมู่ "ออโต้" ที่แถบซ้าย (หน้าตาเหมือนปุ่มหมวดอื่นเป๊ะ)
+local CatBtnAuto = Instance.new("TextButton")
+CatBtnAuto.Name = "CategoryAuto"
+CatBtnAuto.Parent = SidebarFrame
+CatBtnAuto.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtnAuto.Size = UDim2.new(1, 0, 0, 40)
+CatBtnAuto.Font = Enum.Font.GothamBold
+CatBtnAuto.Text = "🤖 ออโต้"
+CatBtnAuto.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtnAuto.TextSize = 13
+
+local CatCornerAuto = Instance.new("UICorner")
+CatCornerAuto.CornerRadius = UDim.new(0, 6)
+CatCornerAuto.Parent = CatBtnAuto
+
+-- 2) จัดลำดับปุ่มซ้ายใหม่: ฆ่า+วาป -> ออโต้ -> วาป+ฟาม -> ข้อมูล -> ตั้งค่า -> ผู้สร้าง
+-- (ปุ่มเดิมทุกตัว LayoutOrder = 0 เลยต้องกำหนดเลขให้ครบ ไม่งั้นปุ่มใหม่ไปต่อท้ายสุด)
+CatBtn1.LayoutOrder = 1
+CatBtnAuto.LayoutOrder = 2
+CatBtnTp.LayoutOrder = 3
+CatBtnInfo.LayoutOrder = 4
+CatBtnSettings.LayoutOrder = 5
+CatBtnCreator.LayoutOrder = 6
+
+-- เพิ่มพื้นที่เลื่อนของแถบซ้ายให้พอสำหรับปุ่มที่เพิ่มขึ้น
+SidebarFrame.CanvasSize = UDim2.new(0, 0, 0, 380)
+
+-- 3) หน้าต่างฝั่งขวาของหมวดออโต้
+local AutoContainer = Instance.new("ScrollingFrame")
+AutoContainer.Name = "AutoContainer"
+AutoContainer.Parent = MainFrame
+AutoContainer.BackgroundTransparency = 1
+AutoContainer.Position = UDim2.new(0, 160, 0, 50)
+AutoContainer.Size = UDim2.new(1, -170, 1, -60)
+AutoContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+AutoContainer.ScrollBarThickness = 6
+AutoContainer.Visible = false
+
+local AutoContainerLayout = Instance.new("UIListLayout")
+AutoContainerLayout.Parent = AutoContainer
+AutoContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+AutoContainerLayout.Padding = UDim.new(0, 8)
+
+-- ข้อความบอกว่ายังว่าง (หายเองทันทีที่ใส่ปุ่มแรกเข้ามา)
+local AutoEmptyHint = Instance.new("TextLabel")
+AutoEmptyHint.Name = "EmptyHint"
+AutoEmptyHint.Parent = AutoContainer
+AutoEmptyHint.BackgroundTransparency = 1
+AutoEmptyHint.Size = UDim2.new(1, -10, 0, 40)
+AutoEmptyHint.Font = Enum.Font.Gotham
+AutoEmptyHint.Text = "🤖 หมวดออโต้ — ยังไม่มีฟังก์ชัน"
+AutoEmptyHint.TextColor3 = Color3.fromRGB(180, 180, 190)
+AutoEmptyHint.TextSize = 14
+
+AutoContainer.ChildAdded:Connect(function(child)
+    if child ~= AutoEmptyHint and not child:IsA("UIListLayout") then
+        AutoEmptyHint.Visible = false
+    end
+end)
+
+-- 4) ระบบกดสลับหน้าต่าง
+-- กดปุ่มออโต้ -> ซ่อนทุกหน้า แล้วโชว์หน้าออโต้
+CatBtnAuto.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    CreatorContainer.Visible = false
+    AutoContainer.Visible = true
+end)
+
+-- กดหมวดอื่น -> ซ่อนหน้าออโต้ (ตัวสลับเดิมจะจัดการเปิดหน้าของมันเอง)
+for _, btn in ipairs({ CatBtn1, CatBtnTp, CatBtnInfo, CatBtnSettings, CatBtnCreator }) do
+    btn.MouseButton1Click:Connect(function()
+        AutoContainer.Visible = false
+    end)
+end
+
+-- ==========================================================
+-- 👇 วางปุ่มฟังก์ชันออโต้ตรงนี้ โดยใช้ AutoContainer เป็น Parent
+-- ตัวอย่าง: createSwitchButton(AutoContainer, "🤖 ชื่อฟังก์ชัน", false, function(isActive) ... end)
+-- ==========================================================
 
