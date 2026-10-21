@@ -1051,7 +1051,7 @@ do
         end)
     end
 
-    createSwitchButton(TeleportContainer, "🔒 ล็อกพิกัดดรอปของ (ยืนแช่กล่องไฟ)", getgenv().PositionLock_Active, function(isActive)
+    createSwitchButton(TeleportContainer, "🔒 ล็อกพิกัดดรอปของ (99 คืนในป่า)", getgenv().PositionLock_Active, function(isActive)
         getgenv().PositionLock_Active = isActive
         
         pcall(function()
