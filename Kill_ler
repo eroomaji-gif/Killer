@@ -1849,7 +1849,7 @@ local function createHandTrailSwitch(parent)
     Wrapper.Size = UDim2.new(1, 0, 0, COLLAPSED)
     Wrapper.Parent = parent
 
-    local Switch = createSwitchButton(Wrapper, "✨ แสงลากมือ", getgenv().HandTrail_Active, function(isActive)
+    local Switch = createSwitchButton(Wrapper, "✨ แสงลากมือ  (กด ∆ เพื่อเปลี่ยนสี)", getgenv().HandTrail_Active, function(isActive)
         getgenv().HandTrail_Active = isActive
         saveSettings()
         if isActive then
