@@ -1060,79 +1060,6 @@ end
 
 
 
--- ==========================================
--- 📌 [ปุ่มนายอำเภอ] Silent Aim ล็อกเป้าฆาตกร (กล้องไม่ล็อก + ปิด-เปิดได้)
--- ==========================================
-getgenv().SilentAim_Active = false
-
-createSwitchButton(ContentContainer, "🎯 กระสุนพุ่งหาฆาตกร (Silent Aim)", getgenv().SilentAim_Active, function(isActive)
-    getgenv().SilentAim_Active = isActive
-end)
-
--- 1. ฟังก์ชันค้นหาตำแหน่งหัวของฆาตกร
-local function getMurdererHead()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character then
-            local char = player.Character
-            local hum = char:FindFirstChild("Humanoid")
-            local head = char:FindFirstChild("Head")
-            local backpack = player:FindFirstChild("Backpack")
-
-            local isMurderer = char:FindFirstChild("Knife") or
-                               (backpack and backpack:FindFirstChild("Knife"))
-
-            if isMurderer and hum and hum.Health > 0 and head then
-                return head
-            end
-        end
-    end
-    return nil
-end
-
--- 2. Hook ดักกระสุน
-if not getgenv().SilentAimHooked then
-    getgenv().SilentAimHooked = true
-
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-
-        -- ปล่อยผ่านทันทีถ้าปิดอยู่ หรือเป็นการเรียกจากสคริปต์เรา/ไม่ใช่ Remote ยิง
-        if not getgenv().SilentAim_Active
-            or checkcaller()
-            or (method ~= "FireServer" and method ~= "InvokeServer") then
-            return oldNamecall(self, ...)
-        end
-
-        -- เช็คชื่อ Remote แบบแคบลง (เฉพาะที่เป็นปืนจริง)
-        local remoteName = typeof(self) == "Instance" and self.Name:lower() or ""
-        if remoteName ~= "shoot" and remoteName ~= "shootgun" then
-            return oldNamecall(self, ...)
-        end
-
-        local targetHead = getMurdererHead()
-        if not targetHead then
-            return oldNamecall(self, ...)
-        end
-
-        -- ใช้ table.pack/unpack กัน nil กลาง argument ทำให้ข้อมูลเพี้ยน
-        local args = table.pack(...)
-        for i = 1, args.n do
-            local v = args[i]
-            if typeof(v) == "Vector3" then
-                args[i] = targetHead.Position
-                break
-            elseif typeof(v) == "CFrame" then
-                args[i] = targetHead.CFrame
-                break
-            end
-        end
-
-        return oldNamecall(self, table.unpack(args, 1, args.n))
-    end))
-end
-
-
 
 
 
@@ -1206,41 +1133,132 @@ end)
 
 
 
--- กำหนดค่าเริ่มต้นไว้ด้านบนสุดของสคริปต์
+-- ==========================================================
+-- 👻 โนคลิป (แก้บั๊กตัวสั่น/เดินกระตุกหลังปิด)
+-- วิธีใส่: แทนที่บล็อกเดิมตั้งแต่ "-- กำหนดค่าเริ่มต้นไว้ด้านบนสุดของสคริปต์"
+-- (บรรทัด ~1209) ถึง createSwitchButton "👻 วิชาสิงกำแพง" (บรรทัด ~1256)
+-- สาเหตุเดิม: ตอนปิดมันสั่ง CanCollide = true ให้ "ทุกชิ้น" ของตัวละคร
+-- ทั้งที่ปกติแขนขา/อุปกรณ์ตกแต่งปิดชนไว้ ชิ้นส่วนเลยชนกันเอง + ถ้ายังอยู่ในกำแพง/พื้นก็โดนดีดออกจนสั่น
+-- ==========================================================
 getgenv().Noclip_Active = getgenv().Noclip_Active or false
 local noclipConnection = nil
+local restoreConnection = nil
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
+-- ตัดการเชื่อมต่อของสคริปต์รอบก่อน (กันซ้อนตอนรันซ้ำ)
+pcall(function()
+    if getgenv().Noclip_OldConn then getgenv().Noclip_OldConn:Disconnect() end
+    if getgenv().Noclip_OldRestore then getgenv().Noclip_OldRestore:Disconnect() end
+end)
+
+-- จำค่า CanCollide เดิมของแต่ละชิ้น เพื่อคืนให้ตรงเป๊ะตอนปิด
+local originalCollide = {}
+
+local function setCollisionOff(character)
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if originalCollide[part] == nil then
+                originalCollide[part] = part.CanCollide
+            end
+            part.CanCollide = false
+        end
+    end
+end
+
+-- เช็คว่าตัวละครยังจมอยู่ในกำแพง/พื้นอยู่ไหม
+local function isStuckInside(character)
+    local ok, cf, size = pcall(function() return character:GetBoundingBox() end)
+    if not ok then return false end
+
+    local params = OverlapParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = { character }
+
+    local box = Vector3.new(size.X * 0.7, size.Y * 0.8, size.Z * 0.7)
+    for _, p in ipairs(workspace:GetPartBoundsInBox(cf, box, params)) do
+        if p.CanCollide
+            and not (p.Parent and p.Parent:FindFirstChildOfClass("Humanoid")) then -- ข้ามตัวผู้เล่น/NPC อื่น
+            return true
+        end
+    end
+    return false
+end
+
+local function restoreCollision()
+    for part, original in pairs(originalCollide) do
+        if part and part.Parent then
+            part.CanCollide = original
+        end
+    end
+    originalCollide = {}
+
+    -- เคลียร์แรงที่ค้าง แล้วให้ตัวละครลุกกลับสภาพปกติ
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    local hum = character and character:FindFirstChildOfClass("Humanoid")
+    if root then
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end
+    if hum then
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+end
+
 -- ฟังก์ชันเปิด/ปิด No-clip
 local function toggleNoclip(state)
+    -- ยกเลิกลูปคืนค่าที่ค้างอยู่ (ถ้ามี)
+    if restoreConnection then
+        restoreConnection:Disconnect()
+        restoreConnection = nil
+    end
+
     if state then
         if noclipConnection then noclipConnection:Disconnect() end
         noclipConnection = RunService.Stepped:Connect(function()
             local character = player.Character
             if character then
-                for _, part in ipairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
+                setCollisionOff(character)
             end
         end)
+        getgenv().Noclip_OldConn = noclipConnection
     else
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        local character = player.Character
-        if character then
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then 
-                    part.CanCollide = true
-                end
+
+        -- ปิดแบบปลอดภัย: ถ้ายังจมในกำแพง/พื้น ให้ค้างโนคลิปไว้จนกว่าจะหลุดออกมา
+        -- (สูงสุด 2.5 วินาที ถ้ายังติดอยู่จะยกตัวขึ้นนิดนึงแล้วคืนค่า)
+        local startTime = os.clock()
+        restoreConnection = RunService.Stepped:Connect(function()
+            local character = player.Character
+            if not character then
+                restoreConnection:Disconnect()
+                restoreConnection = nil
+                originalCollide = {}
+                return
             end
-        end
+
+            local timedOut = (os.clock() - startTime) > 2.5
+            if isStuckInside(character) and not timedOut then
+                setCollisionOff(character) -- ยังอยู่ข้างใน ถือว่าโนคลิปต่อไปก่อน
+            else
+                if timedOut and isStuckInside(character) then
+                    local root = character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        root.CFrame = root.CFrame + Vector3.new(0, 5, 0)
+                    end
+                end
+                restoreConnection:Disconnect()
+                restoreConnection = nil
+                restoreCollision()
+            end
+        end)
+        getgenv().Noclip_OldRestore = restoreConnection
     end
 end
 
@@ -1254,6 +1272,7 @@ createSwitchButton(ContentContainer, "👻 วิชาสิงกำแพง"
     getgenv().Noclip_Active = isActive
     toggleNoclip(isActive)
 end)
+
 
 
 
@@ -1668,69 +1687,6 @@ end
 
 
 
--- ==========================================
--- 🪵 [หมวดหมู่ Farm] ออโต้ตัดไม้ปุ๊บ ลอยเข้ากองไฟปั๊บ (Instant Log Magnet)
--- ==========================================
-getgenv().InstantLogFloat_Active = false
-
--- สร้างปุ่มสวิตช์แคปซูลในหน้าต่าง TeleportContainer
-createSwitchButton(TeleportContainer, "🪵 ตัดไม้ปุ๊บ ลอยเข้ากองไฟปั๊บ", getgenv().InstantLogFloat_Active, function(isActive)
-    getgenv().InstantLogFloat_Active = isActive
-end)
-
--- ฟังก์ชันสำหรับสั่งให้ไม้ลอยไปหากองไฟ
-local function floatLogToFire(logModel)
-    pcall(function()
-        if not getgenv().InstantLogFloat_Active then return end
-        if not logModel or not logModel.Parent then return end
-
-        local primaryPart = logModel.PrimaryPart or logModel:FindFirstChildWhichIsA("BasePart")
-        if not primaryPart then return end
-
-        -- ค้นหากองไฟหลักในแมพ
-        local mainFire = workspace:FindFirstChild("MainFire", true) 
-            or (workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Campground", true) and workspace.Map.Campground:FindFirstChild("MainFire"))
-        
-        if not mainFire then return end
-
-        -- (ทางเลือกเสริม): ถ้าเกมต้องใช้รีโมทขอดึงไม้ก่อน ยิงเผื่อไว้ได้เลยครับ (ถ้าไม่ใช้ตัดบรรทัดนี้ออกได้)
-        pcall(function()
-            local remoteDrag = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvents") 
-                and game:GetService("ReplicatedStorage").RemoteEvents:FindFirstChild("RequestStartDraggingItem")
-            if remoteDrag then
-                remoteDrag:FireServer(logModel)
-            end
-        end)
-
-        -- คำนวณจุดหมาย (เหนือพิกัดกองไฟเล็กน้อย)
-        local targetCFrame = mainFire.CFrame + Vector3.new(0, 1, 0)
-        
-        -- คำนวณความเร็วในการลอยตามระยะทาง
-        local distance = (primaryPart.Position - mainFire.Position).Magnitude
-        local speedTime = math.clamp(distance / 40, 0.4, 1.2) -- ลอยไวสมูททันใจ
-        
-        local TweenService = game:GetService("TweenService")
-        local tweenInfo = TweenInfo.new(speedTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(primaryPart, tweenInfo, {CFrame = targetCFrame})
-        
-        tween:Play()
-    end)
-end
-
--- ดักจับท่อนไม้ที่เพิ่งเกิดใหม่ใน Workspace (จังหวะที่ตัดต้นไม้เสร็จแล้วไม้ดรอป)
-workspace.DescendantAdded:Connect(function(descendant)
-    if getgenv().InstantLogFloat_Active then
-        pcall(function()
-            -- เช็คว่าสิ่งที่เพิ่มเข้ามาใหม่คือ Model ท่อนไม้ (ชื่อ "Log")
-            if descendant:IsA("Model") and descendant.Name == "Log" then
-                -- หน่วงเวลารอให้ชิ้นส่วนของไม้โหลดสมบูรณ์เสี้ยววิ แล้วสั่งลอยทันที
-                task.delay(0.05, function()
-                    floatLogToFire(descendant)
-                end)
-            end
-        end)
-    end
-end)
 
 
 
