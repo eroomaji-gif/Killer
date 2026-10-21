@@ -1270,139 +1270,98 @@ end)
 
 
 
--- ==========================================
--- 📌 [ปุ่มฟังก์ชัน] ESP แยกประเภท: แดง / เหลือง / เขียว (รัศมี 200 เมตร)
--- ==========================================
-getgenv().CategorizedESP_Active = false
-getgenv().CategorizedESPHighlights = {}
 
-createSwitchButton(ContentContainer, "👁️ ESP สิ่งมีชีวิต และ ความโหด (200ม.)", getgenv().CategorizedESP_Active, function(isActive)
-    getgenv().CategorizedESP_Active = isActive
 
-    if not isActive and getgenv().CategorizedESPHighlights then
-        for _, hl in pairs(getgenv().CategorizedESPHighlights) do
-            if hl then hl:Destroy() end
+    local MAX_DISTANCE = 200
+local MAX_HIGHLIGHTS = 30
+
+local candidates = {}   -- [model] = true
+local scanned = false
+
+local function addCandidate(inst)
+    if inst:IsA("Humanoid") or inst.Name == "Head" or inst.Name == "Torso" then
+        local model = inst.Parent
+        if model and model:IsA("Model") and model ~= workspace then
+            candidates[model] = true
         end
-        getgenv().CategorizedESPHighlights = {}
+    end
+end
+
+-- จับตัวใหม่ที่เกิดทีหลัง (ถูกมาก ไม่ต้องสแกนซ้ำ)
+workspace.DescendantAdded:Connect(function(inst)
+    if getgenv().CategorizedESP_Active then
+        addCandidate(inst)
     end
 end)
 
--- ฟังก์ชันคัดแยกประเภทตามชื่อ (เช็คเขียวก่อน กันสัตว์เป็นมิตรโดนจัดผิด)
-local function getEntityCategory(obj)
-    local nameLower = string.lower(obj.Name)
-
-    -- 🟢 1. สัตว์เป็นมิตร
-    if nameLower:find("deer") or nameLower:find("rabbit") or nameLower:find("bunny") or
-       nameLower:find("chicken") or nameLower:find("cow") or nameLower:find("sheep") or
-       nameLower:find("pig") or nameLower:find("bird") or nameLower:find("duck") then
-        return "PeacefulAnimal"
-    end
-
-    -- 🔴 2. มอนสเตอร์ ผี Entity
-    if nameLower:find("monster") or nameLower:find("ghost") or nameLower:find("zombie") or
-       nameLower:find("killer") or nameLower:find("entity") or nameLower:find("demon") or
-       nameLower:find("mutant") or nameLower:find("boss") or nameLower:find("creature") then
-        return "Monster"
-    end
-
-    -- 🟡 3. สัตว์ที่สู้กลับ (เอา "wild" ออกแล้ว เพราะกว้างเกินไป)
-    if nameLower:find("bear") or nameLower:find("wolf") or nameLower:find("boar") or
-       nameLower:find("shark") or nameLower:find("spider") then
-        return "AggressiveAnimal"
-    end
-
-    -- ไม่ตรงชื่อไหนเลย ปัดเป็นแดงไว้ก่อน
-    return "Monster"
-end
-
-local function applyColors(hl, category)
-    if category == "Monster" then
-        hl.FillColor = Color3.fromRGB(255, 50, 50)
-        hl.OutlineColor = Color3.fromRGB(180, 0, 0)
-    elseif category == "AggressiveAnimal" then
-        hl.FillColor = Color3.fromRGB(255, 255, 50)
-        hl.OutlineColor = Color3.fromRGB(200, 180, 0)
-    else
-        hl.FillColor = Color3.fromRGB(50, 255, 50)
-        hl.OutlineColor = Color3.fromRGB(0, 150, 0)
-    end
-end
-
--- ระบบลูปสแกน: เพิ่มเฉพาะตัวใหม่ ลบเฉพาะตัวที่ไกล/หาย
 task.spawn(function()
-    local tracked = {} -- [model] = highlight
-
     while true do
         task.wait(0.5)
 
         if not getgenv().CategorizedESP_Active then
-            -- ปิดอยู่: เคลียร์ตารางภายในให้ตรงกับที่ปุ่มลบไปแล้ว
-            tracked = {}
+            candidates = {}
+            scanned = false
         else
-            pcall(function()
-                local character = localPlayer.Character
-                local myRoot = character and character:FindFirstChild("HumanoidRootPart")
-                if not myRoot then return end
+            -- สแกนทั้งแมพครั้งเดียว แบ่งเฟรมไม่ให้ค้าง
+            if not scanned then
+                scanned = true
+                local n = 0
+                for _, inst in ipairs(workspace:GetDescendants()) do
+                    addCandidate(inst)
+                    n += 1
+                    if n % 1000 == 0 then task.wait() end
+                end
+            end
 
+            local character = localPlayer.Character
+            local myRoot = character and character:FindFirstChild("HumanoidRootPart")
+            if myRoot then
                 local myPos = myRoot.Position
-                local maxDistance = 200
+                local active = getgenv().CategorizedESPHighlights
+                local count = 0
+                for _ in pairs(active) do count += 1 end
 
-                -- 1) เก็บกวาด: ลบ Highlight ของตัวที่หาย หรือไกลเกินรัศมี
-                for model, hl in pairs(tracked) do
-                    local keep = false
-                    if model.Parent and hl.Parent then
+                for model in pairs(candidates) do
+                    if not model.Parent then
+                        -- ตัวหาย ลบทิ้ง
+                        candidates[model] = nil
+                        if active[model] then
+                            active[model]:Destroy()
+                            active[model] = nil
+                            count -= 1
+                        end
+                    else
                         local part = model:FindFirstChild("HumanoidRootPart")
                             or model:FindFirstChild("Torso")
                             or model:FindFirstChild("Head")
-                            or model:FindFirstChildWhichIsA("BasePart")
-                        if part and (myPos - part.Position).Magnitude <= maxDistance then
-                            keep = true
-                        end
-                    end
-                    if not keep then
-                        hl:Destroy()
-                        tracked[model] = nil
-                    end
-                end
+                        local inRange = part and model ~= character
+                            and not Players:GetPlayerFromCharacter(model)
+                            and (myPos - part.Position).Magnitude <= MAX_DISTANCE
 
-                -- 2) เพิ่มตัวใหม่ที่ยังไม่มี Highlight
-                for _, obj in ipairs(workspace:GetDescendants()) do
-                    if obj:IsA("Model") and obj ~= character and not tracked[obj] then
-                        if not Players:GetPlayerFromCharacter(obj) then
-                            local hasBodyPart = obj:FindFirstChild("Head")
-                                or obj:FindFirstChild("Humanoid")
-                                or obj:FindFirstChild("Torso")
-
-                            if hasBodyPart then
-                                local rootPart = obj:FindFirstChild("HumanoidRootPart")
-                                    or obj:FindFirstChild("Torso")
-                                    or obj:FindFirstChild("Head")
-                                    or obj:FindFirstChildWhichIsA("BasePart")
-
-                                if rootPart and (myPos - rootPart.Position).Magnitude <= maxDistance then
-                                    local hl = Instance.new("Highlight")
-                                    hl.Name = "CategorizedESP_HL"
-                                    hl.Adornee = obj
-                                    hl.OutlineTransparency = 0
-                                    hl.FillTransparency = 0.5
-                                    applyColors(hl, getEntityCategory(obj))
-                                    hl.Parent = obj
-
-                                    tracked[obj] = hl
-                                    table.insert(getgenv().CategorizedESPHighlights, hl)
-                                end
+                        local hl = active[model]
+                        if inRange then
+                            if not hl and count < MAX_HIGHLIGHTS then
+                                hl = Instance.new("Highlight")
+                                hl.Name = "CategorizedESP_HL"
+                                hl.Adornee = model
+                                hl.OutlineTransparency = 0
+                                hl.FillTransparency = 0.5
+                                applyColors(hl, getEntityCategory(model))
+                                hl.Parent = model
+                                active[model] = hl
+                                count += 1
                             end
+                        elseif hl then
+                            hl:Destroy()
+                            active[model] = nil
+                            count -= 1
                         end
                     end
                 end
-            end)
+            end
         end
     end
 end)
-
-
-
-
 
 
 
