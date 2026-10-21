@@ -2321,6 +2321,328 @@ end)
 
 
 
+-- ==========================================================
+-- ✨ แสงลากที่มือสองข้าง (เฉพาะฝั่งเรา ใครไม่เห็น) — แคปซูลสวิตช์ + ลูกศร ▼ เลือกสี
+-- สี: แดง / ส้ม / เหลือง / เขียว / สีรุ้ง
+-- รองรับ R6, R15 และตัวละครแปลกๆ (หาชิ้นส่วนมือจากชื่อให้เอง)
+-- วางหลัง createSwitchButton และ SettingsContainer ถูกสร้างแล้ว
+-- เรียกใช้: createHandTrailSwitch(SettingsContainer)
+-- ==========================================================
+local function createHandTrailSwitch(parent)
+    local Players = game:GetService("Players")
+    local lp = Players.LocalPlayer
+
+    local COLORS = {
+        { id = "Red",     label = "แดง",    color = Color3.fromRGB(255, 50, 50) },
+        { id = "Orange",  label = "ส้ม",    color = Color3.fromRGB(255, 150, 30) },
+        { id = "Yellow",  label = "เหลือง", color = Color3.fromRGB(255, 235, 40) },
+        { id = "Green",   label = "เขียว",  color = Color3.fromRGB(60, 255, 100) },
+        { id = "Rainbow", label = "รุ้ง",   color = nil },
+    }
+
+    local RAINBOW = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 150, 0)),
+        ColorSequenceKeypoint.new(0.34, Color3.fromRGB(255, 255, 0)),
+        ColorSequenceKeypoint.new(0.51, Color3.fromRGB(0, 255, 80)),
+        ColorSequenceKeypoint.new(0.68, Color3.fromRGB(0, 170, 255)),
+        ColorSequenceKeypoint.new(0.85, Color3.fromRGB(150, 60, 255)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 200)),
+    })
+
+    getgenv().HandTrail_Active = false
+    getgenv().HandTrail_Color = getgenv().HandTrail_Color or "Red"
+
+    local trails = {}          -- Trail ที่สร้างไว้ (เอาไว้เปลี่ยนสี/ลบ)
+    local objects = {}         -- ทุกอย่างที่สร้าง (Attachment + Trail) เอาไว้ลบทีเดียว
+    local charConn, diedConn
+
+    local function colorSequenceFor(id)
+        if id == "Rainbow" then
+            return RAINBOW
+        end
+        for _, c in ipairs(COLORS) do
+            if c.id == id then
+                -- ไล่จากสีจริง -> สีเข้มลงนิดหน่อยปลายหาง ดูมีมิติ
+                local dark = Color3.new(c.color.R * 0.5, c.color.G * 0.5, c.color.B * 0.5)
+                return ColorSequence.new(c.color, dark)
+            end
+        end
+        return ColorSequence.new(Color3.new(1, 1, 1))
+    end
+
+    local function clearTrails()
+        for _, o in ipairs(objects) do
+            pcall(function() o:Destroy() end)
+        end
+        objects = {}
+        trails = {}
+    end
+
+    -- หาชิ้นส่วน "มือ" ของตัวละครทุกแบบ
+    local function findHands(character)
+        local hands = {}
+        local function add(p)
+            if p and p:IsA("BasePart") then table.insert(hands, p) end
+        end
+
+        -- R15
+        if character:FindFirstChild("LeftHand") or character:FindFirstChild("RightHand") then
+            add(character:FindFirstChild("LeftHand"))
+            add(character:FindFirstChild("RightHand"))
+            return hands
+        end
+        -- R6
+        if character:FindFirstChild("Left Arm") or character:FindFirstChild("Right Arm") then
+            add(character:FindFirstChild("Left Arm"))
+            add(character:FindFirstChild("Right Arm"))
+            return hands
+        end
+
+        -- ตัวละครแปลกๆ: หาจากชื่อ hand/palm/wrist แล้วค่อย arm
+        local function search(keywords)
+            local found = {}
+            for _, d in ipairs(character:GetDescendants()) do
+                if d:IsA("BasePart") then
+                    local n = string.lower(d.Name)
+                    for _, kw in ipairs(keywords) do
+                        if string.find(n, kw, 1, true) then
+                            table.insert(found, d)
+                            break
+                        end
+                    end
+                end
+            end
+            return found
+        end
+
+        local found = search({ "hand", "palm", "wrist" })
+        if #found == 0 then
+            found = search({ "arm" })
+        end
+        if #found == 0 then return hands end
+
+        -- เลือกซ้าย 1 ขวา 1 (ถ้าชื่อบอกไม่ได้ ก็เอา 2 ตัวแรก)
+        local left, right
+        for _, p in ipairs(found) do
+            local n = string.lower(p.Name)
+            if not left and string.find(n, "left", 1, true) then left = p end
+            if not right and string.find(n, "right", 1, true) then right = p end
+        end
+        if left or right then
+            add(left)
+            add(right)
+        else
+            add(found[1])
+            add(found[2])
+        end
+        return hands
+    end
+
+    local function buildTrail(part)
+        -- แขนยาว (R6) ให้ริบบิ้นอยู่ปลายแขน / มือสั้น (R15) อยู่กลางมือ
+        local isArm = part.Size.Y > 1.4
+        local yOff = isArm and (-part.Size.Y / 2 + 0.25) or 0
+        local half = math.clamp(math.max(part.Size.X, part.Size.Z) * 0.45, 0.2, 0.7)
+
+        local a0 = Instance.new("Attachment")
+        a0.Name = "FX_HandTrail_A0"
+        a0.Position = Vector3.new(-half, yOff, 0)
+        a0.Parent = part
+
+        local a1 = Instance.new("Attachment")
+        a1.Name = "FX_HandTrail_A1"
+        a1.Position = Vector3.new(half, yOff, 0)
+        a1.Parent = part
+
+        local trail = Instance.new("Trail")
+        trail.Name = "FX_HandTrail"
+        trail.Attachment0 = a0
+        trail.Attachment1 = a1
+        trail.Lifetime = 0.8
+        trail.MinLength = 0.05
+        trail.FaceCamera = true
+        trail.LightEmission = 1
+        trail.LightInfluence = 0
+        trail.Color = colorSequenceFor(getgenv().HandTrail_Color)
+        trail.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.1),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        trail.WidthScale = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(1, 0),
+        })
+        trail.Parent = part
+
+        table.insert(objects, a0)
+        table.insert(objects, a1)
+        table.insert(objects, trail)
+        table.insert(trails, trail)
+    end
+
+    local function setupCharacter(character)
+        clearTrails()
+        if not character then return end
+        -- รอให้ตัวละครโหลดชิ้นส่วนครบก่อน (กันหามือไม่เจอตอนเพิ่งเกิด)
+        character:WaitForChild("Humanoid", 5)
+        task.wait(0.5)
+        if not getgenv().HandTrail_Active or lp.Character ~= character then return end
+        for _, hand in ipairs(findHands(character)) do
+            buildTrail(hand)
+        end
+    end
+
+    local function start()
+        if lp.Character then
+            task.spawn(setupCharacter, lp.Character)
+        end
+        charConn = lp.CharacterAdded:Connect(function(character)
+            if getgenv().HandTrail_Active then
+                task.spawn(setupCharacter, character)
+            end
+        end)
+    end
+
+    local function stop()
+        if charConn then
+            charConn:Disconnect()
+            charConn = nil
+        end
+        clearTrails()
+    end
+
+    local function applyColor()
+        local seq = colorSequenceFor(getgenv().HandTrail_Color)
+        for _, t in ipairs(trails) do
+            if t.Parent then t.Color = seq end
+        end
+    end
+
+    -- ล้างตอนรันสคริปต์ซ้ำ
+    local prevCleanup = getgenv().MainScript_Cleanup
+    getgenv().MainScript_Cleanup = function()
+        getgenv().HandTrail_Active = false
+        stop()
+        if prevCleanup then prevCleanup() end
+    end
+
+    -- ================= UI =================
+    local COLLAPSED, EXPANDED = 45, 45 + 6 + 46
+
+    local Wrapper = Instance.new("Frame")
+    Wrapper.Name = "HandTrailWrapper"
+    Wrapper.BackgroundTransparency = 1
+    Wrapper.Size = UDim2.new(1, 0, 0, COLLAPSED)
+    Wrapper.Parent = parent
+
+    local Switch = createSwitchButton(Wrapper, "✨ แสงลากมือ", false, function(isActive)
+        getgenv().HandTrail_Active = isActive
+        if isActive then
+            start()
+        else
+            stop()
+        end
+    end)
+
+    -- ชื่อสั้นลงนิด เว้นที่ให้ลูกศร
+    local title = Switch:FindFirstChildOfClass("TextLabel")
+    if title then
+        title.Size = UDim2.new(0.45, 0, 1, 0)
+    end
+
+    -- ปุ่มลูกศร ▼ อยู่ในแคปซูล (กดแล้วไม่ไปสลับสวิตช์)
+    local Arrow = Instance.new("TextButton")
+    Arrow.Name = "ColorArrow"
+    Arrow.Parent = Switch
+    Arrow.BackgroundTransparency = 1
+    Arrow.Position = UDim2.new(1, -108, 0.5, -14)
+    Arrow.Size = UDim2.new(0, 32, 0, 28)
+    Arrow.Font = Enum.Font.GothamBold
+    Arrow.Text = "▼"
+    Arrow.TextSize = 16
+    Arrow.TextColor3 = Color3.fromRGB(0, 0, 0)
+    Arrow.ZIndex = Switch.ZIndex + 2
+
+    local Dropdown = Instance.new("Frame")
+    Dropdown.Name = "ColorDropdown"
+    Dropdown.Parent = Wrapper
+    Dropdown.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Dropdown.Position = UDim2.new(0, 12, 0, 51)
+    Dropdown.Size = UDim2.new(1, -24, 0, 46)
+    Dropdown.Visible = false
+
+    local DropCorner = Instance.new("UICorner")
+    DropCorner.CornerRadius = UDim.new(0, 14)
+    DropCorner.Parent = Dropdown
+
+    local DropStroke = Instance.new("UIStroke")
+    DropStroke.Color = Color3.fromRGB(0, 0, 0)
+    DropStroke.Thickness = 2
+    DropStroke.Parent = Dropdown
+
+    local DropLayout = Instance.new("UIListLayout")
+    DropLayout.FillDirection = Enum.FillDirection.Horizontal
+    DropLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    DropLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    DropLayout.Padding = UDim.new(0, 12)
+    DropLayout.Parent = Dropdown
+
+    local chips = {}
+    local function refreshChips()
+        for id, chip in pairs(chips) do
+            local stroke = chip:FindFirstChildOfClass("UIStroke")
+            local selected = (getgenv().HandTrail_Color == id)
+            stroke.Thickness = selected and 3.5 or 1.5
+            chip.Size = selected and UDim2.new(0, 32, 0, 32) or UDim2.new(0, 28, 0, 28)
+        end
+    end
+
+    for _, c in ipairs(COLORS) do
+        local chip = Instance.new("TextButton")
+        chip.Name = "Chip_" .. c.id
+        chip.Parent = Dropdown
+        chip.Text = ""
+        chip.AutoButtonColor = true
+        chip.BackgroundColor3 = c.color or Color3.new(1, 1, 1)
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = chip
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.fromRGB(0, 0, 0)
+        stroke.Parent = chip
+
+        if c.id == "Rainbow" then
+            local grad = Instance.new("UIGradient")
+            grad.Color = RAINBOW
+            grad.Rotation = 45
+            grad.Parent = chip
+        end
+
+        chips[c.id] = chip
+        chip.MouseButton1Click:Connect(function()
+            getgenv().HandTrail_Color = c.id
+            applyColor()
+            refreshChips()
+        end)
+    end
+    refreshChips()
+
+    local open = false
+    Arrow.MouseButton1Click:Connect(function()
+        open = not open
+        Dropdown.Visible = open
+        Arrow.Text = open and "▲" or "▼"
+        Wrapper.Size = UDim2.new(1, 0, 0, open and EXPANDED or COLLAPSED)
+    end)
+
+    return Wrapper
+end
+
+-- 👇 เรียกใช้ในหมวดตั้งค่า
+createHandTrailSwitch(SettingsContainer)
 
 
 
