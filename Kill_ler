@@ -611,7 +611,7 @@ end)
 -- 📌 [ปุ่มพิเศษ] วาปล่าเก็บนายอำเภอ (ไม่สนระยะทาง ไกลแค่ไหนก็พุ่งไปหา)
 -- ==========================================
 getgenv().KillSheriff_Active = false
-createSwitchButton(ContentContainer, "🎯 วาปล่าเก็บนายอำเภอ (ไม่สนระะ)", getgenv().KillSheriff_Active, function(isActive)
+createSwitchButton(ContentContainer, "🎯 วาปล่าเก็บนายอำเภอ (M M L 2)", getgenv().KillSheriff_Active, function(isActive)
     getgenv().KillSheriff_Active = isActive
 end)
 
