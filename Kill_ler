@@ -3460,3 +3460,127 @@ end
 -- ตัวอย่าง: createSwitchButton(AutoContainer, "🤖 ชื่อฟังก์ชัน", false, function(isActive) ... end)
 -- ==========================================================
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- ==========================================================
+-- 👁️ หมวดหมู่ใหม่ "ESP" (แทรกต่อจากหมวด "ออโต้")
+-- วิธีใส่: วางต่อท้ายบล็อก Auto_Category.lua (หรือท้ายสคริปต์ก็ได้ ต้องอยู่หลังบล็อกออโต้)
+-- ปุ่มฟังก์ชัน ESP ให้ใส่ Parent เป็น ESPContainer
+-- ==========================================================
+
+-- 1) ปุ่มหมวดหมู่ "ESP" ที่แถบซ้าย
+local CatBtnESP = Instance.new("TextButton")
+CatBtnESP.Name = "CategoryESP"
+CatBtnESP.Parent = SidebarFrame
+CatBtnESP.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CatBtnESP.Size = UDim2.new(1, 0, 0, 40)
+CatBtnESP.Font = Enum.Font.GothamBold
+CatBtnESP.Text = "👁️ ESP"
+CatBtnESP.TextColor3 = Color3.fromRGB(255, 255, 255)
+CatBtnESP.TextSize = 13
+
+local CatCornerESP = Instance.new("UICorner")
+CatCornerESP.CornerRadius = UDim.new(0, 6)
+CatCornerESP.Parent = CatBtnESP
+
+-- 2) จัดลำดับปุ่มซ้ายใหม่: ฆ่า+วาป -> ออโต้ -> ESP -> วาป+ฟาม -> ข้อมูล -> ตั้งค่า -> ผู้สร้าง
+CatBtn1.LayoutOrder = 1
+if CatBtnAuto then CatBtnAuto.LayoutOrder = 2 end
+CatBtnESP.LayoutOrder = 3
+CatBtnTp.LayoutOrder = 4
+CatBtnInfo.LayoutOrder = 5
+CatBtnSettings.LayoutOrder = 6
+CatBtnCreator.LayoutOrder = 7
+
+SidebarFrame.CanvasSize = UDim2.new(0, 0, 0, 440)
+
+-- 3) หน้าต่างฝั่งขวาของหมวด ESP
+local ESPContainer = Instance.new("ScrollingFrame")
+ESPContainer.Name = "ESPContainer"
+ESPContainer.Parent = MainFrame
+ESPContainer.BackgroundTransparency = 1
+ESPContainer.Position = UDim2.new(0, 160, 0, 50)
+ESPContainer.Size = UDim2.new(1, -170, 1, -60)
+ESPContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+ESPContainer.ScrollBarThickness = 6
+ESPContainer.Visible = false
+
+local ESPContainerLayout = Instance.new("UIListLayout")
+ESPContainerLayout.Parent = ESPContainer
+ESPContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ESPContainerLayout.Padding = UDim.new(0, 8)
+
+-- ข้อความบอกว่ายังว่าง (หายเองทันทีที่ใส่ปุ่มแรกเข้ามา)
+local ESPEmptyHint = Instance.new("TextLabel")
+ESPEmptyHint.Name = "EmptyHint"
+ESPEmptyHint.Parent = ESPContainer
+ESPEmptyHint.BackgroundTransparency = 1
+ESPEmptyHint.Size = UDim2.new(1, -10, 0, 40)
+ESPEmptyHint.Font = Enum.Font.Gotham
+ESPEmptyHint.Text = "👁️ หมวด ESP — ยังไม่มีฟังก์ชัน"
+ESPEmptyHint.TextColor3 = Color3.fromRGB(180, 180, 190)
+ESPEmptyHint.TextSize = 14
+
+ESPContainer.ChildAdded:Connect(function(child)
+    if child ~= ESPEmptyHint and not child:IsA("UIListLayout") then
+        ESPEmptyHint.Visible = false
+    end
+end)
+
+-- 4) ระบบกดสลับหน้าต่าง
+-- กดปุ่ม ESP -> ซ่อนทุกหน้า แล้วโชว์หน้า ESP
+CatBtnESP.MouseButton1Click:Connect(function()
+    ContentContainer.Visible = false
+    TeleportContainer.Visible = false
+    InfoContainer.Visible = false
+    SettingsContainer.Visible = false
+    CreatorContainer.Visible = false
+    if AutoContainer then AutoContainer.Visible = false end
+    ESPContainer.Visible = true
+end)
+
+-- กดหมวดอื่น (รวมถึงหมวดออโต้) -> ซ่อนหน้า ESP
+local otherButtons = { CatBtn1, CatBtnTp, CatBtnInfo, CatBtnSettings, CatBtnCreator }
+if CatBtnAuto then table.insert(otherButtons, CatBtnAuto) end
+for _, btn in ipairs(otherButtons) do
+    btn.MouseButton1Click:Connect(function()
+        ESPContainer.Visible = false
+    end)
+end
+
+-- ==========================================================
+-- 👇 วางปุ่มฟังก์ชัน ESP ตรงนี้ โดยใช้ ESPContainer เป็น Parent
+-- ตัวอย่าง: createSwitchButton(ESPContainer, "👁️ ชื่อฟังก์ชัน", false, function(isActive) ... end)
+-- ==========================================================
