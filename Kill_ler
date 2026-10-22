@@ -3902,3 +3902,6 @@ xpcall(function()
         destroyRings()
         if prevRingCleanup then prevRingCleanup() end
     end
+end, function(err)
+    warn("[ของเล่น] error: " .. tostring(err))
+end)
