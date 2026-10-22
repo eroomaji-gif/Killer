@@ -3668,23 +3668,10 @@ xpcall(function()
         end)
     end
 
- -- จบตัวโหมดหมู่
 
 
 
 
-
-
-
-
-
-  
-                            
-
-
-
-
-
-
-        
-    
+end, function(err)
+    warn("[ของเล่น] error: " .. tostring(err))
+end)
