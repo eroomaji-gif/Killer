@@ -3598,7 +3598,6 @@ createLivingScannerSwitch(ContentContainer)
 -- ปุ่มฟังก์ชันของเล่นให้ใส่ Parent เป็น ToysContainer
 -- ครอบด้วย do ... end กันกินโควตา local ของสคริปต์หลัก
 -- ==========================================================
-do
     -- 1) ปุ่มหมวดหมู่ "ของเล่น" ที่แถบซ้าย
     local CatBtnToys = Instance.new("TextButton")
     CatBtnToys.Name = "CategoryToys"
