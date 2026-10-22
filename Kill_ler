@@ -3591,7 +3591,7 @@ createLivingScannerSwitch(ContentContainer)
 
 
 
-xpcall(function()
+
 -- ==========================================================
 -- 🧸 หมวดหมู่ใหม่ "ของเล่น" (ต่อท้ายจากหมวด ESP)
 -- วิธีใส่: วางบล็อกนี้ "ท้ายสุดของสคริปต์" (หลัง createLivingScannerSwitch(ContentContainer))
