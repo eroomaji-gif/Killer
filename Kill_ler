@@ -3670,197 +3670,235 @@ xpcall(function()
         end)
     end
 
+ -- จบตัวโหมดหมู่
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     -- ==========================================================
-    -- 🚗 รถของเล่น (สร้างฝั่ง Client เห็นคนเดียว)
+    -- 🔮 วงแหวนวิญญาณ (สร้างฝั่ง Client เห็นคนเดียว)
     -- ==========================================================
     local RunService = game:GetService("RunService")
-    local carFolder, carBody, carSeat, carConn
-    local carMaxSpeed = 80
-    local curSpeed = 0
-    getgenv().ToyCar_Active = false
 
-    local function destroyCar()
-        if carConn then
-            carConn:Disconnect()
-            carConn = nil
+    local RING_TYPES = {
+        { name = "ขาว (สิบปี)",     color = Color3.fromRGB(255, 255, 255), glow = Color3.fromRGB(255, 255, 255) },
+        { name = "เหลือง (ร้อยปี)", color = Color3.fromRGB(255, 215, 50),  glow = Color3.fromRGB(255, 200, 40) },
+        { name = "ม่วง (พันปี)",    color = Color3.fromRGB(170, 70, 255),  glow = Color3.fromRGB(150, 50, 255) },
+        { name = "ดำ (หมื่นปี)",    color = Color3.fromRGB(25, 15, 35),    glow = Color3.fromRGB(110, 0, 150) },
+        { name = "แดง (แสนปี)",     color = Color3.fromRGB(255, 40, 40),   glow = Color3.fromRGB(255, 30, 30) },
+    }
+
+    local SEGMENTS = 36
+    local RADIUS = 2.6
+    local ringType = 3      -- เริ่มที่สีม่วง (พันปี)
+    local ringCount = 1     -- จำนวนวงแหวน
+    local ringFolder, ringConn
+    local ringSegs, ringDiscs = {}, {}
+    getgenv().SoulRing_Active = false
+
+    local function destroyRings()
+        if ringConn then
+            ringConn:Disconnect()
+            ringConn = nil
         end
-        pcall(function()
-            local char = localPlayer.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hum and hum.SeatPart == carSeat then
-                hum.Sit = false
-                hum.Jump = true
-            end
-        end)
-        if carFolder then
-            carFolder:Destroy()
+        if ringFolder then
+            ringFolder:Destroy()
         end
-        carFolder, carBody, carSeat = nil, nil, nil
-        curSpeed = 0
+        ringFolder = nil
+        ringSegs, ringDiscs = {}, {}
     end
 
-    local function addPart(size, color, parent)
+    local function makePart(parent)
         local p = Instance.new("Part")
-        p.Size = size
-        p.Color = color
-        p.Material = Enum.Material.SmoothPlastic
+        p.Anchored = true
+        p.CanCollide = false
+        p.CanTouch = false
+        p.CanQuery = false
+        p.CastShadow = false
+        p.Material = Enum.Material.Neon
         p.TopSurface = Enum.SurfaceType.Smooth
         p.BottomSurface = Enum.SurfaceType.Smooth
         p.Parent = parent
         return p
     end
 
-    local function weldTo(part, base)
-        part.Massless = true
-        part.CanCollide = false
-        local w = Instance.new("WeldConstraint")
-        w.Part0 = base
-        w.Part1 = part
-        w.Parent = part
-    end
-
-    local function spawnCar()
-        destroyCar()
+    local function buildRings()
+        destroyRings()
         local char = localPlayer.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if not (root and hum) then return end
+        if not root then return end
 
-        local lookV = root.CFrame.LookVector
-        local angle = math.atan2(-lookV.X, -lookV.Z)
-        local startCF = CFrame.new(root.Position + lookV * 10 + Vector3.new(0, 3, 0)) * CFrame.Angles(0, angle, 0)
+        local cfg = RING_TYPES[ringType]
+        ringFolder = Instance.new("Folder")
+        ringFolder.Name = "ClientSoulRings"
+        ringFolder.Parent = workspace
 
-        carFolder = Instance.new("Folder")
-        carFolder.Name = "ClientToyCar"
-        carFolder.Parent = workspace
+        local segLen = (2 * math.pi * RADIUS / SEGMENTS) * 1.08
 
-        carBody = addPart(Vector3.new(6, 1.2, 11), Color3.fromRGB(220, 40, 40), carFolder)
-        carBody.CFrame = startCF
-        carBody.CustomPhysicalProperties = PhysicalProperties.new(1, 0.1, 0, 1, 1)
+        for i = 1, ringCount do
+            -- เส้นวงแหวน (ต่อเป็นวงจากชิ้นเล็กๆ)
+            for s = 1, SEGMENTS do
+                local p = makePart(ringFolder)
+                p.Color = cfg.color
+                p.Size = Vector3.new(0.35, 0.18, segLen)
+                table.insert(ringSegs, { part = p, ring = i, angle = (s - 1) / SEGMENTS * 2 * math.pi })
 
-        local cabin = addPart(Vector3.new(4.6, 1.4, 5), Color3.fromRGB(180, 30, 30), carFolder)
-        cabin.CFrame = carBody.CFrame * CFrame.new(0, 1.3, 1.2)
-        weldTo(cabin, carBody)
-        local glass = addPart(Vector3.new(4.2, 1.0, 4.6), Color3.fromRGB(120, 200, 255), carFolder)
-        glass.Transparency = 0.5
-        glass.CFrame = carBody.CFrame * CFrame.new(0, 1.35, 1.2)
-        weldTo(glass, carBody)
+                -- ประกายลอยขึ้นจากวงแหวน (ทุกๆ 4 ชิ้น)
+                if s % 4 == 0 then
+                    local em = Instance.new("ParticleEmitter")
+                    em.Color = ColorSequence.new(cfg.glow)
+                    em.LightEmission = 1
+                    em.Rate = 3
+                    em.Lifetime = NumberRange.new(1, 1.6)
+                    em.Speed = NumberRange.new(2, 4)
+                    em.SpreadAngle = Vector2.new(15, 15)
+                    em.EmissionDirection = Enum.NormalId.Top
+                    em.Size = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.35),
+                        NumberSequenceKeypoint.new(1, 0),
+                    })
+                    em.Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.2),
+                        NumberSequenceKeypoint.new(1, 1),
+                    })
+                    em.Parent = p
+                end
+            end
 
-        for _, pos in ipairs({ Vector3.new(3.2, -0.4, 3.5), Vector3.new(-3.2, -0.4, 3.5),
-                               Vector3.new(3.2, -0.4, -3.5), Vector3.new(-3.2, -0.4, -3.5) }) do
-            local wheel = addPart(Vector3.new(1.2, 2, 2), Color3.fromRGB(25, 25, 25), carFolder)
-            wheel.Shape = Enum.PartType.Cylinder
-            wheel.CFrame = carBody.CFrame * CFrame.new(pos)
-            weldTo(wheel, carBody)
+            -- แผ่นแสงโปร่งใสด้านในวง
+            local disc = makePart(ringFolder)
+            disc.Shape = Enum.PartType.Cylinder
+            disc.Color = cfg.glow
+            disc.Transparency = 0.82
+            disc.Size = Vector3.new(0.05, 1, 1)
+            local light = Instance.new("PointLight")
+            light.Color = cfg.glow
+            light.Brightness = 1.5
+            light.Range = 12
+            light.Parent = disc
+            table.insert(ringDiscs, { part = disc, ring = i })
         end
 
-        carSeat = Instance.new("VehicleSeat")
-        carSeat.Size = Vector3.new(2, 0.6, 2)
-        carSeat.Color = Color3.fromRGB(30, 30, 30)
-        carSeat.MaxSpeed = 0
-        carSeat.Torque = 0
-        carSeat.TurnSpeed = 0
-        carSeat.CFrame = carBody.CFrame * CFrame.new(0, 1.0, 1.5)
-        carSeat.Parent = carFolder
-        local seatWeld = Instance.new("WeldConstraint")
-        seatWeld.Part0 = carBody
-        seatWeld.Part1 = carSeat
-        seatWeld.Parent = carSeat
+        local t0 = os.clock()
+        ringConn = RunService.RenderStepped:Connect(function()
+            local c = localPlayer.Character
+            local r = c and c:FindFirstChild("HumanoidRootPart")
+            if not r or not ringFolder then return end
 
-        local gyro = Instance.new("BodyGyro")
-        gyro.MaxTorque = Vector3.new(1e7, 0, 1e7)
-        gyro.P = 3e4
-        gyro.D = 1e3
-        gyro.CFrame = CFrame.new()
-        gyro.Parent = carBody
+            local t = os.clock() - t0
+            local grow = math.clamp(t / 0.8, 0, 1)
+            grow = 1 - (1 - grow) ^ 3          -- ขยายออกนุ่มๆ ตอนเปิด
+            local rad = RADIUS * grow
+            local base = r.Position
 
-        carConn = RunService.Heartbeat:Connect(function(dt)
-            if not (carBody and carBody.Parent and carSeat) then return end
-            local target = carSeat.ThrottleFloat * carMaxSpeed
-            curSpeed = curSpeed + (target - curSpeed) * math.clamp(dt * 2.5, 0, 1)
+            local parts, cfs = {}, {}
 
-            local look = carBody.CFrame.LookVector
-            look = Vector3.new(look.X, 0, look.Z)
-            if look.Magnitude > 0 then look = look.Unit end
+            for _, seg in ipairs(ringSegs) do
+                local dir = (seg.ring % 2 == 0) and -1 or 1
+                local ang = seg.angle + dir * t * (0.9 + seg.ring * 0.12)
+                local y = -2.9 + (seg.ring - 1) * 0.95 + math.sin(t * 2 + seg.ring) * 0.08
+                parts[#parts + 1] = seg.part
+                cfs[#cfs + 1] = CFrame.new(base + Vector3.new(0, y, 0)) * CFrame.Angles(0, ang, 0) * CFrame.new(rad, 0, 0)
+            end
 
-            local v = carBody.AssemblyLinearVelocity
-            carBody.AssemblyLinearVelocity = look * curSpeed + Vector3.new(0, v.Y, 0)
+            for _, d in ipairs(ringDiscs) do
+                local y = -2.9 + (d.ring - 1) * 0.95 + math.sin(t * 2 + d.ring) * 0.08
+                d.part.Size = Vector3.new(0.05, rad * 2 + 1.2, rad * 2 + 1.2)
+                parts[#parts + 1] = d.part
+                cfs[#cfs + 1] = CFrame.new(base + Vector3.new(0, y, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+            end
 
-            local grip = math.clamp(math.abs(curSpeed) / 12, 0, 1)
-            local dir = (curSpeed >= 0) and 1 or -1
-            local av = carBody.AssemblyAngularVelocity
-            carBody.AssemblyAngularVelocity = Vector3.new(av.X, -carSeat.SteerFloat * 2.2 * grip * dir, av.Z)
+            workspace:BulkMoveTo(parts, cfs, Enum.BulkMoveMode.FireCFrameChanged)
         end)
-
-        for _ = 1, 5 do
-            pcall(function() carSeat:Sit(hum) end)
-            task.wait(0.2)
-            if hum.SeatPart == carSeat then break end
-        end
-        if hum.SeatPart ~= carSeat and root.Parent then
-            root.CFrame = carSeat.CFrame * CFrame.new(0, 2.5, 0)
-        end
     end
 
-    local carSwitch = createSwitchButton(ToysContainer, "🚗 รถของเล่น (เห็นคนเดียว)", false, function(isActive)
-        getgenv().ToyCar_Active = isActive
+    -- สวิตช์เปิด/ปิด
+    local ringSwitch = createSwitchButton(ToysContainer, "🔮 วงแหวนวิญญาณ", false, function(isActive)
+        getgenv().SoulRing_Active = isActive
         if isActive then
-            task.spawn(spawnCar)
+            buildRings()
         else
-            destroyCar()
+            destroyRings()
         end
     end)
-    carSwitch.LayoutOrder = 1
+    ringSwitch.LayoutOrder = 1
 
-    local CarSpeedBox = Instance.new("TextBox")
-    CarSpeedBox.Name = "CarSpeedBox"
-    CarSpeedBox.Parent = ToysContainer
-    CarSpeedBox.LayoutOrder = 2
-    CarSpeedBox.Size = UDim2.new(1, 0, 0, 40)
-    CarSpeedBox.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-    CarSpeedBox.Font = Enum.Font.GothamBold
-    CarSpeedBox.PlaceholderText = "ความเร็วสูงสุดของรถ"
-    CarSpeedBox.Text = tostring(carMaxSpeed)
-    CarSpeedBox.TextColor3 = Color3.fromRGB(255, 120, 120)
-    CarSpeedBox.TextSize = 15
-    local CarSpeedCorner = Instance.new("UICorner")
-    CarSpeedCorner.CornerRadius = UDim.new(0, 6)
-    CarSpeedCorner.Parent = CarSpeedBox
+    -- ปุ่มเปลี่ยนสีวงแหวน (กดวนไปเรื่อยๆ)
+    local RingTypeBtn = Instance.new("TextButton")
+    RingTypeBtn.Name = "RingTypeBtn"
+    RingTypeBtn.Parent = ToysContainer
+    RingTypeBtn.LayoutOrder = 2
+    RingTypeBtn.Size = UDim2.new(1, 0, 0, 40)
+    RingTypeBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    RingTypeBtn.Font = Enum.Font.GothamBold
+    RingTypeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    RingTypeBtn.TextSize = 14
+    RingTypeBtn.Text = "🎨 สี: " .. RING_TYPES[ringType].name
+    local RingTypeCorner = Instance.new("UICorner")
+    RingTypeCorner.CornerRadius = UDim.new(0, 6)
+    RingTypeCorner.Parent = RingTypeBtn
 
-    CarSpeedBox.FocusLost:Connect(function()
-        local n = tonumber(CarSpeedBox.Text)
+    RingTypeBtn.MouseButton1Click:Connect(function()
+        ringType = ringType % #RING_TYPES + 1
+        RingTypeBtn.Text = "🎨 สี: " .. RING_TYPES[ringType].name
+        if getgenv().SoulRing_Active then
+            buildRings()
+        end
+    end)
+
+    -- ช่องใส่จำนวนวงแหวน (1-9)
+    local RingCountBox = Instance.new("TextBox")
+    RingCountBox.Name = "RingCountBox"
+    RingCountBox.Parent = ToysContainer
+    RingCountBox.LayoutOrder = 3
+    RingCountBox.Size = UDim2.new(1, 0, 0, 40)
+    RingCountBox.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+    RingCountBox.Font = Enum.Font.GothamBold
+    RingCountBox.PlaceholderText = "จำนวนวงแหวน (1-9)"
+    RingCountBox.Text = tostring(ringCount)
+    RingCountBox.TextColor3 = Color3.fromRGB(190, 120, 255)
+    RingCountBox.TextSize = 15
+    local RingCountCorner = Instance.new("UICorner")
+    RingCountCorner.CornerRadius = UDim.new(0, 6)
+    RingCountCorner.Parent = RingCountBox
+
+    RingCountBox.FocusLost:Connect(function()
+        local n = tonumber(RingCountBox.Text)
         if n then
-            carMaxSpeed = math.clamp(n, 10, 300)
+            ringCount = math.clamp(math.floor(n), 1, 9)
         end
-        CarSpeedBox.Text = tostring(carMaxSpeed)
+        RingCountBox.Text = tostring(ringCount)
+        if getgenv().SoulRing_Active then
+            buildRings()
+        end
     end)
 
+    -- ตายแล้วเกิดใหม่ ถ้าเปิดอยู่ให้สร้างวงแหวนใหม่
     localPlayer.CharacterAdded:Connect(function()
-        if getgenv().ToyCar_Active then
-            task.wait(1.5)
-            if getgenv().ToyCar_Active then
-                spawnCar()
+        if getgenv().SoulRing_Active then
+            task.wait(1)
+            if getgenv().SoulRing_Active then
+                buildRings()
             end
         end
     end)
 
-    local prevCarCleanup = getgenv().MainScript_Cleanup
+    -- ล้างตอนรันสคริปต์ซ้ำ
+    local prevRingCleanup = getgenv().MainScript_Cleanup
     getgenv().MainScript_Cleanup = function()
-        getgenv().ToyCar_Active = false
-        destroyCar()
-        if prevCarCleanup then prevCarCleanup() end
+        getgenv().SoulRing_Active = false
+        destroyRings()
+        if prevRingCleanup then prevRingCleanup() end
     end
-end, function(err)
-    warn("[ของเล่น] error: " .. tostring(err))
-end)
-
-
-
-
-
-
-
-
-
-
-        
