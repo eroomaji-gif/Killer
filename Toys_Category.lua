@@ -286,71 +286,116 @@ end
 
 
 -- ==========================================
--- 🌪️ [ฟังก์ชันก้อน] โหมดพุ่งชนกระเด็นหายทะลุแมพ (Ultra Fling ความแรงสูงสุด)
+-- 🌪️ [ฟังก์ชันก้อน] ปุ่มกดถีบพุ่งทะลุแมพ + ดึงรายชื่อ Owner จากสคริปต์หลัก
 -- ==========================================
 local function createSuperFlingSwitch(parent)
     getgenv().SuperFling_Active = false
-    local RunService = game:GetService("RunService")
     local Players = game:GetService("Players")
     local lp = Players.LocalPlayer
-    local connection = nil
+    
+    local screenGui = nil
+    local flingButton = nil
 
-    local function toggleSuperFling(state)
-        if state then
-            if connection then connection:Disconnect() end
+    -- 🔑 ฟังก์ชันเช็ก Owner โดยดึงค่าจากสคริปต์หลัก (ผ่านตัวแปร ctx หรือระบบกลางที่คุณมี)
+    local function isOwner(player)
+        -- ถ้าในสคริปต์หลักของคุณมีตารางเก็บ Owner อยู่แล้ว (เช่น ctx.Owners หรือตัวแปรส่วนกลาง)
+        -- สามารถเรียกใช้ตรงนี้ได้เลยครับ เช่น:
+        -- local mainOwners = ctx.Owners or {"ชื่อคนที1", "ชื่อคนที2"}
+        
+        -- ตัวอย่างดึงจาก ctx (ถ้าสคริปต์หลักส่งมา) หรือใส่สำรองไว้กันเหนียว:
+        local ownersList = ctx.Owners or {
+            "ชื่อOwnerคนที1", -- (ถ้าในสคริปต์หลักไม่มี ให้ใส่ชื่อสำรองตรงนี้ได้ครับ)
+            "ชื่อOwnerคนที2"
+        }
+
+        for _, ownerName in ipairs(ownersList) do
+            if player.Name == ownerName or player.DisplayName == ownerName then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function createFloatingButton()
+        if screenGui then return end
+        
+        local playerGui = lp:WaitForChild("PlayerGui")
+        screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "SuperFlingGui"
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = playerGui
+
+        flingButton = Instance.new("TextButton")
+        flingButton.Name = "FlingExecuteButton"
+        flingButton.Parent = screenGui
+        flingButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        flingButton.Position = UDim2.new(0.8, 0, 0.6, 0)
+        flingButton.Size = UDim2.new(0, 50, 0, 50)
+        flingButton.Draggable = true
+        flingButton.Font = Enum.Font.GothamBold
+        flingButton.Text = "🌪️"
+        flingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        flingButton.TextSize = 22
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 10)
+        corner.Parent = flingButton
+
+        flingButton.MouseButton1Click:Connect(function()
+            if not getgenv().SuperFling_Active then return end
             
-            connection = RunService.Heartbeat:Connect(function()
-                if not getgenv().SuperFling_Active then return end
-                pcall(function()
-                    local myChar = lp.Character
-                    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-                    local myRoot = myChar.HumanoidRootPart
-                    
-                    for _, otherPlayer in ipairs(Players:GetPlayers()) do
-                        if otherPlayer ~= lp and otherPlayer.Character then
-                            local otherChar = otherPlayer.Character
-                            local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
-                            local otherHum = otherChar:FindFirstChild("Humanoid")
+            pcall(function()
+                local myChar = lp.Character
+                if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                local myRoot = myChar.HumanoidRootPart
+
+                for _, otherPlayer in ipairs(Players:GetPlayers()) do
+                    if otherPlayer ~= lp and otherPlayer.Character then
+                        local otherChar = otherPlayer.Character
+                        local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
+                        local otherHum = otherChar:FindFirstChild("Humanoid")
+                        
+                        if otherRoot and otherHum and otherHum.Health > 0 then
+                            local distance = (myRoot.Position - otherRoot.Position).Magnitude
                             
-                            if otherRoot and otherHum and otherHum.Health > 0 then
-                                local distance = (myRoot.Position - otherRoot.Position).Magnitude
-                                -- ระยะประชิด
-                                if distance <= 7 then
-                                    -- อัดแรงหมุนเหวี่ยงความเร็วสูงพิเศษ (Spin Fling) ให้คนอื่นกระเด็นหลุดแมพทันที
-                                    local flingVel = Instance.new("BodyAngularVelocity")
-                                    flingVel.Name = "UltraFling"
-                                    flingVel.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                                    flingVel.AngularVelocity = Vector3.new(99999, 99999, 99999) -- ปั่นความเร็วรอบอนันต์
-                                    flingVel.Parent = otherRoot
-                                    
-                                    -- เพิ่มแรงส่งพุ่งทะลุฟ้าไปพร้อมกัน
-                                    local bodyVel = Instance.new("BodyVelocity")
-                                    bodyVel.Name = "UltraVelocity"
-                                    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                                    bodyVel.Velocity = (otherRoot.Position - myRoot.Position).Unit * 5000 + Vector3.new(0, 3000, 0)
-                                    bodyVel.Parent = otherRoot
-                                    
-                                    task.delay(0.15, function()
-                                        if flingVel then flingVel:Destroy() end
-                                        if bodyVel then bodyVel:Destroy() end
-                                    end)
+                            if distance <= 10 then
+                                -- 🛡️ เช็กว่าเป้าหมายเป็น Owner ที่ดึงมาจากสคริปต์หลักหรือไม่
+                                if isOwner(otherPlayer) then
+                                    -- ถ้าใช่ Owner -> สะท้อนแรงดีดกลับใส่เราเองทันที (เซฟ Owner)
+                                    myRoot.Velocity = Vector3.new(99999, 99999, 99999)
+                                    myRoot.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
+                                    myRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
+                                    myRoot.CFrame = myRoot.CFrame + Vector3.new(0, 3000, 0)
+                                else
+                                    -- 🌪️ ถ้าไม่ใช่ Owner -> ซัดปลิวหายทะลุแมพ
+                                    otherRoot.Velocity = Vector3.new(99999, 99999, 99999)
+                                    otherRoot.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
+                                    otherRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
+                                    otherRoot.CFrame = myRoot.CFrame + Vector3.new(0, 5000, 0)
                                 end
                             end
                         end
                     end
-                end)
+                end
             end)
-        else
-            if connection then
-                connection:Disconnect()
-                connection = nil
-            end
+        end)
+    end
+
+    local function removeFloatingButton()
+        if screenGui then
+            screenGui:Destroy()
+            screenGui = nil
+            flingButton = nil
         end
     end
 
-    return createSwitchButton(parent, "🌪️ โหมดพุ่งชนกระเด็นหายทะลุแมพ (Ultra Fling)", getgenv().SuperFling_Active, function(isActive)
+    return createSwitchButton(parent, "🌪️ ปุ่มถีบทะลุแมพ + เช็ก Owner หลัก", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
-        toggleSuperFling(isActive)
+        if isActive then
+            createFloatingButton()
+        else
+            removeFloatingButton()
+        end
     end)
 end
 
