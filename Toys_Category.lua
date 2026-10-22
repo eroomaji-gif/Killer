@@ -270,7 +270,7 @@ do
             if prevCleanup then prevCleanup() end
         end
 
-        return createSwitchButton(ToyContainer, "🌀 แม่เหล็กไอเทมโคจร", false, function(isActive)
+        return createSwitchButton(Parent, "🌀 แม่เหล็กไอเทมโคจร", false, function(isActive)
             getgenv().Orbit_Active = isActive
             if isActive then
                 start()
