@@ -107,9 +107,7 @@ return function(ctx)
     -- end)
     -- ==========================================================
 
-    return { Container = ToyContainer, Button = CatBtnToy }
-end
-
+    
 
 
 
@@ -281,4 +279,10 @@ do
     end
 
     createOrbitSwitch(ToyContainer)
+end
+
+
+
+
+    return { Container = ToyContainer, Button = CatBtnToy }
 end
