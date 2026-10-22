@@ -286,380 +286,112 @@ end
 
 
 
+-- ==========================================
+-- 🌪️ [ฟังก์ชันก้อน] Touch Fling + ปฏิเสธแรงย้อนกลับ (Force Sink System)
+-- ==========================================
+local function createSuperFlingSwitch(parent)
+    getgenv().SuperFling_Active = false
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local lp = Players.LocalPlayer
+    local connection = nil
 
+    -- 🛡️ ฟังก์ชันเช็ก Owner จากสคริปต์หลัก (ctx.Owners)
+    local function isOwner(player)
+        local ownersList = ctx.Owners or {
+            "ชื่อOwnerคนที1",
+            "ชื่อOwnerคนที2"
+        }
 
-
--- ==========================================================
--- 🦶 ฟังก์ชันเดี่ยว: ปุ่มดรอปคิก (กระโดดถีบขาคู่ ท่าเล่นๆ) — เวอร์ชันรองรับตัวละครทุกแบบ
--- เปิดสวิตช์ -> มีปุ่มกลมเล็กๆ ลอยบนจอ ลากย้ายได้ / กดแล้วตัวละครกระโดดเตะขาคู่ 1 ครั้ง
--- วางไว้ "เหนือ" บรรทัด  return { Container = ToyContainer, ... }  ใน toys.lua
--- ต้องมีตัวแปร ToyContainer กับ createSwitchButton อยู่ในขอบเขต
--- ลบทั้งบล็อกนี้ทิ้งได้เลย ส่วนอื่นไม่พัง (ห่อด้วย do ... end และไม่มี return ระดับบนสุด)
--- ==========================================================
-do
-    local function createDropKickSwitch(parent)
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        local UserInputService = game:GetService("UserInputService")
-        local lp = Players.LocalPlayer
-
-        -- ===== ปรับท่าได้ที่นี่ =====
-        local FORWARD_SPEED = 35   -- แรงส่ง: พุ่งไปข้างหน้ากี่ studs/วินาที (สูงสุด 50)
-        local THRUST_TIME = 0.35   -- ออกแรงส่งต่อเนื่องกี่วินาที
-        local LEAN = 0.95          -- เอนตัวไปข้างหลังกี่เรเดียน (ยิ่งมากยิ่งแนวนอน)
-        local LEG_EXTRA = 0.45     -- เหยียดขาไปข้างหน้าเพิ่ม
-        local ARM_OUT = 0.9        -- กางแขนช่วยทรงตัว
-        local MAX_TIME = 1.4       -- เวลาสูงสุดของท่า (วินาที) กันค้าง
-        local DEBUG = true         -- true = พิมพ์สถานะในคอนโซล
-        -- ============================
-
-        FORWARD_SPEED = math.clamp(FORWARD_SPEED, 0, 50)
-        local function dbg(...)
-            if DEBUG then print("[ดรอปคิก]", ...) end
-        end
-
-        getgenv().DropKick_Active = false
-
-        local gui = nil
-        local guiConns = {}
-        local renderConn = nil
-        local kicking = false
-        local abortKick = nil
-
-        local function smooth(x)
-            return x * x * (3 - 2 * x)
-        end
-
-        -- หมุนข้อต่อรอบแกนที่กำหนด (แกนอยู่ในกรอบของ Part0) โดยใช้จุดข้อต่อเป็นจุดหมุน
-        local function rotated(orig, axisLocal, angle)
-            local pos = orig.Position
-            local rot = orig - pos
-            return CFrame.new(pos) * CFrame.fromAxisAngle(axisLocal, angle) * rot
-        end
-
-        -- ==========================================================
-        -- หาข้อต่อแบบ "ไม่ยึดชื่อ" ใช้ตำแหน่งชิ้นส่วนเทียบกับ HumanoidRootPart แทน
-        --   ข้อต่อราก = Motor6D ที่ต่อจาก HRP ไปยังชิ้นส่วนลำตัว
-        --   ขา  = ข้อต่อที่ชิ้นส่วนอยู่ต่ำกว่าศูนย์กลางตัว (ซ้าย/ขวา ฝั่งละ 1 อัน ตัวที่สูงสุด = สะโพก)
-        --   แขน = ข้อต่อที่ชิ้นส่วนอยู่ห่างออกด้านข้าง (ซ้าย/ขวา ฝั่งละ 1 อัน ตัวที่สูงสุด = ไหล่)
-        -- ทำงานกับ R6, R15 และโมเดลตัวละครที่ผู้เล่นปั้นเอง ถ้าใช้ Motor6D เชื่อมส่วนต่างๆ
-        -- ==========================================================
-        local function buildRig(char, hum)
-            local hrp = hum.RootPart or char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return nil end
-
-            local motors = {}
-            for _, d in ipairs(char:GetDescendants()) do
-                if d:IsA("Motor6D") and d.Part0 and d.Part1
-                    and d.Part0:IsA("BasePart") and d.Part1:IsA("BasePart") then
-                    table.insert(motors, d)
-                end
-            end
-
-            -- ข้อต่อราก: Part0 = HRP (ถ้ามีหลายอัน เลือกที่ชิ้นส่วนใหญ่สุด)
-            local rootJ, bestVol = nil, -1
-            for _, m in ipairs(motors) do
-                if m.Part0 == hrp then
-                    local sz = m.Part1.Size
-                    local vol = sz.X * sz.Y * sz.Z
-                    if vol > bestVol then
-                        rootJ, bestVol = m, vol
-                    end
-                end
-            end
-
-            local rig = { hrp = hrp, root = rootJ, legs = {}, arms = {}, motorCount = #motors }
-            if not rootJ then return rig end
-
-            local hrpCF = hrp.CFrame
-            local scale = math.max(hrp.Size.Y / 2, 0.25)
-
-            local function axisFor(m, worldAxis)
-                return m.Part0.CFrame:VectorToObjectSpace(worldAxis).Unit
-            end
-
-            rig.rootOrig = rootJ.C0
-            rig.rootAxis = axisFor(rootJ, hrpCF.XVector)
-
-            local legBySide, armBySide = {}, {}
-            for _, m in ipairs(motors) do
-                if m ~= rootJ then
-                    local rel = hrpCF:PointToObjectSpace(m.Part1.Position)
-                    local side = rel.X < 0 and "L" or "R"
-                    if rel.Y < -0.4 * scale and math.abs(rel.X) > 0.1 * scale then
-                        local cur = legBySide[side]
-                        if not cur or rel.Y > cur.y then
-                            legBySide[side] = { m = m, y = rel.Y }
-                        end
-                    elseif rel.Y >= -0.4 * scale and math.abs(rel.X) > 0.75 * scale then
-                        local cur = armBySide[side]
-                        if not cur or rel.Y > cur.y then
-                            armBySide[side] = { m = m, y = rel.Y }
-                        end
-                    end
-                end
-            end
-
-            for _, e in pairs(legBySide) do
-                table.insert(rig.legs, { m = e.m, orig = e.m.C0, axis = axisFor(e.m, hrpCF.XVector) })
-            end
-            for side, e in pairs(armBySide) do
-                table.insert(rig.arms, {
-                    m = e.m, orig = e.m.C0,
-                    axis = axisFor(e.m, hrpCF.ZVector),
-                    sign = (side == "L") and -1 or 1,
-                })
-            end
-            return rig
-        end
-
-        local function restoreRig(rig)
-            if not rig or not rig.root then return end
-            if rig.root.Parent then rig.root.C0 = rig.rootOrig end
-            for _, l in ipairs(rig.legs) do
-                if l.m.Parent then l.m.C0 = l.orig end
-            end
-            for _, a in ipairs(rig.arms) do
-                if a.m.Parent then a.m.C0 = a.orig end
+        for _, ownerName in ipairs(ownersList) do
+            if player.Name == ownerName or player.DisplayName == ownerName then
+                return true
             end
         end
-
-        local function playKick()
-            if kicking then return end
-            local char = lp.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            local root = char and (hum and hum.RootPart or char:FindFirstChild("HumanoidRootPart"))
-            if not hum or not root or hum.Health <= 0 then
-                dbg("กดแล้วแต่หาตัวละครไม่เจอ หรือตายอยู่")
-                return
-            end
-
-            local rig = buildRig(char, hum)
-            if rig and rig.root then
-                dbg("พบข้อต่อ ราก 1 | ขา", #rig.legs, "| แขน", #rig.arms, "| Motor6D ทั้งหมด", rig.motorCount)
-            else
-                dbg("หาข้อต่อรากไม่เจอ (ตัวละครนี้ไม่ได้ใช้ Motor6D ต่อจาก HRP) จะกระโดดพุ่งอย่างเดียว ไม่เล่นท่า")
-            end
-
-            kicking = true
-
-            local function finish()
-                if renderConn then
-                    renderConn:Disconnect()
-                    renderConn = nil
-                end
-                restoreRig(rig)
-                kicking = false
-                abortKick = nil
-            end
-            abortKick = finish
-
-            -- กระโดด + พุ่งไปข้างหน้า (เคลื่อนที่เฉพาะตัวเรา ไม่มีแรงกระทำกับคนอื่น)
-            local vy = hum.UseJumpPower and hum.JumpPower
-                or math.sqrt(2 * workspace.Gravity * hum.JumpHeight)
-            local look = root.CFrame.LookVector
-            local flat = Vector3.new(look.X, 0, look.Z)
-            flat = flat.Magnitude > 0.01 and flat.Unit or Vector3.new(0, 0, -1)
-            hum.Jump = true
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-            dbg("เริ่มเตะ แรงส่ง =", FORWARD_SPEED, "แรงกระโดด =", math.floor(vy))
-
-            local startTime = os.clock()
-            local endingAt, endW = nil, 0
-
-            renderConn = RunService.RenderStepped:Connect(function()
-                if lp.Character ~= char or not root.Parent or hum.Health <= 0 then
-                    finish()
-                    return
-                end
-
-                local now = os.clock()
-                local t = now - startTime
-
-                -- แรงส่งต่อเนื่องช่วงแรก (Humanoid จะลดความเร็วเองถ้าตั้งแค่ครั้งเดียว)
-                if t < THRUST_TIME then
-                    local y = root.AssemblyLinearVelocity.Y
-                    if t < 0.1 and y < vy * 0.6 then
-                        y = vy
-                    end
-                    root.AssemblyLinearVelocity = Vector3.new(flat.X * FORWARD_SPEED, y, flat.Z * FORWARD_SPEED)
-                end
-
-                local w
-                if not endingAt then
-                    w = smooth(math.clamp((t - 0.05) / 0.2, 0, 1))
-                    local grounded = hum.FloorMaterial ~= Enum.Material.Air
-                    if (t > 0.35 and grounded) or t > MAX_TIME then
-                        endingAt = now
-                        endW = w
-                    end
-                else
-                    local p = math.clamp((now - endingAt) / 0.2, 0, 1)
-                    w = endW * (1 - smooth(p))
-                    if p >= 1 then
-                        finish()
-                        return
-                    end
-                end
-
-                -- ตัวเอนไปข้างหลัง ขาพุ่งไปข้างหน้า แขนกางออก
-                if rig and rig.root then
-                    rig.root.C0 = rotated(rig.rootOrig, rig.rootAxis, LEAN * w)
-                    for _, l in ipairs(rig.legs) do
-                        l.m.C0 = rotated(l.orig, l.axis, LEG_EXTRA * w)
-                    end
-                    for _, a in ipairs(rig.arms) do
-                        a.m.C0 = rotated(a.orig, a.axis, a.sign * ARM_OUT * w)
-                    end
-                end
-            end)
-        end
-
-        local function destroyGui()
-            if abortKick then abortKick() end
-            for _, c in ipairs(guiConns) do
-                c:Disconnect()
-            end
-            guiConns = {}
-            if gui then
-                gui:Destroy()
-                gui = nil
-            end
-        end
-
-        local function createGui()
-            destroyGui()
-
-            local okParent, guiParent = pcall(function()
-                return (gethui and gethui()) or game:GetService("CoreGui")
-            end)
-            if not okParent or not guiParent then
-                guiParent = lp:WaitForChild("PlayerGui")
-            end
-
-            gui = Instance.new("ScreenGui")
-            gui.Name = "DropKickGui"
-            gui.ResetOnSpawn = false
-            gui.IgnoreGuiInset = true
-            gui.DisplayOrder = 50
-            if not pcall(function() gui.Parent = guiParent end) then
-                gui.Parent = lp:WaitForChild("PlayerGui")
-            end
-
-            local SIZE = 60
-            local btn = Instance.new("TextButton")
-            btn.Name = "DropKickButton"
-            btn.Parent = gui
-            btn.Size = UDim2.new(0, SIZE, 0, SIZE)
-            btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            btn.AutoButtonColor = false
-            btn.Text = "🦶"
-            btn.TextSize = 28
-            btn.Font = Enum.Font.GothamBold
-            btn.TextColor3 = Color3.fromRGB(0, 0, 0)
-
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(1, 0)
-            corner.Parent = btn
-
-            local stroke = Instance.new("UIStroke")
-            stroke.Color = Color3.fromRGB(0, 0, 0)
-            stroke.Thickness = 2
-            stroke.Parent = btn
-
-            local saved = getgenv().DropKick_Pos
-            if saved then
-                btn.Position = UDim2.new(0, saved.X, 0, saved.Y)
-            else
-                btn.Position = UDim2.new(1, -90, 0.6, 0)
-            end
-
-            local function clampToScreen(x, y)
-                local cam = workspace.CurrentCamera
-                local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
-                return math.clamp(x, 0, vp.X - SIZE), math.clamp(y, 0, vp.Y - SIZE)
-            end
-
-            -- ==========================================================
-            -- ระบบลากย้าย: "ผูกกับนิ้วที่กดปุ่มนี้เท่านั้น" (dragInput)
-            -- แก้บั๊กเดิมที่ปุ่มวาร์ปไปหานิ้วอีกข้าง (นิ้วที่ใช้เดิน) เพราะรับทุกนิ้วที่ขยับบนจอ
-            -- ==========================================================
-            local dragging, moved = false, false
-            local dragInput, dragStart, startX, startY
-
-            local function isPointer(input)
-                return input.UserInputType == Enum.UserInputType.MouseButton1
-                    or input.UserInputType == Enum.UserInputType.Touch
-            end
-
-            table.insert(guiConns, btn.InputBegan:Connect(function(input)
-                if not dragging and isPointer(input) then
-                    dragging, moved = true, false
-                    dragInput = input
-                    dragStart = input.Position
-                    startX, startY = btn.AbsolutePosition.X, btn.AbsolutePosition.Y
-                end
-            end))
-
-            table.insert(guiConns, UserInputService.InputChanged:Connect(function(input)
-                if not dragging or not dragInput then return end
-                local isMouseDrag = dragInput.UserInputType == Enum.UserInputType.MouseButton1
-                local mine = (isMouseDrag and input.UserInputType == Enum.UserInputType.MouseMovement)
-                    or (not isMouseDrag and input == dragInput)
-                if not mine then return end -- นิ้ว/เมาส์อื่น ไม่เกี่ยวกับปุ่มนี้
-
-                local dx = input.Position.X - dragStart.X
-                local dy = input.Position.Y - dragStart.Y
-                if math.abs(dx) > 8 or math.abs(dy) > 8 then
-                    moved = true
-                end
-                if moved then
-                    local x, y = clampToScreen(startX + dx, startY + dy)
-                    btn.Position = UDim2.new(0, x, 0, y)
-                end
-            end))
-
-            table.insert(guiConns, UserInputService.InputEnded:Connect(function(input)
-                if not dragging or not dragInput then return end
-                local isMouseDrag = dragInput.UserInputType == Enum.UserInputType.MouseButton1
-                local mine = (input == dragInput)
-                    or (isMouseDrag and input.UserInputType == Enum.UserInputType.MouseButton1)
-                if not mine then return end -- นิ้วอื่นปล่อย ไม่นับ
-
-                dragging = false
-                dragInput = nil
-                if moved then
-                    getgenv().DropKick_Pos = Vector2.new(btn.AbsolutePosition.X, btn.AbsolutePosition.Y)
-                else
-                    dbg("กดปุ่ม")
-                    playKick()
-                end
-            end))
-        end
-
-        -- ล้างตอนรันสคริปต์ซ้ำ
-        local prevCleanup = getgenv().MainScript_Cleanup
-        getgenv().MainScript_Cleanup = function()
-            getgenv().DropKick_Active = false
-            destroyGui()
-            if prevCleanup then prevCleanup() end
-        end
-
-        return createSwitchButton(parent, "🦶 ปุ่มดรอปคิก (ท่าเล่นๆ)", false, function(isActive)
-            getgenv().DropKick_Active = isActive
-            if isActive then
-                createGui()
-            else
-                destroyGui()
-            end
-        end)
+        return false
     end
 
-    createDropKickSwitch(ToyContainer)
-    end
-    
+    -- ⚡ ระบบจัดการแรงฟิสิกส์แบบกำหนดปลายทาง + ล้างแรงย้อนกลับ
+    local function toggleFlingAura(state)
+        if state then
+            if connection then connection:Disconnect() end
             
+            connection = RunService.Heartbeat:Connect(function()
+                if not getgenv().SuperFling_Active then return end
+                
+                pcall(function()
+                    local myChar = lp.Character
+                    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                    local myRoot = myChar.HumanoidRootPart
 
+                    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+                        if otherPlayer ~= lp and otherPlayer.Character then
+                            local otherChar = otherPlayer.Character
+                            local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
+                            local otherHum = otherChar:FindFirstChild("Humanoid")
+                            
+                            if otherRoot and otherHum and otherHum.Health > 0 then
+                                local distance = (myRoot.Position - otherRoot.Position).Magnitude
+                                
+                                -- เมื่อเกิดการสัมผัส/เข้าใกล้ในระยะประชิด (6 สตั๊ด)
+                                if distance <= 6 then
+                                    -- 🛑 1. ปฏิเสธแรงย้อนกลับใส่ตัวเราเองทันที (Force Rejection)
+                                    myRoot.Velocity = Vector3.zero
+                                    myRoot.RotVelocity = Vector3.zero
+                                    myRoot.AssemblyLinearVelocity = Vector3.zero
+                                    myRoot.AssemblyAngularVelocity = Vector3.zero
+
+                                    -- 🛡️ 2. เช็ก Owner
+                                    if isOwner(otherPlayer) then
+                                        -- ถ้าระบุว่าเป้าหมายคือ Owner -> ส่งแรงย้อนกลับมาดีดตัวเราเองออกไป
+                                        local bounce = Instance.new("BodyVelocity")
+                                        bounce.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                        bounce.Velocity = Vector3.new(0, 5000, 0)
+                                        bounce.Parent = myRoot
+                                        task.delay(0.1, function() if bounce then bounce:Destroy() end end)
+                                    else
+                                        -- 🌪️ 3. ถ้านอกเหนือจาก Owner -> ให้ผู้เล่นคนนั้นเป็น "จุดรับแรงทั้งหมด" (Force Sink)
+                                        local pushDir = (otherRoot.Position - myRoot.Position).Unit
+                                        
+                                        -- สร้างแรงอัดเข้าตัวเป้าหมายโดยตรง
+                                        local forceSink = Instance.new("BodyVelocity")
+                                        forceSink.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                        forceSink.Velocity = pushDir * 6000 + Vector3.new(0, 4000, 0)
+                                        forceSink.Parent = otherRoot
+                                        
+                                        -- บังคับลบแรงออกใน 0.1 วินาที เพื่อปล่อยให้ตัวเป้าหมายบินหลุดแมพตามฟิสิกส์ธรรมชาติ
+                                        task.delay(0.1, function()
+                                            if forceSink then forceSink:Destroy() end
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end)
+        else
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+        end
+    end
+
+    return createSwitchButton(parent, "🌪️ เกราะเดินชนปลิว (กันแรงส่งย้อนกลับ)", getgenv().SuperFling_Active, function(isActive)
+        getgenv().SuperFling_Active = isActive
+        toggleFlingAura(isActive)
+    end)
+end
+
+createSuperFlingSwitch(ToyContainer)
+    
+
+
+
+            
+            
+                
 
         
                     
