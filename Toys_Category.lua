@@ -289,11 +289,8 @@ end
 
 
 
-
-            
-
 -- ==========================================================
--- 🦶 ฟังก์ชันเดี่ยว: ปุ่มดรอปคิก (กระโดดถีบขาคู่ ท่าเล่นๆ)
+-- 🦶 ฟังก์ชันเดี่ยว: ปุ่มดรอปคิก (กระโดดถีบขาคู่ ท่าเล่นๆ) — เวอร์ชันรองรับตัวละครทุกแบบ
 -- เปิดสวิตช์ -> มีปุ่มกลมเล็กๆ ลอยบนจอ ลากย้ายได้ / กดแล้วตัวละครกระโดดเตะขาคู่ 1 ครั้ง
 -- วางไว้ "เหนือ" บรรทัด  return { Container = ToyContainer, ... }  ใน toys.lua
 -- ต้องมีตัวแปร ToyContainer กับ createSwitchButton อยู่ในขอบเขต
@@ -307,13 +304,13 @@ do
         local lp = Players.LocalPlayer
 
         -- ===== ปรับท่าได้ที่นี่ =====
-        local FORWARD_SPEED = 35   -- แรงส่ง: พุ่งไปข้างหน้ากี่ studs/วินาที (สูงสุด 50 ตั้งเกินนี้โค้ดจะบีบให้เหลือ 50)
-        local THRUST_TIME = 0.35   -- ออกแรงส่งต่อเนื่องกี่วินาที (ยิ่งนานยิ่งพุ่งไกล)
-        local DEBUG = true         -- true = พิมพ์ข้อความบอกสถานะในคอนโซล (ไว้หาสาเหตุถ้าไม่ทำงาน)
+        local FORWARD_SPEED = 35   -- แรงส่ง: พุ่งไปข้างหน้ากี่ studs/วินาที (สูงสุด 50)
+        local THRUST_TIME = 0.35   -- ออกแรงส่งต่อเนื่องกี่วินาที
         local LEAN = 0.95          -- เอนตัวไปข้างหลังกี่เรเดียน (ยิ่งมากยิ่งแนวนอน)
         local LEG_EXTRA = 0.45     -- เหยียดขาไปข้างหน้าเพิ่ม
         local ARM_OUT = 0.9        -- กางแขนช่วยทรงตัว
         local MAX_TIME = 1.4       -- เวลาสูงสุดของท่า (วินาที) กันค้าง
+        local DEBUG = true         -- true = พิมพ์สถานะในคอนโซล
         -- ============================
 
         FORWARD_SPEED = math.clamp(FORWARD_SPEED, 0, 50)
@@ -333,19 +330,97 @@ do
             return x * x * (3 - 2 * x)
         end
 
-        -- หมุนข้อต่อในแกนของ Part0 โดยใช้จุดข้อต่อเดิมเป็นจุดหมุน (ใช้ได้ทั้ง R6 และ R15)
-        local function rotated(orig, rx, rz)
+        -- หมุนข้อต่อรอบแกนที่กำหนด (แกนอยู่ในกรอบของ Part0) โดยใช้จุดข้อต่อเป็นจุดหมุน
+        local function rotated(orig, axisLocal, angle)
             local pos = orig.Position
             local rot = orig - pos
-            return CFrame.new(pos) * CFrame.Angles(rx, 0, rz) * rot
+            return CFrame.new(pos) * CFrame.fromAxisAngle(axisLocal, angle) * rot
         end
 
-        local function findJoint(char, names)
-            for _, n in ipairs(names) do
-                local j = char:FindFirstChild(n, true)
-                if j and j:IsA("Motor6D") then
-                    return j
+        -- ==========================================================
+        -- หาข้อต่อแบบ "ไม่ยึดชื่อ" ใช้ตำแหน่งชิ้นส่วนเทียบกับ HumanoidRootPart แทน
+        --   ข้อต่อราก = Motor6D ที่ต่อจาก HRP ไปยังชิ้นส่วนลำตัว
+        --   ขา  = ข้อต่อที่ชิ้นส่วนอยู่ต่ำกว่าศูนย์กลางตัว (ซ้าย/ขวา ฝั่งละ 1 อัน ตัวที่สูงสุด = สะโพก)
+        --   แขน = ข้อต่อที่ชิ้นส่วนอยู่ห่างออกด้านข้าง (ซ้าย/ขวา ฝั่งละ 1 อัน ตัวที่สูงสุด = ไหล่)
+        -- ทำงานกับ R6, R15 และโมเดลตัวละครที่ผู้เล่นปั้นเอง ถ้าใช้ Motor6D เชื่อมส่วนต่างๆ
+        -- ==========================================================
+        local function buildRig(char, hum)
+            local hrp = hum.RootPart or char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return nil end
+
+            local motors = {}
+            for _, d in ipairs(char:GetDescendants()) do
+                if d:IsA("Motor6D") and d.Part0 and d.Part1
+                    and d.Part0:IsA("BasePart") and d.Part1:IsA("BasePart") then
+                    table.insert(motors, d)
                 end
+            end
+
+            -- ข้อต่อราก: Part0 = HRP (ถ้ามีหลายอัน เลือกที่ชิ้นส่วนใหญ่สุด)
+            local rootJ, bestVol = nil, -1
+            for _, m in ipairs(motors) do
+                if m.Part0 == hrp then
+                    local sz = m.Part1.Size
+                    local vol = sz.X * sz.Y * sz.Z
+                    if vol > bestVol then
+                        rootJ, bestVol = m, vol
+                    end
+                end
+            end
+
+            local rig = { hrp = hrp, root = rootJ, legs = {}, arms = {}, motorCount = #motors }
+            if not rootJ then return rig end
+
+            local hrpCF = hrp.CFrame
+            local scale = math.max(hrp.Size.Y / 2, 0.25)
+
+            local function axisFor(m, worldAxis)
+                return m.Part0.CFrame:VectorToObjectSpace(worldAxis).Unit
+            end
+
+            rig.rootOrig = rootJ.C0
+            rig.rootAxis = axisFor(rootJ, hrpCF.XVector)
+
+            local legBySide, armBySide = {}, {}
+            for _, m in ipairs(motors) do
+                if m ~= rootJ then
+                    local rel = hrpCF:PointToObjectSpace(m.Part1.Position)
+                    local side = rel.X < 0 and "L" or "R"
+                    if rel.Y < -0.4 * scale and math.abs(rel.X) > 0.1 * scale then
+                        local cur = legBySide[side]
+                        if not cur or rel.Y > cur.y then
+                            legBySide[side] = { m = m, y = rel.Y }
+                        end
+                    elseif rel.Y >= -0.4 * scale and math.abs(rel.X) > 0.75 * scale then
+                        local cur = armBySide[side]
+                        if not cur or rel.Y > cur.y then
+                            armBySide[side] = { m = m, y = rel.Y }
+                        end
+                    end
+                end
+            end
+
+            for _, e in pairs(legBySide) do
+                table.insert(rig.legs, { m = e.m, orig = e.m.C0, axis = axisFor(e.m, hrpCF.XVector) })
+            end
+            for side, e in pairs(armBySide) do
+                table.insert(rig.arms, {
+                    m = e.m, orig = e.m.C0,
+                    axis = axisFor(e.m, hrpCF.ZVector),
+                    sign = (side == "L") and -1 or 1,
+                })
+            end
+            return rig
+        end
+
+        local function restoreRig(rig)
+            if not rig or not rig.root then return end
+            if rig.root.Parent then rig.root.C0 = rig.rootOrig end
+            for _, l in ipairs(rig.legs) do
+                if l.m.Parent then l.m.C0 = l.orig end
+            end
+            for _, a in ipairs(rig.arms) do
+                if a.m.Parent then a.m.C0 = a.orig end
             end
         end
 
@@ -353,27 +428,17 @@ do
             if kicking then return end
             local char = lp.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
-            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local root = char and (hum and hum.RootPart or char:FindFirstChild("HumanoidRootPart"))
             if not hum or not root or hum.Health <= 0 then
                 dbg("กดแล้วแต่หาตัวละครไม่เจอ หรือตายอยู่")
                 return
             end
 
-            local joints = {
-                root = findJoint(char, { "Root", "RootJoint" }),
-                lhip = findJoint(char, { "LeftHip", "Left Hip" }),
-                rhip = findJoint(char, { "RightHip", "Right Hip" }),
-                lsh = findJoint(char, { "LeftShoulder", "Left Shoulder" }),
-                rsh = findJoint(char, { "RightShoulder", "Right Shoulder" }),
-            }
-            if not joints.root or not joints.lhip or not joints.rhip then
-                warn("ดรอปคิก: ตัวละครนี้ไม่ใช่ R6/R15 หาข้อต่อไม่เจอ")
-                return
-            end
-
-            local origins = {}
-            for k, j in pairs(joints) do
-                origins[k] = j.C0
+            local rig = buildRig(char, hum)
+            if rig and rig.root then
+                dbg("พบข้อต่อ ราก 1 | ขา", #rig.legs, "| แขน", #rig.arms, "| Motor6D ทั้งหมด", rig.motorCount)
+            else
+                dbg("หาข้อต่อรากไม่เจอ (ตัวละครนี้ไม่ได้ใช้ Motor6D ต่อจาก HRP) จะกระโดดพุ่งอย่างเดียว ไม่เล่นท่า")
             end
 
             kicking = true
@@ -383,17 +448,13 @@ do
                     renderConn:Disconnect()
                     renderConn = nil
                 end
-                for k, j in pairs(joints) do
-                    if j and j.Parent then
-                        j.C0 = origins[k]
-                    end
-                end
+                restoreRig(rig)
                 kicking = false
                 abortKick = nil
             end
             abortKick = finish
 
-            -- กระโดด + พุ่งไปข้างหน้านิดหน่อย (เคลื่อนที่เฉพาะตัวเรา ไม่มีแรงกระทำกับคนอื่น)
+            -- กระโดด + พุ่งไปข้างหน้า (เคลื่อนที่เฉพาะตัวเรา ไม่มีแรงกระทำกับคนอื่น)
             local vy = hum.UseJumpPower and hum.JumpPower
                 or math.sqrt(2 * workspace.Gravity * hum.JumpHeight)
             local look = root.CFrame.LookVector
@@ -404,7 +465,7 @@ do
             dbg("เริ่มเตะ แรงส่ง =", FORWARD_SPEED, "แรงกระโดด =", math.floor(vy))
 
             local startTime = os.clock()
-            local endingAt, endW, lastW = nil, 0, 0
+            local endingAt, endW = nil, 0
 
             renderConn = RunService.RenderStepped:Connect(function()
                 if lp.Character ~= char or not root.Parent or hum.Health <= 0 then
@@ -414,17 +475,17 @@ do
 
                 local now = os.clock()
                 local t = now - startTime
-                local w
 
+                -- แรงส่งต่อเนื่องช่วงแรก (Humanoid จะลดความเร็วเองถ้าตั้งแค่ครั้งเดียว)
                 if t < THRUST_TIME then
-                    local v = root.AssemblyLinearVelocity
-                    local y = v.Y
+                    local y = root.AssemblyLinearVelocity.Y
                     if t < 0.1 and y < vy * 0.6 then
-                        y = vy -- ย้ำแรงกระโดดช่วงแรก เผื่อโดนเกมทับ
+                        y = vy
                     end
                     root.AssemblyLinearVelocity = Vector3.new(flat.X * FORWARD_SPEED, y, flat.Z * FORWARD_SPEED)
                 end
 
+                local w
                 if not endingAt then
                     w = smooth(math.clamp((t - 0.05) / 0.2, 0, 1))
                     local grounded = hum.FloorMaterial ~= Enum.Material.Air
@@ -440,14 +501,17 @@ do
                         return
                     end
                 end
-                lastW = w
 
                 -- ตัวเอนไปข้างหลัง ขาพุ่งไปข้างหน้า แขนกางออก
-                joints.root.C0 = rotated(origins.root, LEAN * w, 0)
-                joints.lhip.C0 = rotated(origins.lhip, LEG_EXTRA * w, 0)
-                joints.rhip.C0 = rotated(origins.rhip, LEG_EXTRA * w, 0)
-                if joints.lsh then joints.lsh.C0 = rotated(origins.lsh, 0, -ARM_OUT * w) end
-                if joints.rsh then joints.rsh.C0 = rotated(origins.rsh, 0, ARM_OUT * w) end
+                if rig and rig.root then
+                    rig.root.C0 = rotated(rig.rootOrig, rig.rootAxis, LEAN * w)
+                    for _, l in ipairs(rig.legs) do
+                        l.m.C0 = rotated(l.orig, l.axis, LEG_EXTRA * w)
+                    end
+                    for _, a in ipairs(rig.arms) do
+                        a.m.C0 = rotated(a.orig, a.axis, a.sign * ARM_OUT * w)
+                    end
+                end
             end)
         end
 
@@ -503,7 +567,6 @@ do
             stroke.Thickness = 2
             stroke.Parent = btn
 
-            -- ตำแหน่งที่จำไว้ (ในรอบการเล่นนี้) ถ้าไม่มีให้วางทางขวาของจอ
             local saved = getgenv().DropKick_Pos
             if saved then
                 btn.Position = UDim2.new(0, saved.X, 0, saved.Y)
@@ -517,9 +580,12 @@ do
                 return math.clamp(x, 0, vp.X - SIZE), math.clamp(y, 0, vp.Y - SIZE)
             end
 
-            -- ระบบลากย้าย: ถ้าขยับน้อยกว่า 8 พิกเซลถือว่าเป็นการกด
+            -- ==========================================================
+            -- ระบบลากย้าย: "ผูกกับนิ้วที่กดปุ่มนี้เท่านั้น" (dragInput)
+            -- แก้บั๊กเดิมที่ปุ่มวาร์ปไปหานิ้วอีกข้าง (นิ้วที่ใช้เดิน) เพราะรับทุกนิ้วที่ขยับบนจอ
+            -- ==========================================================
             local dragging, moved = false, false
-            local dragStart, startX, startY
+            local dragInput, dragStart, startX, startY
 
             local function isPointer(input)
                 return input.UserInputType == Enum.UserInputType.MouseButton1
@@ -527,37 +593,46 @@ do
             end
 
             table.insert(guiConns, btn.InputBegan:Connect(function(input)
-                if isPointer(input) then
+                if not dragging and isPointer(input) then
                     dragging, moved = true, false
+                    dragInput = input
                     dragStart = input.Position
                     startX, startY = btn.AbsolutePosition.X, btn.AbsolutePosition.Y
                 end
             end))
 
             table.insert(guiConns, UserInputService.InputChanged:Connect(function(input)
-                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-                    or input.UserInputType == Enum.UserInputType.Touch) then
-                    local dx = input.Position.X - dragStart.X
-                    local dy = input.Position.Y - dragStart.Y
-                    if math.abs(dx) > 8 or math.abs(dy) > 8 then
-                        moved = true
-                    end
-                    if moved then
-                        local x, y = clampToScreen(startX + dx, startY + dy)
-                        btn.Position = UDim2.new(0, x, 0, y)
-                    end
+                if not dragging or not dragInput then return end
+                local isMouseDrag = dragInput.UserInputType == Enum.UserInputType.MouseButton1
+                local mine = (isMouseDrag and input.UserInputType == Enum.UserInputType.MouseMovement)
+                    or (not isMouseDrag and input == dragInput)
+                if not mine then return end -- นิ้ว/เมาส์อื่น ไม่เกี่ยวกับปุ่มนี้
+
+                local dx = input.Position.X - dragStart.X
+                local dy = input.Position.Y - dragStart.Y
+                if math.abs(dx) > 8 or math.abs(dy) > 8 then
+                    moved = true
+                end
+                if moved then
+                    local x, y = clampToScreen(startX + dx, startY + dy)
+                    btn.Position = UDim2.new(0, x, 0, y)
                 end
             end))
 
             table.insert(guiConns, UserInputService.InputEnded:Connect(function(input)
-                if dragging and isPointer(input) then
-                    dragging = false
-                    if moved then
-                        getgenv().DropKick_Pos = Vector2.new(btn.AbsolutePosition.X, btn.AbsolutePosition.Y)
-                    else
-                        dbg("กดปุ่ม")
-                        playKick()
-                    end
+                if not dragging or not dragInput then return end
+                local isMouseDrag = dragInput.UserInputType == Enum.UserInputType.MouseButton1
+                local mine = (input == dragInput)
+                    or (isMouseDrag and input.UserInputType == Enum.UserInputType.MouseButton1)
+                if not mine then return end -- นิ้วอื่นปล่อย ไม่นับ
+
+                dragging = false
+                dragInput = nil
+                if moved then
+                    getgenv().DropKick_Pos = Vector2.new(btn.AbsolutePosition.X, btn.AbsolutePosition.Y)
+                else
+                    dbg("กดปุ่ม")
+                    playKick()
                 end
             end))
         end
@@ -583,6 +658,13 @@ do
     createDropKickSwitch(ToyContainer)
     end
     
+            
+
+
+        
+                    
+            
+            
 
 
 
