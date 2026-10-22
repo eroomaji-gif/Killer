@@ -3592,7 +3592,7 @@ createLivingScannerSwitch(ContentContainer)
 -- 🔗 วางไว้ท้ายสคริปต์หลัก (ใต้บล็อกออโต้และ ESP) เพื่อดึงหมวด "ของเล่น" มารัน
 -- เปลี่ยน URL ให้ตรงกับ repo/ชื่อไฟล์ของคุณ
 -- ==========================================================
-local TOY_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/main/modules/toys.lua"
+local TOY_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/refs/heads/main/Toys_Category.lua"
 
 local ok, err = pcall(function()
     local src = game:HttpGet(TOY_URL)
