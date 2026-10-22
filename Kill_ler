@@ -3667,11 +3667,3 @@ xpcall(function()
             ToysContainer.Visible = false
         end)
     end
-
-
-
-
-
-end, function(err)
-    warn("[ของเล่น] error: " .. tostring(err))
-end)
