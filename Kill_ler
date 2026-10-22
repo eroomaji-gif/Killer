@@ -3588,6 +3588,40 @@ createLivingScannerSwitch(ContentContainer)
 
 
 
+-- ==========================================================
+-- 🔗 วางไว้ท้ายสคริปต์หลัก (ใต้บล็อกออโต้และ ESP) เพื่อดึงหมวด "ของเล่น" มารัน
+-- เปลี่ยน URL ให้ตรงกับ repo/ชื่อไฟล์ของคุณ
+-- ==========================================================
+local TOY_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/main/modules/toys.lua"
+
+local ok, err = pcall(function()
+    local src = game:HttpGet(TOY_URL)
+    loadstring(src)()({
+        SidebarFrame = SidebarFrame,
+        MainFrame = MainFrame,
+        createSwitchButton = createSwitchButton,
+
+        CatBtn1 = CatBtn1,
+        CatBtnAuto = CatBtnAuto,   -- ไม่มีหมวดนี้ก็ปล่อยไว้ได้ (จะเป็น nil)
+        CatBtnESP = CatBtnESP,     -- ไม่มีหมวดนี้ก็ปล่อยไว้ได้
+        CatBtnTp = CatBtnTp,
+        CatBtnInfo = CatBtnInfo,
+        CatBtnSettings = CatBtnSettings,
+        CatBtnCreator = CatBtnCreator,
+
+        ContentContainer = ContentContainer,
+        TeleportContainer = TeleportContainer,
+        InfoContainer = InfoContainer,
+        SettingsContainer = SettingsContainer,
+        CreatorContainer = CreatorContainer,
+        AutoContainer = AutoContainer,
+        ESPContainer = ESPContainer,
+    })
+end)
+
+if not ok then
+    warn("โหลดหมวดของเล่นไม่สำเร็จ: ", err)
+end
 
 
 
