@@ -289,7 +289,7 @@ end
     -- ==========================================
 -- 🌪️ [ฟังก์ชันก้อน] โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)
 -- ==========================================
-local function createSuperFlingSwitch(container)
+local function createSuperFlingSwitch(parent)
     getgenv().SuperFling_Active = false
     local RunService = game:GetService("RunService")
     local Players = game:GetService("Players")
@@ -338,17 +338,13 @@ local function createSuperFlingSwitch(container)
         end
     end
 
-    -- คืนค่าปุ่มแคปซูลกลับไปใส่ Container ของหมวดหมู่
-    return createSwitchButton(parant, "🌪️ โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)", getgenv().SuperFling_Active, function(isActive)
+    return createSwitchButton(parent, "🌪️ โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
         toggleSuperFling(isActive)
     end)
 end
 
--- เรียกใช้งานเพื่อสร้างปุ่มลง Container (ชื่อตัวแปรหน้าต่างของคุณ)
-createSuperFlingSwitch(ToysContainer)
-    
-    
+createSuperFlingSwitch(ToyContainer)
     
 
     
