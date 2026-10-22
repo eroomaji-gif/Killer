@@ -285,8 +285,9 @@ end
 
 
 
--- ==========================================
--- 🧸 [ปุ่มฟังก์ชัน] โหมดพุ่งชนทะลุพิกัด (Fling / Super Knockback)
+    
+    -- ==========================================
+-- 🧸 [ปุ่มฟังก์ชัน] โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)
 -- ==========================================
 do
     getgenv().SuperFling_Active = false
@@ -314,9 +315,7 @@ do
                             
                             if otherRoot and otherHum and otherHum.Health > 0 then
                                 local distance = (myRoot.Position - otherRoot.Position).Magnitude
-                                -- ถ้าเข้าใกล้ในระยะประชิด
                                 if distance <= 4 then
-                                    -- 🌪️ อัดแรงเหวี่ยงฟิสิกส์ขั้นสุดยอด (Fling Exploit Mechanics)
                                     local flyer = Instance.new("BodyVelocity")
                                     flyer.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
                                     flyer.Velocity = (otherRoot.Position - myRoot.Position).Unit * 500 + Vector3.new(0, 300, 0)
@@ -339,6 +338,7 @@ do
         end
     end
 
+    -- 📌 เรียกใช้คำสั่งสร้างปุ่มแคปซูลตรงนี้ได้เลย (ให้ใช้ ToysContainer ที่มี s ลงท้าย)
     createSwitchButton(ToysContainer, "🌪️ โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
         toggleSuperFling(isActive)
