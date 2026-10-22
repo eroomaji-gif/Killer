@@ -289,6 +289,9 @@ end
 
 
 
+
+            
+
 -- ==========================================================
 -- 🦶 ฟังก์ชันเดี่ยว: ปุ่มดรอปคิก (กระโดดถีบขาคู่ ท่าเล่นๆ)
 -- เปิดสวิตช์ -> มีปุ่มกลมเล็กๆ ลอยบนจอ ลากย้ายได้ / กดแล้วตัวละครกระโดดเตะขาคู่ 1 ครั้ง
@@ -304,12 +307,19 @@ do
         local lp = Players.LocalPlayer
 
         -- ===== ปรับท่าได้ที่นี่ =====
-        local FORWARD_SPEED = 20   -- พุ่งไปข้างหน้ากี่ studs/วินาที (ลดเป็น 0 ถ้าอยากกระโดดอยู่กับที่)
+        local FORWARD_SPEED = 35   -- แรงส่ง: พุ่งไปข้างหน้ากี่ studs/วินาที (สูงสุด 50 ตั้งเกินนี้โค้ดจะบีบให้เหลือ 50)
+        local THRUST_TIME = 0.35   -- ออกแรงส่งต่อเนื่องกี่วินาที (ยิ่งนานยิ่งพุ่งไกล)
+        local DEBUG = true         -- true = พิมพ์ข้อความบอกสถานะในคอนโซล (ไว้หาสาเหตุถ้าไม่ทำงาน)
         local LEAN = 0.95          -- เอนตัวไปข้างหลังกี่เรเดียน (ยิ่งมากยิ่งแนวนอน)
         local LEG_EXTRA = 0.45     -- เหยียดขาไปข้างหน้าเพิ่ม
         local ARM_OUT = 0.9        -- กางแขนช่วยทรงตัว
         local MAX_TIME = 1.4       -- เวลาสูงสุดของท่า (วินาที) กันค้าง
         -- ============================
+
+        FORWARD_SPEED = math.clamp(FORWARD_SPEED, 0, 50)
+        local function dbg(...)
+            if DEBUG then print("[ดรอปคิก]", ...) end
+        end
 
         getgenv().DropKick_Active = false
 
@@ -344,7 +354,10 @@ do
             local char = lp.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             local root = char and char:FindFirstChild("HumanoidRootPart")
-            if not hum or not root or hum.Health <= 0 then return end
+            if not hum or not root or hum.Health <= 0 then
+                dbg("กดแล้วแต่หาตัวละครไม่เจอ หรือตายอยู่")
+                return
+            end
 
             local joints = {
                 root = findJoint(char, { "Root", "RootJoint" }),
@@ -383,9 +396,12 @@ do
             -- กระโดด + พุ่งไปข้างหน้านิดหน่อย (เคลื่อนที่เฉพาะตัวเรา ไม่มีแรงกระทำกับคนอื่น)
             local vy = hum.UseJumpPower and hum.JumpPower
                 or math.sqrt(2 * workspace.Gravity * hum.JumpHeight)
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
             local look = root.CFrame.LookVector
-            root.AssemblyLinearVelocity = Vector3.new(look.X * FORWARD_SPEED, vy, look.Z * FORWARD_SPEED)
+            local flat = Vector3.new(look.X, 0, look.Z)
+            flat = flat.Magnitude > 0.01 and flat.Unit or Vector3.new(0, 0, -1)
+            hum.Jump = true
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            dbg("เริ่มเตะ แรงส่ง =", FORWARD_SPEED, "แรงกระโดด =", math.floor(vy))
 
             local startTime = os.clock()
             local endingAt, endW, lastW = nil, 0, 0
@@ -399,6 +415,15 @@ do
                 local now = os.clock()
                 local t = now - startTime
                 local w
+
+                if t < THRUST_TIME then
+                    local v = root.AssemblyLinearVelocity
+                    local y = v.Y
+                    if t < 0.1 and y < vy * 0.6 then
+                        y = vy -- ย้ำแรงกระโดดช่วงแรก เผื่อโดนเกมทับ
+                    end
+                    root.AssemblyLinearVelocity = Vector3.new(flat.X * FORWARD_SPEED, y, flat.Z * FORWARD_SPEED)
+                end
 
                 if not endingAt then
                     w = smooth(math.clamp((t - 0.05) / 0.2, 0, 1))
@@ -530,6 +555,7 @@ do
                     if moved then
                         getgenv().DropKick_Pos = Vector2.new(btn.AbsolutePosition.X, btn.AbsolutePosition.Y)
                     else
+                        dbg("กดปุ่ม")
                         playKick()
                     end
                 end
@@ -557,8 +583,6 @@ do
     createDropKickSwitch(ToyContainer)
     end
     
-
-
 
 
 
