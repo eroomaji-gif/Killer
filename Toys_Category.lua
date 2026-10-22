@@ -326,7 +326,7 @@ local function createSuperFlingSwitch(parent)
         flingButton.Size = UDim2.new(0, 50, 0, 50)
         flingButton.Draggable = true
         flingButton.Font = Enum.Font.GothamBold
-        flingButton.Text = "🌪️"
+        flingButton.Text = "🌟"
         flingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         flingButton.TextSize = 22
 
