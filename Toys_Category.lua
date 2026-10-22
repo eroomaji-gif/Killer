@@ -284,8 +284,9 @@ end
 
 
 
+
 -- ==========================================
--- 🌪️ [ฟังก์ชันก้อน] ปุ่มถีบทะลุแมพตัวจริง (พร้อมปุ่มจิ๋วบนจอ + เช็ก Owner)
+-- 🌪️ [ฟังก์ชันก้อน] กระโดดถีบระยะประชิด (ยืนถีบตรงหน้า + ซัดคนอื่นปลิวแบบไม่พุ่งทะลุ)
 -- ==========================================
 local function createSuperFlingSwitch(parent)
     getgenv().SuperFling_Active = false
@@ -327,18 +328,18 @@ local function createSuperFlingSwitch(parent)
         flingButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         flingButton.Position = UDim2.new(0.8, 0, 0.6, 0)
         flingButton.Size = UDim2.new(0, 55, 0, 55)
-        flingButton.Draggable = true -- ลากย้ายตำแหน่งบนจอได้อิสระ
+        flingButton.Draggable = true
         flingButton.Font = Enum.Font.GothamBold
         flingButton.Text = "🌪️"
         flingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         flingButton.TextSize = 24
-        flingButton.ZIndex = 999 -- ดันให้อยู่ชั้นบนสุด กดติดแน่นอน
+        flingButton.ZIndex = 999
 
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(0, 12)
         corner.Parent = flingButton
 
-        -- ⚡ เมื่อกดปุ่มจิ๋ว: พุ่งตัวกระโดดถีบ + ซัดเป้าหมายกระเด็นหาย
+        -- ⚡ เมื่อกดปุ่มจิ๋ว: ยืนกระโดดถีบระยะประชิดตรงหน้าเป๊ะๆ ไม่พุ่งทะลุ
         flingButton.MouseButton1Click:Connect(function()
             if not getgenv().SuperFling_Active then return end
             
@@ -348,19 +349,12 @@ local function createSuperFlingSwitch(parent)
                 local myRoot = myChar.HumanoidRootPart
                 local humanoid = myChar:FindFirstChildOfClass("Humanoid")
 
-                -- 1. จำลองท่ากระโดดพุ่งตัวถีบไปข้างหน้าตามมุมกล้อง
+                -- 1. แค่สั่งกระโดดขึ้น-ลง อยู่กับที่ (ให้ตัวละครเล่นท่ากระโดดตามปกติ ไม่พุ่งหนี)
                 if humanoid then
                     humanoid.Jump = true
-                    task.spawn(function()
-                        local boostTime = tick()
-                        while tick() - boostTime < 0.3 do
-                            myRoot.Velocity = myRoot.CFrame.LookVector * 180 + Vector3.new(0, 70, 0)
-                            task.wait()
-                        end
-                    end)
                 end
 
-                -- 2. ตรวจสอบผู้เล่นรอบตัวในระยะประชิด
+                -- 2. เช็กเป้าหมายที่ยืนอยู่ "ข้างหน้าเราในระยะประชิด" (ไม่ทะลุตัว)
                 for _, otherPlayer in ipairs(Players:GetPlayers()) do
                     if otherPlayer ~= lp and otherPlayer.Character then
                         local otherChar = otherPlayer.Character
@@ -368,20 +362,26 @@ local function createSuperFlingSwitch(parent)
                         local otherHum = otherChar:FindFirstChild("Humanoid")
                         
                         if otherRoot and otherHum and otherHum.Health > 0 then
+                            -- เช็กระยะสั้นๆ รอบตัว (ประมาณ 6-7 สตั๊ด ระยะเตะถึงพอดี)
                             local distance = (myRoot.Position - otherRoot.Position).Magnitude
                             
-                            if distance <= 12 then
-                                -- 🛡️ ถ้าเผลอไปกดถีบ Owner -> สะท้อนแรงดีดกลับใส่เราเอง
+                            -- เช็กมุมมองด้านหน้า (เพื่อให้แน่ใจว่าเราหันหน้าไปถีบเขาอยู่จริงๆ ไม่ได้ยืนหันหลังให้)
+                            local lookVector = myRoot.CFrame.LookVector
+                            local targetDir = (otherRoot.Position - myRoot.Position).Unit
+                            local dotProduct = lookVector:Dot(targetDir) -- ค่าเข้าใกล้ 1 แสดงว่าอยู่ข้างหน้าเรา
+                            
+                            if distance <= 7 and dotProduct > 0 then
+                                -- 🛡️ ถ้าเผลอไปกดถีบ Owner -> สะท้อนแรงดีดกลับใส่เราเองทันที
                                 if isOwner(otherPlayer) then
                                     myRoot.Velocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.CFrame = myRoot.CFrame + Vector3.new(0, 3000, 0)
                                 else
-                                    -- 🌪️ ถ้าไม่ใช่ Owner -> ซูเปอร์คิกซัดเป้าหมายปลิวหายทะลุแมพทันที
+                                    -- 🌪️ ถ้าไม่ใช่ Owner -> ส่งแรงซูเปอร์คิกจากขา ซัดเป้าหมายกระเด็นหายออกจากแมพทันที
                                     local kickDir = (otherRoot.Position - myRoot.Position).Unit
-                                    otherRoot.Velocity = kickDir * 12000 + Vector3.new(0, 9000, 0)
-                                    otherRoot.AssemblyLinearVelocity = kickDir * 12000 + Vector3.new(0, 9000, 0)
+                                    otherRoot.Velocity = kickDir * 15000 + Vector3.new(0, 10000, 0)
+                                    otherRoot.AssemblyLinearVelocity = kickDir * 15000 + Vector3.new(0, 10000, 0)
                                     otherRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
                                     otherRoot.CFrame = otherRoot.CFrame + Vector3.new(0, 10000, 0)
                                 end
@@ -393,7 +393,6 @@ local function createSuperFlingSwitch(parent)
         end)
     end
 
-    -- 🗑️ ฟังก์ชันลบปุ่มทิ้งเกลี้ยงเมื่อปิดสวิตช์
     local function removeFloatingButton()
         if screenGui then
             screenGui:Destroy()
@@ -402,7 +401,7 @@ local function createSuperFlingSwitch(parent)
         end
     end
 
-    return createSwitchButton(parent, "🌪️ ซูเปอร์คิกถีบทะลุแมพ (มีปุ่มจิ๋ว)", getgenv().SuperFling_Active, function(isActive)
+    return createSwitchButton(parent, "🌪️ กระโดดถีบประชิด + ซูเปอร์คิก", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
         if isActive then
             createFloatingButton()
