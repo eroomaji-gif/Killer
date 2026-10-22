@@ -286,8 +286,8 @@ end
 
 
 
--- ==========================================
--- 🌪️ [ฟังก์ชันก้อน] Touch Fling + ปฏิเสธแรงย้อนกลับ (Force Sink System)
+ -- ==========================================
+-- 🌪️ [ฟังก์ชันก้อน] ดักจับแรงสะท้อนเซิร์ฟเวอร์ + โยนใส่คนที่ใกล้ที่สุด
 -- ==========================================
 local function createSuperFlingSwitch(parent)
     getgenv().SuperFling_Active = false
@@ -311,7 +311,35 @@ local function createSuperFlingSwitch(parent)
         return false
     end
 
-    -- ⚡ ระบบจัดการแรงฟิสิกส์แบบกำหนดปลายทาง + ล้างแรงย้อนกลับ
+    -- 🔍 ฟังก์ชันค้นหาผู้เล่นที่อยู่ใกล้ตัวเราที่สุดในรัศมี
+    local function getNearestPlayer(maxDistance)
+        local myChar = lp.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+        local myRoot = myChar.HumanoidRootPart
+
+        local nearestTarget = nil
+        local shortestDistance = maxDistance or 10
+
+        for _, otherPlayer in ipairs(Players:GetPlayers()) do
+            if otherPlayer ~= lp and otherPlayer.Character then
+                local otherChar = otherPlayer.Character
+                local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
+                local otherHum = otherChar:FindFirstChild("Humanoid")
+
+                if otherRoot and otherHum and otherHum.Health > 0 then
+                    local dist = (myRoot.Position - otherRoot.Position).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        nearestTarget = otherPlayer
+                    end
+                end
+            end
+        end
+
+        return nearestTarget
+    end
+
+    -- ⚡ ระบบสลับทิศทางแรงสะท้อน (Recoil Redirection Loop)
     local function toggleFlingAura(state)
         if state then
             if connection then connection:Disconnect() end
@@ -324,47 +352,35 @@ local function createSuperFlingSwitch(parent)
                     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                     local myRoot = myChar.HumanoidRootPart
 
-                    for _, otherPlayer in ipairs(Players:GetPlayers()) do
-                        if otherPlayer ~= lp and otherPlayer.Character then
-                            local otherChar = otherPlayer.Character
-                            local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
-                            local otherHum = otherChar:FindFirstChild("Humanoid")
-                            
-                            if otherRoot and otherHum and otherHum.Health > 0 then
-                                local distance = (myRoot.Position - otherRoot.Position).Magnitude
-                                
-                                -- เมื่อเกิดการสัมผัส/เข้าใกล้ในระยะประชิด (6 สตั๊ด)
-                                if distance <= 6 then
-                                    -- 🛑 1. ปฏิเสธแรงย้อนกลับใส่ตัวเราเองทันที (Force Rejection)
-                                    myRoot.Velocity = Vector3.zero
-                                    myRoot.RotVelocity = Vector3.zero
-                                    myRoot.AssemblyLinearVelocity = Vector3.zero
-                                    myRoot.AssemblyAngularVelocity = Vector3.zero
+                    -- 1. ค้นหาผู้เล่นที่อยู่ใกล้ที่สุดในระยะประชิด (8 สตั๊ด)
+                    local targetPlayer = getNearestPlayer(8)
 
-                                    -- 🛡️ 2. เช็ก Owner
-                                    if isOwner(otherPlayer) then
-                                        -- ถ้าระบุว่าเป้าหมายคือ Owner -> ส่งแรงย้อนกลับมาดีดตัวเราเองออกไป
-                                        local bounce = Instance.new("BodyVelocity")
-                                        bounce.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                                        bounce.Velocity = Vector3.new(0, 5000, 0)
-                                        bounce.Parent = myRoot
-                                        task.delay(0.1, function() if bounce then bounce:Destroy() end end)
-                                    else
-                                        -- 🌪️ 3. ถ้านอกเหนือจาก Owner -> ให้ผู้เล่นคนนั้นเป็น "จุดรับแรงทั้งหมด" (Force Sink)
-                                        local pushDir = (otherRoot.Position - myRoot.Position).Unit
-                                        
-                                        -- สร้างแรงอัดเข้าตัวเป้าหมายโดยตรง
-                                        local forceSink = Instance.new("BodyVelocity")
-                                        forceSink.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                                        forceSink.Velocity = pushDir * 6000 + Vector3.new(0, 4000, 0)
-                                        forceSink.Parent = otherRoot
-                                        
-                                        -- บังคับลบแรงออกใน 0.1 วินาที เพื่อปล่อยให้ตัวเป้าหมายบินหลุดแมพตามฟิสิกส์ธรรมชาติ
-                                        task.delay(0.1, function()
-                                            if forceSink then forceSink:Destroy() end
-                                        end)
-                                    end
-                                end
+                    if targetPlayer then
+                        local targetChar = targetPlayer.Character
+                        local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+
+                        if targetRoot then
+                            -- 🛡️ เช็กว่าเป็น Owner หรือไม่
+                            if isOwner(targetPlayer) then
+                                -- ถ้าเป็น Owner -> ยอมรับแรงสะท้อนให้ตัวเรากระเด็นออกไปเอง
+                                myRoot.AssemblyLinearVelocity = Vector3.new(0, 5000, 0)
+                            else
+                                -- 🔄 2. ดักจับก้อนแรงส่ง/แรงสะท้อนที่ตัวเรามีอยู่
+                                local caughtLinear = myRoot.AssemblyLinearVelocity
+                                local caughtAngular = myRoot.AssemblyAngularVelocity
+
+                                -- 🛑 3. ปฏิเสธแรงทั้งหมดใส่ตัวเรา (สั่งล้างค่าความเร็วเราเป็น 0 ทันที)
+                                myRoot.Velocity = Vector3.zero
+                                myRoot.RotVelocity = Vector3.zero
+                                myRoot.AssemblyLinearVelocity = Vector3.zero
+                                myRoot.AssemblyAngularVelocity = Vector3.zero
+
+                                -- 🎯 4. เปลี่ยนทิศทางแรงสะท้อน + เพิ่มพลังงาน แล้วโยนใส่เป้าหมายใกล้ที่สุด
+                                local pushDirection = (targetRoot.Position - myRoot.Position).Unit
+                                
+                                -- นำก้อนแรงสะท้อนมาประมวลผลใหม่เพื่ออัดเข้าเป้าหมายคนนั้นคนเดียว
+                                targetRoot.AssemblyLinearVelocity = pushDirection * 50000 + Vector3.new(0, 30000, 0)
+                                targetRoot.AssemblyAngularVelocity = Vector3.new(999999, 999999, 999999)
                             end
                         end
                     end
@@ -378,7 +394,7 @@ local function createSuperFlingSwitch(parent)
         end
     end
 
-    return createSwitchButton(parent, "🌪️ เกราะเดินชนปลิว (กันแรงส่งย้อนกลับ)", getgenv().SuperFling_Active, function(isActive)
+    return createSwitchButton(parent, "🌪️ สลับทิศทางแรงสะท้อนใส่คนใกล้สุด", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
         toggleFlingAura(isActive)
     end)
@@ -386,10 +402,6 @@ end
 
 createSuperFlingSwitch(ToyContainer)
     
-
-
-
-            
             
                 
 
