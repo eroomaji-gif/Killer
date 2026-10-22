@@ -285,7 +285,7 @@ end
 
 
 -- ==========================================
--- 🌪️ [ฟังก์ชันก้อน] ซูเปอร์คิกกระโดดถีบขาคู่ทะลุแมพ + เช็ก Owner หลัก
+-- 🌪️ [ฟังก์ชันก้อน] ปุ่มถีบทะลุแมพตัวจริง (พร้อมปุ่มจิ๋วบนจอ + เช็ก Owner)
 -- ==========================================
 local function createSuperFlingSwitch(parent)
     getgenv().SuperFling_Active = false
@@ -295,6 +295,7 @@ local function createSuperFlingSwitch(parent)
     local screenGui = nil
     local flingButton = nil
 
+    -- 🛡️ ฟังก์ชันเช็ก Owner จากสคริปต์หลัก
     local function isOwner(player)
         local ownersList = ctx.Owners or {
             "ชื่อOwnerคนที1",
@@ -309,10 +310,12 @@ local function createSuperFlingSwitch(parent)
         return false
     end
 
+    -- 🕹️ ฟังก์ชันสร้างปุ่มจิ๋วบนหน้าจอ
     local function createFloatingButton()
         if screenGui then return end
         
         local playerGui = lp:WaitForChild("PlayerGui")
+        
         screenGui = Instance.new("ScreenGui")
         screenGui.Name = "SuperFlingGui"
         screenGui.ResetOnSpawn = false
@@ -321,20 +324,21 @@ local function createSuperFlingSwitch(parent)
         flingButton = Instance.new("TextButton")
         flingButton.Name = "FlingExecuteButton"
         flingButton.Parent = screenGui
-        flingButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-        flingButton.Position = UDim2.new.new and UDim2.new(0.8, 0, 0.6, 0) or UDim2.new(0.8, 0, 0.6, 0)
-        flingButton.Size = UDim2.new(0, 50, 0, 50)
-        flingButton.Draggable = true
+        flingButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        flingButton.Position = UDim2.new(0.8, 0, 0.6, 0)
+        flingButton.Size = UDim2.new(0, 55, 0, 55)
+        flingButton.Draggable = true -- ลากย้ายตำแหน่งบนจอได้อิสระ
         flingButton.Font = Enum.Font.GothamBold
-        flingButton.Text = "🌟"
+        flingButton.Text = "🌪️"
         flingButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        flingButton.TextSize = 22
+        flingButton.TextSize = 24
+        flingButton.ZIndex = 999 -- ดันให้อยู่ชั้นบนสุด กดติดแน่นอน
 
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 10)
+        corner.CornerRadius = UDim.new(0, 12)
         corner.Parent = flingButton
 
-        -- ⚡ เมื่อกดปุ่ม: จำลองท่ากระโดดถีบพุ่งไปข้างหน้า + ซัดเป้าหมายปลิวหาย
+        -- ⚡ เมื่อกดปุ่มจิ๋ว: พุ่งตัวกระโดดถีบ + ซัดเป้าหมายกระเด็นหาย
         flingButton.MouseButton1Click:Connect(function()
             if not getgenv().SuperFling_Active then return end
             
@@ -344,20 +348,19 @@ local function createSuperFlingSwitch(parent)
                 local myRoot = myChar.HumanoidRootPart
                 local humanoid = myChar:FindFirstChildOfClass("Humanoid")
 
-                -- 1. เล่นท่ากระโดดพุ่งตัวไปข้างหน้า (จำลองการพุ่งถีบ) สมูทๆ
+                -- 1. จำลองท่ากระโดดพุ่งตัวถีบไปข้างหน้าตามมุมกล้อง
                 if humanoid then
                     humanoid.Jump = true
                     task.spawn(function()
                         local boostTime = tick()
-                        while tick() - boostTime < 0.25 do
-                            -- พุ่งตัวไปตามทิศทางที่หน้าตัวละครหันไปอย่างรวดเร็ว
-                            myRoot.Velocity = myRoot.CFrame.LookVector * 150 + Vector3.new(0, 60, 0)
+                        while tick() - boostTime < 0.3 do
+                            myRoot.Velocity = myRoot.CFrame.LookVector * 180 + Vector3.new(0, 70, 0)
                             task.wait()
                         end
                     end)
                 end
 
-                -- 2. ตรวจจับผู้เล่นรอบข้างเพื่อทำการ "ซูเปอร์คิก"
+                -- 2. ตรวจสอบผู้เล่นรอบตัวในระยะประชิด
                 for _, otherPlayer in ipairs(Players:GetPlayers()) do
                     if otherPlayer ~= lp and otherPlayer.Character then
                         local otherChar = otherPlayer.Character
@@ -367,24 +370,20 @@ local function createSuperFlingSwitch(parent)
                         if otherRoot and otherHum and otherHum.Health > 0 then
                             local distance = (myRoot.Position - otherRoot.Position).Magnitude
                             
-                            -- ระยะประชิดตัวในรัศมีที่กำลังพุ่งถีบ
                             if distance <= 12 then
-                                -- 🛡️ เช็กว่าเป็น Owner หรือไม่
+                                -- 🛡️ ถ้าเผลอไปกดถีบ Owner -> สะท้อนแรงดีดกลับใส่เราเอง
                                 if isOwner(otherPlayer) then
-                                    -- ถ้าเผลอไปถีบ Owner -> แรงถีบสะท้อนกลับมาซัดตัวเราปลิวแทนทันที!
                                     myRoot.Velocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.CFrame = myRoot.CFrame + Vector3.new(0, 3000, 0)
                                 else
-                                    -- 🌪️ ถ้าไม่ใช่ Owner -> ซูเปอร์คิก! อัดแรงหมุนและความเร็วอนันต์ พุ่งทะยานตกแมพหายไปเลย
-                                    local kickDirection = (otherRoot.Position - myRoot.Position).Unit
-                                    otherRoot.Velocity = kickDirection * 10000 + Vector3.new(0, 8000, 0)
-                                    otherRoot.AssemblyLinearVelocity = kickDirection * 10000 + Vector3.new(0, 8000, 0)
+                                    -- 🌪️ ถ้าไม่ใช่ Owner -> ซูเปอร์คิกซัดเป้าหมายปลิวหายทะลุแมพทันที
+                                    local kickDir = (otherRoot.Position - myRoot.Position).Unit
+                                    otherRoot.Velocity = kickDir * 12000 + Vector3.new(0, 9000, 0)
+                                    otherRoot.AssemblyLinearVelocity = kickDir * 12000 + Vector3.new(0, 9000, 0)
                                     otherRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
-                                    
-                                    -- ดีดพิกัดพุ่งทะลุขอบแมพในเสี้ยววิ
-                                    otherRoot.CFrame = otherRoot.CFrame + Vector3.new(0, 8000, 0)
+                                    otherRoot.CFrame = otherRoot.CFrame + Vector3.new(0, 10000, 0)
                                 end
                             end
                         end
@@ -394,6 +393,7 @@ local function createSuperFlingSwitch(parent)
         end)
     end
 
+    -- 🗑️ ฟังก์ชันลบปุ่มทิ้งเกลี้ยงเมื่อปิดสวิตช์
     local function removeFloatingButton()
         if screenGui then
             screenGui:Destroy()
@@ -402,7 +402,7 @@ local function createSuperFlingSwitch(parent)
         end
     end
 
-    return createSwitchButton(parent, "🌪️ ซูเปอร์คิกกระโดดถีบ + เช็ก Owner", getgenv().SuperFling_Active, function(isActive)
+    return createSwitchButton(parent, "🌪️ ซูเปอร์คิกถีบทะลุแมพ (มีปุ่มจิ๋ว)", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
         if isActive then
             createFloatingButton()
@@ -414,7 +414,6 @@ end
 
 createSuperFlingSwitch(ToyContainer)
     
-
 
     
     
