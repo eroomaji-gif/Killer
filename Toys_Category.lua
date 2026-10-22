@@ -284,9 +284,8 @@ end
 
 
 
-
 -- ==========================================
--- 🌪️ [ฟังก์ชันก้อน] ปุ่มกดถีบพุ่งทะลุแมพ + ดึงรายชื่อ Owner จากสคริปต์หลัก
+-- 🌪️ [ฟังก์ชันก้อน] ซูเปอร์คิกกระโดดถีบขาคู่ทะลุแมพ + เช็ก Owner หลัก
 -- ==========================================
 local function createSuperFlingSwitch(parent)
     getgenv().SuperFling_Active = false
@@ -296,15 +295,9 @@ local function createSuperFlingSwitch(parent)
     local screenGui = nil
     local flingButton = nil
 
-    -- 🔑 ฟังก์ชันเช็ก Owner โดยดึงค่าจากสคริปต์หลัก (ผ่านตัวแปร ctx หรือระบบกลางที่คุณมี)
     local function isOwner(player)
-        -- ถ้าในสคริปต์หลักของคุณมีตารางเก็บ Owner อยู่แล้ว (เช่น ctx.Owners หรือตัวแปรส่วนกลาง)
-        -- สามารถเรียกใช้ตรงนี้ได้เลยครับ เช่น:
-        -- local mainOwners = ctx.Owners or {"ชื่อคนที1", "ชื่อคนที2"}
-        
-        -- ตัวอย่างดึงจาก ctx (ถ้าสคริปต์หลักส่งมา) หรือใส่สำรองไว้กันเหนียว:
         local ownersList = ctx.Owners or {
-            "ชื่อOwnerคนที1", -- (ถ้าในสคริปต์หลักไม่มี ให้ใส่ชื่อสำรองตรงนี้ได้ครับ)
+            "ชื่อOwnerคนที1",
             "ชื่อOwnerคนที2"
         }
 
@@ -329,7 +322,7 @@ local function createSuperFlingSwitch(parent)
         flingButton.Name = "FlingExecuteButton"
         flingButton.Parent = screenGui
         flingButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-        flingButton.Position = UDim2.new(0.8, 0, 0.6, 0)
+        flingButton.Position = UDim2.new.new and UDim2.new(0.8, 0, 0.6, 0) or UDim2.new(0.8, 0, 0.6, 0)
         flingButton.Size = UDim2.new(0, 50, 0, 50)
         flingButton.Draggable = true
         flingButton.Font = Enum.Font.GothamBold
@@ -341,6 +334,7 @@ local function createSuperFlingSwitch(parent)
         corner.CornerRadius = UDim.new(0, 10)
         corner.Parent = flingButton
 
+        -- ⚡ เมื่อกดปุ่ม: จำลองท่ากระโดดถีบพุ่งไปข้างหน้า + ซัดเป้าหมายปลิวหาย
         flingButton.MouseButton1Click:Connect(function()
             if not getgenv().SuperFling_Active then return end
             
@@ -348,7 +342,22 @@ local function createSuperFlingSwitch(parent)
                 local myChar = lp.Character
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 local myRoot = myChar.HumanoidRootPart
+                local humanoid = myChar:FindFirstChildOfClass("Humanoid")
 
+                -- 1. เล่นท่ากระโดดพุ่งตัวไปข้างหน้า (จำลองการพุ่งถีบ) สมูทๆ
+                if humanoid then
+                    humanoid.Jump = true
+                    task.spawn(function()
+                        local boostTime = tick()
+                        while tick() - boostTime < 0.25 do
+                            -- พุ่งตัวไปตามทิศทางที่หน้าตัวละครหันไปอย่างรวดเร็ว
+                            myRoot.Velocity = myRoot.CFrame.LookVector * 150 + Vector3.new(0, 60, 0)
+                            task.wait()
+                        end
+                    end)
+                end
+
+                -- 2. ตรวจจับผู้เล่นรอบข้างเพื่อทำการ "ซูเปอร์คิก"
                 for _, otherPlayer in ipairs(Players:GetPlayers()) do
                     if otherPlayer ~= lp and otherPlayer.Character then
                         local otherChar = otherPlayer.Character
@@ -358,20 +367,24 @@ local function createSuperFlingSwitch(parent)
                         if otherRoot and otherHum and otherHum.Health > 0 then
                             local distance = (myRoot.Position - otherRoot.Position).Magnitude
                             
-                            if distance <= 10 then
-                                -- 🛡️ เช็กว่าเป้าหมายเป็น Owner ที่ดึงมาจากสคริปต์หลักหรือไม่
+                            -- ระยะประชิดตัวในรัศมีที่กำลังพุ่งถีบ
+                            if distance <= 12 then
+                                -- 🛡️ เช็กว่าเป็น Owner หรือไม่
                                 if isOwner(otherPlayer) then
-                                    -- ถ้าใช่ Owner -> สะท้อนแรงดีดกลับใส่เราเองทันที (เซฟ Owner)
+                                    -- ถ้าเผลอไปถีบ Owner -> แรงถีบสะท้อนกลับมาซัดตัวเราปลิวแทนทันที!
                                     myRoot.Velocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
                                     myRoot.CFrame = myRoot.CFrame + Vector3.new(0, 3000, 0)
                                 else
-                                    -- 🌪️ ถ้าไม่ใช่ Owner -> ซัดปลิวหายทะลุแมพ
-                                    otherRoot.Velocity = Vector3.new(99999, 99999, 99999)
-                                    otherRoot.AssemblyLinearVelocity = Vector3.new(99999, 99999, 99999)
+                                    -- 🌪️ ถ้าไม่ใช่ Owner -> ซูเปอร์คิก! อัดแรงหมุนและความเร็วอนันต์ พุ่งทะยานตกแมพหายไปเลย
+                                    local kickDirection = (otherRoot.Position - myRoot.Position).Unit
+                                    otherRoot.Velocity = kickDirection * 10000 + Vector3.new(0, 8000, 0)
+                                    otherRoot.AssemblyLinearVelocity = kickDirection * 10000 + Vector3.new(0, 8000, 0)
                                     otherRoot.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
-                                    otherRoot.CFrame = myRoot.CFrame + Vector3.new(0, 5000, 0)
+                                    
+                                    -- ดีดพิกัดพุ่งทะลุขอบแมพในเสี้ยววิ
+                                    otherRoot.CFrame = otherRoot.CFrame + Vector3.new(0, 8000, 0)
                                 end
                             end
                         end
@@ -389,7 +402,7 @@ local function createSuperFlingSwitch(parent)
         end
     end
 
-    return createSwitchButton(parent, "🌪️ ปุ่มถีบทะลุแมพ + เช็ก Owner หลัก", getgenv().SuperFling_Active, function(isActive)
+    return createSwitchButton(parent, "🌪️ ซูเปอร์คิกกระโดดถีบ + เช็ก Owner", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
         if isActive then
             createFloatingButton()
@@ -401,6 +414,8 @@ end
 
 createSuperFlingSwitch(ToyContainer)
     
+
+
     
     
 
