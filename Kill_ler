@@ -3582,3 +3582,112 @@ end
 
 -- 👇 เรียกใช้ (เปลี่ยน ContentContainer เป็นหมวดที่ต้องการได้)
 createLivingScannerSwitch(ContentContainer)
+
+
+
+
+
+
+
+
+
+xpcall(function()
+-- ==========================================================
+-- 🧸 หมวดหมู่ใหม่ "ของเล่น" (ต่อท้ายจากหมวด ESP)
+-- วิธีใส่: วางบล็อกนี้ "ท้ายสุดของสคริปต์" (หลัง createLivingScannerSwitch(ContentContainer))
+-- ปุ่มฟังก์ชันของเล่นให้ใส่ Parent เป็น ToysContainer
+-- ครอบด้วย do ... end กันกินโควตา local ของสคริปต์หลัก
+-- ==========================================================
+do
+    -- 1) ปุ่มหมวดหมู่ "ของเล่น" ที่แถบซ้าย
+    local CatBtnToys = Instance.new("TextButton")
+    CatBtnToys.Name = "CategoryToys"
+    CatBtnToys.Parent = SidebarFrame
+    CatBtnToys.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    CatBtnToys.Size = UDim2.new(1, 0, 0, 40)
+    CatBtnToys.Font = Enum.Font.GothamBold
+    CatBtnToys.Text = "🧸 ของเล่น"
+    CatBtnToys.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CatBtnToys.TextSize = 13
+
+    local CatCornerToys = Instance.new("UICorner")
+    CatCornerToys.CornerRadius = UDim.new(0, 6)
+    CatCornerToys.Parent = CatBtnToys
+
+    -- 2) จัดลำดับปุ่มซ้าย: ฆ่า+วาป -> ออโต้ -> ESP -> ของเล่น -> วาป+ฟาม -> ข้อมูล -> ตั้งค่า -> ผู้สร้าง
+    CatBtn1.LayoutOrder = 1
+    if CatBtnAuto then CatBtnAuto.LayoutOrder = 2 end
+    CatBtnESP.LayoutOrder = 3
+    CatBtnToys.LayoutOrder = 4
+    CatBtnTp.LayoutOrder = 5
+    CatBtnInfo.LayoutOrder = 6
+    CatBtnSettings.LayoutOrder = 7
+    CatBtnCreator.LayoutOrder = 8
+
+    SidebarFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
+
+    -- 3) หน้าต่างฝั่งขวาของหมวดของเล่น
+    local ToysContainer = Instance.new("ScrollingFrame")
+    ToysContainer.Name = "ToysContainer"
+    ToysContainer.Parent = MainFrame
+    ToysContainer.BackgroundTransparency = 1
+    ToysContainer.Position = UDim2.new(0, 160, 0, 50)
+    ToysContainer.Size = UDim2.new(1, -170, 1, -60)
+    ToysContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+    ToysContainer.ScrollBarThickness = 6
+    ToysContainer.Visible = false
+
+    local ToysLayout = Instance.new("UIListLayout")
+    ToysLayout.Parent = ToysContainer
+    ToysLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ToysLayout.Padding = UDim.new(0, 8)
+
+    -- ข้อความบอกว่ายังว่าง (หายเองทันทีที่ใส่ปุ่มแรกเข้ามา)
+    local ToysEmptyHint = Instance.new("TextLabel")
+    ToysEmptyHint.Name = "EmptyHint"
+    ToysEmptyHint.Parent = ToysContainer
+    ToysEmptyHint.BackgroundTransparency = 1
+    ToysEmptyHint.Size = UDim2.new(1, -10, 0, 40)
+    ToysEmptyHint.Font = Enum.Font.Gotham
+    ToysEmptyHint.Text = "🧸 หมวดของเล่น — ยังไม่มีฟังก์ชัน"
+    ToysEmptyHint.TextColor3 = Color3.fromRGB(180, 180, 190)
+    ToysEmptyHint.TextSize = 14
+
+    ToysContainer.ChildAdded:Connect(function(child)
+        if child ~= ToysEmptyHint and not child:IsA("UIListLayout") then
+            ToysEmptyHint.Visible = false
+        end
+    end)
+
+    -- 4) ระบบกดสลับหน้าต่าง
+    CatBtnToys.MouseButton1Click:Connect(function()
+        ContentContainer.Visible = false
+        TeleportContainer.Visible = false
+        InfoContainer.Visible = false
+        SettingsContainer.Visible = false
+        CreatorContainer.Visible = false
+        if AutoContainer then AutoContainer.Visible = false end
+        ESPContainer.Visible = false
+        ToysContainer.Visible = true
+    end)
+
+    -- กดหมวดอื่น -> ซ่อนหน้าของเล่น
+    local others = { CatBtn1, CatBtnTp, CatBtnInfo, CatBtnSettings, CatBtnCreator, CatBtnESP }
+    if CatBtnAuto then table.insert(others, CatBtnAuto) end
+    for _, btn in ipairs(others) do
+        btn.MouseButton1Click:Connect(function()
+            ToysContainer.Visible = false
+        end)
+    end
+
+    -- ==========================================================
+    -- 👇 วางปุ่มฟังก์ชันของเล่นตรงนี้ โดยใช้ ToysContainer เป็น Parent
+    -- ตัวอย่าง: createSwitchButton(ToysContainer, "🧸 ชื่อฟังก์ชัน", false, function(isActive) end)
+    -- ==========================================================
+end
+
+
+
+
+
+
