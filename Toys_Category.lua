@@ -285,9 +285,8 @@ end
 
 
 
-    
-    -- ==========================================
--- 🌪️ [ฟังก์ชันก้อน] โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)
+-- ==========================================
+-- 🌪️ [ฟังก์ชันก้อน] โหมดพุ่งชนกระเด็นหายทะลุแมพ (Ultra Fling ความแรงสูงสุด)
 -- ==========================================
 local function createSuperFlingSwitch(parent)
     getgenv().SuperFling_Active = false
@@ -315,14 +314,25 @@ local function createSuperFlingSwitch(parent)
                             
                             if otherRoot and otherHum and otherHum.Health > 0 then
                                 local distance = (myRoot.Position - otherRoot.Position).Magnitude
-                                if distance <= 4 then
-                                    local flyer = Instance.new("BodyVelocity")
-                                    flyer.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                                    flyer.Velocity = (otherRoot.Position - myRoot.Position).Unit * 500 + Vector3.new(0, 300, 0)
-                                    flyer.Parent = otherRoot
+                                -- ระยะประชิด
+                                if distance <= 7 then
+                                    -- อัดแรงหมุนเหวี่ยงความเร็วสูงพิเศษ (Spin Fling) ให้คนอื่นกระเด็นหลุดแมพทันที
+                                    local flingVel = Instance.new("BodyAngularVelocity")
+                                    flingVel.Name = "UltraFling"
+                                    flingVel.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                                    flingVel.AngularVelocity = Vector3.new(99999, 99999, 99999) -- ปั่นความเร็วรอบอนันต์
+                                    flingVel.Parent = otherRoot
                                     
-                                    task.delay(0.1, function()
-                                        if flyer then flyer:Destroy() end
+                                    -- เพิ่มแรงส่งพุ่งทะลุฟ้าไปพร้อมกัน
+                                    local bodyVel = Instance.new("BodyVelocity")
+                                    bodyVel.Name = "UltraVelocity"
+                                    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                    bodyVel.Velocity = (otherRoot.Position - myRoot.Position).Unit * 5000 + Vector3.new(0, 3000, 0)
+                                    bodyVel.Parent = otherRoot
+                                    
+                                    task.delay(0.15, function()
+                                        if flingVel then flingVel:Destroy() end
+                                        if bodyVel then bodyVel:Destroy() end
                                     end)
                                 end
                             end
@@ -338,7 +348,7 @@ local function createSuperFlingSwitch(parent)
         end
     end
 
-    return createSwitchButton(parent, "🌪️ โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)", getgenv().SuperFling_Active, function(isActive)
+    return createSwitchButton(parent, "🌪️ โหมดพุ่งชนกระเด็นหายทะลุแมพ (Ultra Fling)", getgenv().SuperFling_Active, function(isActive)
         getgenv().SuperFling_Active = isActive
         toggleSuperFling(isActive)
     end)
@@ -346,7 +356,6 @@ end
 
 createSuperFlingSwitch(ToyContainer)
     
-
     
     
 
