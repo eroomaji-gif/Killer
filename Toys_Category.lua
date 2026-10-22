@@ -284,5 +284,71 @@ end
 
 
 
+
+-- ==========================================
+-- 🧸 [ปุ่มฟังก์ชัน] โหมดพุ่งชนทะลุพิกัด (Fling / Super Knockback)
+-- ==========================================
+do
+    getgenv().SuperFling_Active = false
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local lp = Players.LocalPlayer
+    local connection = nil
+
+    local function toggleSuperFling(state)
+        if state then
+            if connection then connection:Disconnect() end
+            
+            connection = RunService.Heartbeat:Connect(function()
+                if not getgenv().SuperFling_Active then return end
+                pcall(function()
+                    local myChar = lp.Character
+                    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                    local myRoot = myChar.HumanoidRootPart
+                    
+                    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+                        if otherPlayer ~= lp and otherPlayer.Character then
+                            local otherChar = otherPlayer.Character
+                            local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
+                            local otherHum = otherChar:FindFirstChild("Humanoid")
+                            
+                            if otherRoot and otherHum and otherHum.Health > 0 then
+                                local distance = (myRoot.Position - otherRoot.Position).Magnitude
+                                -- ถ้าเข้าใกล้ในระยะประชิด
+                                if distance <= 4 then
+                                    -- 🌪️ อัดแรงเหวี่ยงฟิสิกส์ขั้นสุดยอด (Fling Exploit Mechanics)
+                                    local flyer = Instance.new("BodyVelocity")
+                                    flyer.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                    flyer.Velocity = (otherRoot.Position - myRoot.Position).Unit * 500 + Vector3.new(0, 300, 0)
+                                    flyer.Parent = otherRoot
+                                    
+                                    task.delay(0.1, function()
+                                        if flyer then flyer:Destroy() end
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end)
+        else
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+        end
+    end
+
+    createSwitchButton(ToysContainer, "🌪️ โหมดพุ่งชนกระเด็นหลุดแมพ (Fling)", getgenv().SuperFling_Active, function(isActive)
+        getgenv().SuperFling_Active = isActive
+        toggleSuperFling(isActive)
+    end)
+    end
+    
+    
+
+    
+    
+
     return { Container = ToyContainer, Button = CatBtnToy }
 end
