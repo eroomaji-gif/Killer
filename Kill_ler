@@ -3714,7 +3714,6 @@ end
 
 
 
-do
     -- 🚗 รถของเล่น (สร้างฝั่ง Client เห็นคนเดียว / ตัวเราที่นั่งและขยับเซิร์ฟเวอร์เห็น)
     local RunService = game:GetService("RunService")
     local carFolder, carBody, carSeat, carConn
