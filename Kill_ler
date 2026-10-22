@@ -3680,32 +3680,28 @@ xpcall(function()
 
 
 
-
-
-
-
-
-
-
     -- ==========================================================
-    -- 🔮 วงแหวนวิญญาณ (สร้างฝั่ง Client เห็นคนเดียว)
+    -- 🔮 วงเวทวิญญาณ (ฝั่ง Client เห็นคนเดียว)
+    -- เปิด = วงเวทพื้น + วงแหวนที่เท้า + ตัวลอย/เอียงตามการเดิน
+    -- ปิด = หายหมดและคืนค่าเดิมของเกม
     -- ==========================================================
     local RunService = game:GetService("RunService")
 
-    local RING_TYPES = {
-        { name = "ขาว (สิบปี)",     color = Color3.fromRGB(255, 255, 255), glow = Color3.fromRGB(255, 255, 255) },
-        { name = "เหลือง (ร้อยปี)", color = Color3.fromRGB(255, 215, 50),  glow = Color3.fromRGB(255, 200, 40) },
-        { name = "ม่วง (พันปี)",    color = Color3.fromRGB(170, 70, 255),  glow = Color3.fromRGB(150, 50, 255) },
-        { name = "ดำ (หมื่นปี)",    color = Color3.fromRGB(25, 15, 35),    glow = Color3.fromRGB(110, 0, 150) },
-        { name = "แดง (แสนปี)",     color = Color3.fromRGB(255, 40, 40),   glow = Color3.fromRGB(255, 30, 30) },
+    local FLOAT_HEIGHT = 1.6   -- ความสูงที่ตัวลอยขึ้น
+    local LEAN = 0.28          -- ความเอียงสูงสุด (เรเดียน ประมาณ 16 องศา)
+
+    local GROUND_COL = Color3.fromRGB(255, 50, 60)           -- สีวงเวทพื้น (แดง)
+    local RING_COLORS = {                                    -- สีวงแหวนที่เท้า (ล่าง -> บน)
+        { Color3.fromRGB(170, 70, 255), Color3.fromRGB(150, 50, 255) },  -- ม่วง
+        { Color3.fromRGB(255, 215, 50), Color3.fromRGB(255, 200, 40) },  -- เหลือง
     }
 
     local SEGMENTS = 36
-    local RADIUS = 2.6
-    local ringType = 3      -- เริ่มที่สีม่วง (พันปี)
-    local ringCount = 1     -- จำนวนวงแหวน
+    local RADIUS = 2.4
     local ringFolder, ringConn
-    local ringSegs, ringDiscs = {}, {}
+    local ringSegs, ringDiscs, groundEls = {}, {}, {}
+    local humRef, rootJoint, origC0
+    local origHip = 0
     getgenv().SoulRing_Active = false
 
     local function destroyRings()
@@ -3713,14 +3709,19 @@ xpcall(function()
             ringConn:Disconnect()
             ringConn = nil
         end
+        pcall(function()
+            if humRef and humRef.Parent then humRef.HipHeight = origHip end
+            if rootJoint and rootJoint.Parent and origC0 then rootJoint.C0 = origC0 end
+        end)
+        humRef, rootJoint, origC0 = nil, nil, nil
         if ringFolder then
             ringFolder:Destroy()
         end
         ringFolder = nil
-        ringSegs, ringDiscs = {}, {}
+        ringSegs, ringDiscs, groundEls = {}, {}, {}
     end
 
-    local function makePart(parent)
+    local function makePart(parent, color, transp)
         local p = Instance.new("Part")
         p.Anchored = true
         p.CanCollide = false
@@ -3730,6 +3731,9 @@ xpcall(function()
         p.Material = Enum.Material.Neon
         p.TopSurface = Enum.SurfaceType.Smooth
         p.BottomSurface = Enum.SurfaceType.Smooth
+        p.Color = color
+        p.Transparency = transp or 0
+        p.Size = Vector3.new(0.2, 0.2, 0.2)
         p.Parent = parent
         return p
     end
@@ -3738,27 +3742,85 @@ xpcall(function()
         destroyRings()
         local char = localPlayer.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if not (root and hum) then return end
 
-        local cfg = RING_TYPES[ringType]
         ringFolder = Instance.new("Folder")
         ringFolder.Name = "ClientSoulRings"
         ringFolder.Parent = workspace
 
-        local segLen = (2 * math.pi * RADIUS / SEGMENTS) * 1.08
+        -- เก็บค่าเดิมไว้คืนตอนปิด
+        humRef = hum
+        origHip = hum.HipHeight
+        local lower = char:FindFirstChild("LowerTorso")
+        rootJoint = (lower and lower:FindFirstChild("Root")) or root:FindFirstChild("RootJoint")
+        origC0 = rootJoint and rootJoint.C0
+        local isR15 = (hum.RigType == Enum.HumanoidRigType.R15)
 
-        for i = 1, ringCount do
-            -- เส้นวงแหวน (ต่อเป็นวงจากชิ้นเล็กๆ)
+        ------------------------------------------------------------
+        -- วงเวทบนพื้น
+        ------------------------------------------------------------
+        local function addArc(radius, segs, width, spd)
+            local segLen = (2 * math.pi * radius / segs) * 1.08
+            for s = 1, segs do
+                local p = makePart(ringFolder, GROUND_COL, 0.25)
+                p.Size = Vector3.new(width, 0.08, segLen)
+                groundEls[#groundEls + 1] = { part = p, kind = "arc", r = radius, ang = (s - 1) / segs * 2 * math.pi, spd = spd }
+            end
+        end
+        addArc(9.0, 56, 0.30, 0.10)
+        addArc(8.4, 56, 0.10, 0.10)
+        addArc(5.0, 36, 0.22, -0.20)
+        addArc(4.5, 36, 0.08, -0.20)
+
+        -- อักขระเล็กๆ รอบวงใน
+        for s = 1, 24 do
+            local p = makePart(ringFolder, GROUND_COL, 0.2)
+            p.Size = Vector3.new(0.9, 0.08, 0.22)
+            groundEls[#groundEls + 1] = { part = p, kind = "arc", r = 6.7, ang = (s - 1) / 24 * 2 * math.pi, spd = -0.20 }
+        end
+
+        -- ดาวหกแฉก
+        for k = 0, 1 do
+            for j = 0, 2 do
+                local p = makePart(ringFolder, GROUND_COL, 0.15)
+                local a1 = k * math.pi / 3 + j * 2 * math.pi / 3
+                local a2 = k * math.pi / 3 + (j + 1) * 2 * math.pi / 3
+                groundEls[#groundEls + 1] = { part = p, kind = "beam", r = 7.6, ang = a1, ang2 = a2, spd = 0.25 }
+            end
+        end
+
+        -- วงเล็กที่ปลายแฉกทั้งหก
+        for v = 0, 5 do
+            for s = 1, 10 do
+                local p = makePart(ringFolder, GROUND_COL, 0.15)
+                p.Size = Vector3.new(0.14, 0.08, 2 * math.pi * 0.9 / 10 * 1.1)
+                groundEls[#groundEls + 1] = { part = p, kind = "node", r = 7.6, ang = v * math.pi / 3, spd = 0.25, b = (s - 1) / 10 * 2 * math.pi, nr = 0.9, spd2 = -1.2 }
+            end
+        end
+
+        -- แผ่นแสงโปร่งใสเต็มวง
+        local groundDisc = makePart(ringFolder, GROUND_COL, 0.9)
+        groundDisc.Shape = Enum.PartType.Cylinder
+        local gLight = Instance.new("PointLight")
+        gLight.Color = GROUND_COL
+        gLight.Brightness = 1
+        gLight.Range = 16
+        gLight.Parent = groundDisc
+
+        ------------------------------------------------------------
+        -- วงแหวนวิญญาณที่เท้า (ม่วง + เหลือง)
+        ------------------------------------------------------------
+        local segLen = (2 * math.pi * RADIUS / SEGMENTS) * 1.08
+        for i, colors in ipairs(RING_COLORS) do
             for s = 1, SEGMENTS do
-                local p = makePart(ringFolder)
-                p.Color = cfg.color
-                p.Size = Vector3.new(0.35, 0.18, segLen)
+                local p = makePart(ringFolder, colors[1], 0)
+                p.Size = Vector3.new(0.5, 0.2, segLen)
                 table.insert(ringSegs, { part = p, ring = i, angle = (s - 1) / SEGMENTS * 2 * math.pi })
 
-                -- ประกายลอยขึ้นจากวงแหวน (ทุกๆ 4 ชิ้น)
                 if s % 4 == 0 then
                     local em = Instance.new("ParticleEmitter")
-                    em.Color = ColorSequence.new(cfg.glow)
+                    em.Color = ColorSequence.new(colors[2])
                     em.LightEmission = 1
                     em.Rate = 3
                     em.Lifetime = NumberRange.new(1, 1.6)
@@ -3777,55 +3839,113 @@ xpcall(function()
                 end
             end
 
-            -- แผ่นแสงโปร่งใสด้านในวง
-            local disc = makePart(ringFolder)
+            local disc = makePart(ringFolder, colors[2], 0.8)
             disc.Shape = Enum.PartType.Cylinder
-            disc.Color = cfg.glow
-            disc.Transparency = 0.82
-            disc.Size = Vector3.new(0.05, 1, 1)
             local light = Instance.new("PointLight")
-            light.Color = cfg.glow
+            light.Color = colors[2]
             light.Brightness = 1.5
             light.Range = 12
             light.Parent = disc
             table.insert(ringDiscs, { part = disc, ring = i })
         end
 
+        ------------------------------------------------------------
+        -- ลูปอัปเดตทุกเฟรม
+        ------------------------------------------------------------
         local t0 = os.clock()
-        ringConn = RunService.RenderStepped:Connect(function()
+        local pitchS, rollS = 0, 0
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+        ringConn = RunService.RenderStepped:Connect(function(dt)
             local c = localPlayer.Character
             local r = c and c:FindFirstChild("HumanoidRootPart")
-            if not r or not ringFolder then return end
+            local h = c and c:FindFirstChildOfClass("Humanoid")
+            if not (r and h and ringFolder) then return end
+            rayParams.FilterDescendantsInstances = { c, ringFolder }
 
             local t = os.clock() - t0
-            local grow = math.clamp(t / 0.8, 0, 1)
-            grow = 1 - (1 - grow) ^ 3          -- ขยายออกนุ่มๆ ตอนเปิด
-            local rad = RADIUS * grow
-            local base = r.Position
+            local grow = math.clamp(t / 0.9, 0, 1)
+            grow = 1 - (1 - grow) ^ 3
+            local bob = math.sin(t * 2) * 0.12
+
+            -- 1) ตัวลอยขึ้นเล็กน้อย
+            h.HipHeight = origHip + FLOAT_HEIGHT * grow + bob
+
+            -- 2) เอียงตามทิศที่เดิน
+            if rootJoint and rootJoint.Parent and origC0 then
+                local l = r.CFrame:VectorToObjectSpace(h.MoveDirection)
+                local k = 1 - math.exp(-dt * 8)
+                pitchS += (l.Z * LEAN - pitchS) * k
+                rollS += (-l.X * LEAN - rollS) * k
+                rootJoint.C0 = CFrame.Angles(pitchS, 0, rollS) * origC0
+            end
+
+            -- 3) หาพื้นและเท้า
+            local pos = r.Position
+            local feetY = pos.Y - (h.HipHeight + r.Size.Y / 2 + (isR15 and 0 or 2))
+            local hit = workspace:Raycast(pos, Vector3.new(0, -400, 0), rayParams)
+            local groundY = hit and (hit.Position.Y + 0.1) or feetY
+            local gc = Vector3.new(pos.X, groundY, pos.Z)
+            local fc = Vector3.new(pos.X, feetY, pos.Z)
 
             local parts, cfs = {}, {}
 
+            -- วงเวทพื้น
+            for _, e in ipairs(groundEls) do
+                local a = e.ang + e.spd * t
+                local cf
+                if e.kind == "arc" then
+                    cf = CFrame.new(gc) * CFrame.Angles(0, a, 0) * CFrame.new(e.r * grow, 0, 0)
+                elseif e.kind == "beam" then
+                    local a2 = e.ang2 + e.spd * t
+                    local rr = e.r * grow
+                    local p1 = gc + Vector3.new(math.cos(a) * rr, 0, -math.sin(a) * rr)
+                    local p2 = gc + Vector3.new(math.cos(a2) * rr, 0, -math.sin(a2) * rr)
+                    local len = (p1 - p2).Magnitude
+                    if len > 0.05 then
+                        e.part.Size = Vector3.new(0.18, 0.08, len)
+                        cf = CFrame.lookAt((p1 + p2) / 2, p2)
+                    else
+                        cf = CFrame.new(gc)
+                    end
+                else -- node
+                    local nc = gc + Vector3.new(math.cos(a) * e.r * grow, 0, -math.sin(a) * e.r * grow)
+                    cf = CFrame.new(nc) * CFrame.Angles(0, e.b + e.spd2 * t, 0) * CFrame.new(e.nr * grow, 0, 0)
+                end
+                parts[#parts + 1] = e.part
+                cfs[#cfs + 1] = cf
+            end
+
+            groundDisc.Size = Vector3.new(0.05, 18 * grow + 0.01, 18 * grow + 0.01)
+            parts[#parts + 1] = groundDisc
+            cfs[#cfs + 1] = CFrame.new(gc) * CFrame.Angles(0, 0, math.pi / 2)
+
+            -- วงแหวนที่เท้า
+            local rad = RADIUS * grow
             for _, seg in ipairs(ringSegs) do
                 local dir = (seg.ring % 2 == 0) and -1 or 1
                 local ang = seg.angle + dir * t * (0.9 + seg.ring * 0.12)
-                local y = -2.9 + (seg.ring - 1) * 0.95 + math.sin(t * 2 + seg.ring) * 0.08
+                local y = 0.2 + (seg.ring - 1) * 0.9 + math.sin(t * 2 + seg.ring) * 0.08
                 parts[#parts + 1] = seg.part
-                cfs[#cfs + 1] = CFrame.new(base + Vector3.new(0, y, 0)) * CFrame.Angles(0, ang, 0) * CFrame.new(rad, 0, 0)
+                cfs[#cfs + 1] = CFrame.new(fc + Vector3.new(0, y, 0)) * CFrame.Angles(0, ang, 0) * CFrame.new(rad, 0, 0)
             end
 
             for _, d in ipairs(ringDiscs) do
-                local y = -2.9 + (d.ring - 1) * 0.95 + math.sin(t * 2 + d.ring) * 0.08
-                d.part.Size = Vector3.new(0.05, rad * 2 + 1.2, rad * 2 + 1.2)
+                local y = 0.2 + (d.ring - 1) * 0.9 + math.sin(t * 2 + d.ring) * 0.08
+                d.part.Size = Vector3.new(0.05, rad * 2 + 1.0, rad * 2 + 1.0)
                 parts[#parts + 1] = d.part
-                cfs[#cfs + 1] = CFrame.new(base + Vector3.new(0, y, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+                cfs[#cfs + 1] = CFrame.new(fc + Vector3.new(0, y, 0)) * CFrame.Angles(0, 0, math.pi / 2)
             end
 
             workspace:BulkMoveTo(parts, cfs, Enum.BulkMoveMode.FireCFrameChanged)
         end)
     end
 
-    -- สวิตช์เปิด/ปิด
-    local ringSwitch = createSwitchButton(ToysContainer, "🔮 วงแหวนวิญญาณ", false, function(isActive)
+    ------------------------------------------------------------
+    -- สวิตช์เดียว เปิด = เรียกวงเวท / ปิด = หายและคืนค่าเดิม
+    ------------------------------------------------------------
+    local ringSwitch = createSwitchButton(ToysContainer, "🔮 วงเวทวิญญาณ", false, function(isActive)
         getgenv().SoulRing_Active = isActive
         if isActive then
             buildRings()
@@ -3835,57 +3955,7 @@ xpcall(function()
     end)
     ringSwitch.LayoutOrder = 1
 
-    -- ปุ่มเปลี่ยนสีวงแหวน (กดวนไปเรื่อยๆ)
-    local RingTypeBtn = Instance.new("TextButton")
-    RingTypeBtn.Name = "RingTypeBtn"
-    RingTypeBtn.Parent = ToysContainer
-    RingTypeBtn.LayoutOrder = 2
-    RingTypeBtn.Size = UDim2.new(1, 0, 0, 40)
-    RingTypeBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
-    RingTypeBtn.Font = Enum.Font.GothamBold
-    RingTypeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    RingTypeBtn.TextSize = 14
-    RingTypeBtn.Text = "🎨 สี: " .. RING_TYPES[ringType].name
-    local RingTypeCorner = Instance.new("UICorner")
-    RingTypeCorner.CornerRadius = UDim.new(0, 6)
-    RingTypeCorner.Parent = RingTypeBtn
-
-    RingTypeBtn.MouseButton1Click:Connect(function()
-        ringType = ringType % #RING_TYPES + 1
-        RingTypeBtn.Text = "🎨 สี: " .. RING_TYPES[ringType].name
-        if getgenv().SoulRing_Active then
-            buildRings()
-        end
-    end)
-
-    -- ช่องใส่จำนวนวงแหวน (1-9)
-    local RingCountBox = Instance.new("TextBox")
-    RingCountBox.Name = "RingCountBox"
-    RingCountBox.Parent = ToysContainer
-    RingCountBox.LayoutOrder = 3
-    RingCountBox.Size = UDim2.new(1, 0, 0, 40)
-    RingCountBox.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-    RingCountBox.Font = Enum.Font.GothamBold
-    RingCountBox.PlaceholderText = "จำนวนวงแหวน (1-9)"
-    RingCountBox.Text = tostring(ringCount)
-    RingCountBox.TextColor3 = Color3.fromRGB(190, 120, 255)
-    RingCountBox.TextSize = 15
-    local RingCountCorner = Instance.new("UICorner")
-    RingCountCorner.CornerRadius = UDim.new(0, 6)
-    RingCountCorner.Parent = RingCountBox
-
-    RingCountBox.FocusLost:Connect(function()
-        local n = tonumber(RingCountBox.Text)
-        if n then
-            ringCount = math.clamp(math.floor(n), 1, 9)
-        end
-        RingCountBox.Text = tostring(ringCount)
-        if getgenv().SoulRing_Active then
-            buildRings()
-        end
-    end)
-
-    -- ตายแล้วเกิดใหม่ ถ้าเปิดอยู่ให้สร้างวงแหวนใหม่
+    -- ตายแล้วเกิดใหม่ ถ้าเปิดอยู่ให้สร้างใหม่
     localPlayer.CharacterAdded:Connect(function()
         if getgenv().SoulRing_Active then
             task.wait(1)
@@ -3902,6 +3972,16 @@ xpcall(function()
         destroyRings()
         if prevRingCleanup then prevRingCleanup() end
     end
+
+
+
+
+
+
+
+
+        
+    
 end, function(err)
     warn("[ของเล่น] error: " .. tostring(err))
 end)
