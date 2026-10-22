@@ -110,3 +110,175 @@ return function(ctx)
     return { Container = ToyContainer, Button = CatBtnToy }
 end
 
+
+
+
+
+
+
+-- ==========================================================
+-- 🌀 ฟังก์ชันเดี่ยว: แม่เหล็กไอเทมโคจร (ไม่มีส่วนของหมวดหมู่ปนอยู่)
+-- วางไว้ "ใต้" ตัวแปร ToyContainer (ในไฟล์ toys.lua หรือที่ไหนก็ได้ที่มี ToyContainer กับ createSwitchButton)
+-- ลบทั้งบล็อกนี้ทิ้งได้เลย ส่วนอื่นไม่พัง
+-- ==========================================================
+do
+    -- ==========================================================
+    -- 🌀 ของเล่นที่ 1: แม่เหล็กดูดไอเทมอิสระมาหมุนวนรอบตัว
+    -- ควบคุมฟิสิกส์ของ "ชิ้นส่วนที่ไม่ได้ถูกตรึง" รอบตัว (ของที่ตกอยู่ ไอเทมที่หยิบได้ ฯลฯ)
+    -- ผู้เล่นอื่นจะเห็นด้วย เฉพาะกรณีที่เกมปล่อยให้ไคลเอนต์เราเป็นเจ้าของฟิสิกส์ชิ้นนั้น
+    -- ==========================================================
+    local function createOrbitSwitch(parent)
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local lp = Players.LocalPlayer
+
+        local SCAN_RADIUS = 80       -- หาของในระยะกี่ studs รอบตัว
+        local ORBIT_RADIUS = 9       -- รัศมีวงโคจร
+        local ORBIT_SPEED = 1.6      -- ความเร็วหมุน (เรเดียนต่อวินาที)
+        local MAX_PARTS = 24         -- จำนวนชิ้นสูงสุดที่ควบคุม (เยอะไป = หน่วง)
+        local MAX_PART_SIZE = 15     -- ข้ามชิ้นที่ใหญ่เกินนี้ (เช่น กำแพง รถ)
+        local RESCAN = 1.5           -- สแกนหาของใหม่ทุกกี่วินาที (ยิ่งนานยิ่งเบา)
+        local MAX_SPEED = 120        -- จำกัดความเร็วชิ้นส่วน กันกระชากหรือพุ่งไปชนคน
+
+        getgenv().Orbit_Active = false
+
+        local controlled = {}  -- [part] = ค่า CanCollide เดิม
+        local list = {}
+        local conn
+        local lastScan, lastRadius = 0, 0
+
+        local function isFreeItem(part)
+            if not part:IsA("BasePart") or part:IsA("Terrain") then return false end
+            if part.Anchored then return false end
+            local root = part.AssemblyRootPart
+            if root and root.Anchored then return false end -- ติดอยู่กับของที่ตรึงไว้
+            if part.Size.Magnitude > MAX_PART_SIZE then return false end
+
+            -- ข้ามทุกอย่างที่เป็นส่วนของตัวละคร (เรา ผู้เล่นอื่น NPC) รวมถึงของที่ถืออยู่
+            local model = part:FindFirstAncestorOfClass("Model")
+            while model do
+                if model:FindFirstChildOfClass("Humanoid") then return false end
+                model = model:FindFirstAncestorOfClass("Model")
+            end
+            return true
+        end
+
+        local function boostSimulation()
+            -- ขยายรัศมีที่ไคลเอนต์เราคำนวณฟิสิกส์เอง (จำเป็นต่อการคุมชิ้นส่วน)
+            pcall(function()
+                if sethiddenproperty then
+                    sethiddenproperty(lp, "SimulationRadius", 1e9)
+                end
+                lp.MaximumSimulationRadius = 1e9
+            end)
+        end
+
+        local function scan(rootPos, character)
+            local params = OverlapParams.new()
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            params.FilterDescendantsInstances = { character }
+
+            local found = {}
+            for _, p in ipairs(workspace:GetPartBoundsInRadius(rootPos, SCAN_RADIUS, params)) do
+                if isFreeItem(p) then
+                    table.insert(found, p)
+                end
+            end
+            table.sort(found, function(a, b)
+                return (a.Position - rootPos).Magnitude < (b.Position - rootPos).Magnitude
+            end)
+
+            local keep = {}
+            list = {}
+            for i = 1, math.min(#found, MAX_PARTS) do
+                local p = found[i]
+                keep[p] = true
+                table.insert(list, p)
+                if controlled[p] == nil then
+                    controlled[p] = p.CanCollide
+                    p.CanCollide = false -- ไม่ให้ชิ้นส่วนที่หมุนไปชน/กระเด็นใส่คนอื่น
+                end
+            end
+
+            -- ชิ้นที่หลุดจากรายการ คืนค่าให้
+            for p, original in pairs(controlled) do
+                if not keep[p] then
+                    if p.Parent then p.CanCollide = original end
+                    controlled[p] = nil
+                end
+            end
+        end
+
+        local function start()
+            boostSimulation()
+            lastScan = 0
+            conn = RunService.Heartbeat:Connect(function()
+                local character = lp.Character
+                local root = character and character:FindFirstChild("HumanoidRootPart")
+                if not root then return end
+
+                local now = os.clock()
+                if now - lastRadius > 1 then
+                    lastRadius = now
+                    boostSimulation()
+                end
+                if now - lastScan > RESCAN then
+                    lastScan = now
+                    scan(root.Position, character)
+                end
+
+                local n = #list
+                for i, part in ipairs(list) do
+                    if part.Parent then
+                        local angle = now * ORBIT_SPEED + (i / n) * math.pi * 2
+                        local height = 1 + math.sin(now * 2 + i) * 1.5
+                        local target = root.Position + Vector3.new(
+                            math.cos(angle) * ORBIT_RADIUS, height, math.sin(angle) * ORBIT_RADIUS)
+
+                        local vel = (target - part.Position) * 12
+                        if vel.Magnitude > MAX_SPEED then
+                            vel = vel.Unit * MAX_SPEED
+                        end
+                        part.AssemblyLinearVelocity = vel
+                        part.AssemblyAngularVelocity = Vector3.new(2, 4, 2)
+                    end
+                end
+            end)
+        end
+
+        local function stop()
+            if conn then
+                conn:Disconnect()
+                conn = nil
+            end
+            for p, original in pairs(controlled) do
+                if p.Parent then
+                    p.CanCollide = original
+                    p.AssemblyLinearVelocity = Vector3.zero
+                    p.AssemblyAngularVelocity = Vector3.zero
+                end
+            end
+            controlled = {}
+            list = {}
+        end
+
+        -- ล้างตอนรันสคริปต์ซ้ำ
+        local prevCleanup = getgenv().MainScript_Cleanup
+        getgenv().MainScript_Cleanup = function()
+            getgenv().Orbit_Active = false
+            stop()
+            if prevCleanup then prevCleanup() end
+        end
+
+        return createSwitchButton(ToyContainer, "🌀 แม่เหล็กไอเทมโคจร", false, function(isActive)
+            getgenv().Orbit_Active = isActive
+            if isActive then
+                start()
+            else
+                stop()
+            end
+        end)
+    end
+
+    createOrbitSwitch(ToyContainer)
+end
