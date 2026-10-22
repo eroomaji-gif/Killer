@@ -1219,6 +1219,113 @@ InfoContainerLayout.Padding = UDim.new(0, 8)
 
 
 
+
+
+
+
+-- ==========================================
+-- 📌 ปุ่มสแกน Remote (เรียกใช้ระบบเช็ค owner จากส่วนกลาง)
+-- ==========================================
+local BtnScanRemotes = Instance.new("TextButton")
+BtnScanRemotes.Name = "BtnScanRemotes"
+BtnScanRemotes.Parent = InfoContainer -- อยู่ในหมวดหมู่ข้อมูล
+BtnScanRemotes.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
+BtnScanRemotes.Size = UDim2.new(1, -10, 0, 40)
+BtnScanRemotes.Font = Enum.Font.GothamBold
+BtnScanRemotes.Text = "🔍 สแกนหา Remote ทั้งหมด"
+BtnScanRemotes.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnScanRemotes.TextSize = 13
+
+local BtnScanCorner = Instance.new("UICorner")
+BtnScanCorner.CornerRadius = UDim.new(0, 6)
+BtnScanCorner.Parent = BtnScanRemotes
+
+-- ฟังก์ชันเมื่อกดปุ่ม
+BtnScanRemotes.MouseButton1Click:Connect(function()
+    local localPlayer = game:GetService("Players").LocalPlayer
+    
+    -- เรียกใช้ฟังก์ชัน isOwner() จากส่วนกลางที่เขียนไว้บนสุด
+    if not isOwner(localPlayer) then
+        warn("❌ [ระบบป้องกัน]: คุณไม่มีสิทธิ์ใช้งานฟังก์ชันนี้!")
+        return -- ไม่ใช่ owner ให้ยกเลิกการรันทันที
+    end
+
+    -- ------------------------------------------
+    -- โค้ดสแกน Remote จะทำงานเมื่อเป็น Owner เท่านั้น
+    -- ------------------------------------------
+    local genericKeywords = {"remote", "event", "func", "data", "main", "handler", "net", "comm", "action", "bridge"}
+    local resultText = "=== รายชื่อ Remote ที่พบ ===\n\n"
+    local count = 0
+
+    local function checkObj(obj)
+        if obj and (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) then
+            count = count + 1
+            local name = obj.Name
+            local nameLower = string.lower(name)
+            local isGeneric = false
+            
+            for _, kw in ipairs(genericKeywords) do
+                if string.find(nameLower, kw) then
+                    isGeneric = true
+                    break
+                end
+            end
+            
+            local success, path = pcall(function()
+                return obj:GetFullName()
+            end)
+            local fullPath = success and path or name
+            
+            local tag = isGeneric and "[⚠️ รวมศูนย์]" or "[ℹ️ ทั่วไป]"
+            resultText = resultText .. tag .. " " .. name .. " (" .. obj.ClassName .. ")\nPath: " .. fullPath .. "\n\n"
+        end
+    end
+
+    local targets = {
+        game:GetService("ReplicatedStorage"),
+        game:GetService("Workspace"),
+        localPlayer
+    }
+
+    for _, folder in ipairs(targets) do
+        if folder then
+            pcall(function()
+                for _, descendant in ipairs(folder:GetDescendants()) do
+                    checkObj(descendant)
+                end
+            end)
+        end
+    end
+
+    resultText = resultText .. "รวมทั้งหมด: " .. tostring(count) .. " ตัว"
+
+    -- คัดลอกลง Clipboard
+    local setClipboardFunc = setclipboard or toclipboard or set_clipboard
+    if setClipboardFunc then
+        setClipboardFunc(resultText)
+        print("✅ คัดลอกรายชื่อ Remote ลง Clipboard เรียบร้อยแล้ว!")
+    else
+        warn("❌ Executor นี้ไม่รองรับฟังก์ชัน setclipboard")
+    end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- ==========================================
 -- 📌 [ปุ่มเช็คพิกัด] ย้ายมาใส่ในหมวดหมู่ข้อมูล
 -- ==========================================
