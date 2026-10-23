@@ -2368,14 +2368,43 @@ BgChangeButton.MouseButton1Click:Connect(function()
 end)
 
 -- เมื่อกดปุ่ม "บันทึก" -> ตรวจสอบตัวเลข บันทึกลงไฟล์ และล็อคช่องกลับทันที
+-- เมื่อกดปุ่ม "บันทึก"
 BgSaveButton.MouseButton1Click:Connect(function()
     local rawText = BgTextBox.Text
+    
+    -- 📌 เงื่อนไขที่ 1: ถ้าช่องว่างเปล่า (ไม่ได้ใส่ Asset ID มาเลย) ให้รีเซ็ตเป็นค่าเริ่มต้น
+    if rawText == "" or string.gsub(rawText, "%s+", "") == "" then
+        pcall(function()
+            -- ลบไฟล์ตั้งค่าทิ้ง (หรือเคลียร์ให้ว่าง) เพื่อให้กลับไปใช้รูปเริ่มต้น
+            if delfile and isfile(bgConfigFile) then
+                delfile(bgConfigFile)
+            elseif writefile then
+                writefile(bgConfigFile, "")
+            end
+        end)
+        
+        -- ล็อคช่องหลอดแก้วกลับ
+        BgTextBox.TextEditable = false
+        BgTextBox.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        BgTextBox.Text = ""
+        
+        -- สั่งเปลี่ยนพื้นหลัง UI กลับเป็นรูปเริ่มต้นทันที
+        if MainFrame then MainFrame.Image = defaultImage end
+        if ToggleButton then ToggleButton.Image = defaultImage end
+        
+        BgSaveButton.Text = "รีเซ็ตค่าเริ่มต้น!"
+        task.wait(1.5)
+        BgSaveButton.Text = "บันทึก"
+        return
+    end
+    
+    -- 📌 เงื่อนไขที่ 2: ถ้ามีตัวเลข Asset ID ปกติ
     local assetNumber = string.match(rawText, "%d+") -- ดึงเฉพาะตัวเลข
     
     if assetNumber then
         local newImageLink = "rbxassetid://" .. assetNumber
         
-        -- บันทึกเก็บไว้ในไฟล์เครื่อง (Fix ค่าไว้รันรอบหน้า)
+        -- บันทึกเก็บไว้ในไฟล์เครื่อง
         pcall(function()
             if writefile then
                 writefile(bgConfigFile, assetNumber)
@@ -2400,6 +2429,7 @@ BgSaveButton.MouseButton1Click:Connect(function()
         BgSaveButton.Text = "บันทึก"
     end
   end)
+
 end)
 
 
