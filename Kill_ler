@@ -2261,6 +2261,146 @@ end)
 
 
 
+-- ==========================================
+-- 🖼️ ระบบเปลี่ยนพื้นหลัง UI แบบ "มีปุ่มล็อคช่อง + ปุ่มบันทึก + ปุ่มเปลี่ยน"
+-- ==========================================
+pcall(function()
+local bgConfigFile = "CustomBackgroundConfig.txt"
+local defaultImage = "rbxassetid://75925823414835" -- รูปภาพเริ่มต้นเดิมของคุณ
+
+-- 1. โหลดค่าที่เคยเซฟไว้ตอนเปิดสคริปต์
+local savedAssetNumber = ""
+pcall(function()
+    if isfile and isfile(bgConfigFile) then
+        local savedId = readfile(bgConfigFile)
+        if savedId and savedId ~= "" then
+            savedAssetNumber = string.match(savedId, "%d+") or ""
+        end
+    end
+end)
+
+local currentBgImage = defaultImage
+if savedAssetNumber ~= "" then
+    currentBgImage = "rbxassetid://" .. savedAssetNumber
+end
+
+-- สั่งเปลี่ยนภาพ UI ทันทีตั้งแต่รัน
+pcall(function()
+    if MainFrame then MainFrame.Image = currentBgImage end
+    if ToggleButton then ToggleButton.Image = currentBgImage end
+end)
+
+-- 2. สร้างหัวข้อในหน้าตั้งค่า
+local BgTitle = Instance.new("TextLabel")
+BgTitle.Parent = SettingsContainer
+BgTitle.BackgroundTransparency = 1
+BgTitle.Size = UDim2.new(1, 0, 0, 25)
+BgTitle.Font = Enum.Font.GothamBold
+BgTitle.Text = "🖼️ ตั้งค่ารูปพื้นหลัง UI (Asset ID)"
+BgTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+BgTitle.TextSize = 13
+BgTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- 3. กรอบรวมหลอดแก้ว (TextBox) และปุ่มกดด้านข้าง
+local InputHolder = Instance.new("Frame")
+InputHolder.Parent = SettingsContainer
+InputHolder.BackgroundTransparency = 1
+InputHolder.Size = UDim2.new(1, 0, 0, 40)
+
+-- หลอดแก้ว (ช่องใส่ Asset ID)
+local BgTextBox = Instance.new("TextBox")
+BgTextBox.Parent = InputHolder
+BgTextBox.Size = UDim2.new(0.55, -5, 1, 0)
+BgTextBox.Position = UDim2.new(0, 0, 0, 0)
+BgTextBox.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+BgTextBox.Font = Enum.Font.SourceSansBold
+BgTextBox.PlaceholderText = "Asset ID..."
+BgTextBox.Text = savedAssetNumber
+BgTextBox.TextColor3 = Color3.fromRGB(0, 255, 150)
+BgTextBox.TextSize = 14
+BgTextBox.ClearTextOnFocus = false
+BgTextBox.TextEditable = false -- 🔒 เริ่มต้นมาแบบ "ล็อค" ห้ามพิมพ์ (จนกว่าจะกดเปลี่ยน)
+
+local BgBoxCorner = Instance.new("UICorner")
+BgBoxCorner.CornerRadius = UDim.new(0, 6)
+BgBoxCorner.Parent = BgTextBox
+
+-- ปุ่ม "บันทึก" (สีเขียว)
+local BgSaveButton = Instance.new("TextButton")
+BgSaveButton.Parent = InputHolder
+BgSaveButton.Size = UDim2.new(0.22, -3, 1, 0)
+BgSaveButton.Position = UDim2.new(0.55, 5, 0, 0)
+BgSaveButton.BackgroundColor3 = Color3.fromRGB(0, 160, 80)
+BgSaveButton.Font = Enum.Font.GothamBold
+BgSaveButton.Text = "บันทึก"
+BgSaveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+BgSaveButton.TextSize = 13
+
+local BgSaveCorner = Instance.new("UICorner")
+BgSaveCorner.CornerRadius = UDim.new(0, 6)
+BgSaveCorner.Parent = BgSaveButton
+
+-- ปุ่ม "เปลี่ยน" (สีฟ้า/เทา อยู่ข้างๆ ปุ่มบันทึก)
+local BgChangeButton = Instance.new("TextButton")
+BgChangeButton.Parent = InputHolder
+BgChangeButton.Size = UDim2.new(0.22, -3, 1, 0)
+BgChangeButton.Position = UDim2.new(0.78, 5, 0, 0)
+BgChangeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+BgChangeButton.Font = Enum.Font.GothamBold
+BgChangeButton.Text = "เปลี่ยน"
+BgChangeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+BgChangeButton.TextSize = 13
+
+local BgChangeCorner = Instance.new("UICorner")
+BgChangeCorner.CornerRadius = UDim.new(0, 6)
+BgChangeCorner.Parent = BgChangeButton
+
+-- 4. ระบบการทำงานของปุ่มต่างๆ
+
+-- เมื่อกดปุ่ม "เปลี่ยน" -> ปลดล็อคหลอดแก้วให้พิมพ์ได้
+BgChangeButton.MouseButton1Click:Connect(function()
+    BgTextBox.TextEditable = true
+    BgTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 50) -- เปลี่ยนสีหลอดแก้วให้รู้ว่าพิมพ์ได้
+    BgTextBox:CaptureFocus() -- โฟกัสไปที่ช่องพิมพ์ทันที
+    BgChangeButton.Text = "กำลังแก้..."
+    task.wait(1)
+    BgChangeButton.Text = "เปลี่ยน"
+end)
+
+-- เมื่อกดปุ่ม "บันทึก" -> ตรวจสอบตัวเลข บันทึกลงไฟล์ และล็อคช่องกลับทันที
+BgSaveButton.MouseButton1Click:Connect(function()
+    local rawText = BgTextBox.Text
+    local assetNumber = string.match(rawText, "%d+") -- ดึงเฉพาะตัวเลข
+    
+    if assetNumber then
+        local newImageLink = "rbxassetid://" .. assetNumber
+        
+        -- บันทึกเก็บไว้ในไฟล์เครื่อง (Fix ค่าไว้รันรอบหน้า)
+        pcall(function()
+            if writefile then
+                writefile(bgConfigFile, assetNumber)
+            end
+        end)
+        
+        -- ล็อคช่องหลอดแก้วกลับทันที ห้ามพิมพ์
+        BgTextBox.TextEditable = false
+        BgTextBox.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        BgTextBox.Text = assetNumber
+        
+        -- สั่งเปลี่ยนพื้นหลัง UI หลักทันที
+        if MainFrame then MainFrame.Image = newImageLink end
+        if ToggleButton then ToggleButton.Image = newImageLink end
+        
+        BgSaveButton.Text = "สำเร็จ!"
+        task.wait(1.5)
+        BgSaveButton.Text = "บันทึก"
+    else
+        BgSaveButton.Text = "ไอดีผิด!"
+        task.wait(1.5)
+        BgSaveButton.Text = "บันทึก"
+    end
+  end)
+end)
 
 
 
