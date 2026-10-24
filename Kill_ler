@@ -4440,6 +4440,104 @@ end)
 
 
 
+-- ==========================================
+-- ☁️ Clean Double Jump Air Platform (แกน Y ล็อค / X, Z ตรวจจับการเดิน)
+-- ==========================================
+pcall(function()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local lastJumpTime = 0
+local JUMP_THRESHOLD = 0.35 -- ระยะเวลาที่กด 2 ครั้งติดกัน (วินาที)
+local currentPlatform = nil
+
+-- ฟังก์ชันสร้างบล็อกล่องหนตรงตำแหน่ง Y ณ จุดที่กด
+local function createPlatform(char)
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    -- ลบบล็อกเก่าทิ้งทันทีหากมีอยู่
+    if currentPlatform and currentPlatform.Parent then
+        currentPlatform:Destroy()
+    end
+
+    -- บันทึกพิกัดตำแหน่งขณะกดกระโดดครั้งที่ 2
+    local spawnCFrame = root.CFrame
+    local spawnY = root.Position.Y - 3.2 -- ตำแหน่งแกน Y ใต้เท้า
+
+    -- สร้างพาร์ทล่องหน
+    local platform = Instance.new("Part")
+    platform.Name = "AirPlatform"
+    platform.Size = Vector3.new(6, 1, 6)
+    -- ล็อคแกน Y ไว้ ณ จุดที่กด แต่ใช้พิกัด X, Z ของตัวละคร
+    platform.CFrame = CFrame.new(spawnCFrame.X, spawnY, spawnCFrame.Z)
+    platform.Anchored = true
+    platform.CanCollide = true
+    platform.Transparency = 1
+    platform.Material = Enum.Material.SmoothPlastic
+    platform.Parent = workspace
+
+    currentPlatform = platform
+
+    -- ตรวจจับการขยับตัวทางแกน X และ Z (ถ้าเดินหลุดขอบ ให้ลบทิ้ง)
+    task.spawn(function()
+        while currentPlatform == platform and platform.Parent do
+            task.wait(0.05)
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local currentPos = char.HumanoidRootPart.Position
+                local platPos = platform.Position
+
+                -- คำนวณระยะห่างเฉพาะทางราบ (แกน X และ Z)
+                local distanceXZ = Vector2.new(currentPos.X - platPos.X, currentPos.Z - platPos.Z).Magnitude
+
+                -- ถ้าขยับตัวทางแกน X, Z เกินขอบบล็อก (3.5 หน่วย) หรือตัวละครหลุดจากระดับ Y ให้ลบทิ้งทันที
+                if distanceXZ > 3.5 or math.abs(currentPos.Y - (platPos.Y + 3.2)) > 3 then
+                    pcall(function() platform:Destroy() end)
+                    if currentPlatform == platform then
+                        currentPlatform = nil
+                    end
+                    break
+                end
+            else
+                pcall(function() platform:Destroy() end)
+                break
+            end
+        end
+    end)
+end
+
+-- ดักจับ Event กระโดดแบบคลีนๆ ไม่พึ่ง Animation
+local function bindJumping(char)
+    local humanoid = char:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+
+    humanoid.Jumping:Connect(function()
+        local now = tick()
+        -- ถ้ากดกระโดด 2 ครั้งติดกันภายในเวลาที่กำหนด
+        if (now - lastJumpTime) <= JUMP_THRESHOLD and (now - lastJumpTime) > 0.03 then
+            createPlatform(char)
+            lastJumpTime = 0 -- รีเซ็ตค่าทันทีเมื่อสร้างสำเร็จ
+        else
+            lastJumpTime = now
+        end
+    end)
+end
+
+-- รองรับทั้งตอนเริ่มสคริปต์และตอนตัวละครเกิดใหม่ (Respawn)
+if LocalPlayer.Character then
+    bindJumping(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(bindJumping)
+
+print("✅ [Clean Air Platform] พร้อมใช้งาน!")
+
+end)
+
+
+
+
+
+
 -- ==========================================================
 -- 🔗 วางไว้ท้ายสคริปต์หลัก (ใต้บล็อกออโต้และ ESP) เพื่อดึงหมวด "ของเล่น" มารัน
 -- เปลี่ยน URL ให้ตรงกับ repo/ชื่อไฟล์ของคุณ
