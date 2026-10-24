@@ -2098,7 +2098,7 @@ createHandTrailSwitch(SettingsContainer)
 getgenv().Fpsboost = getgenv().Fpsboost or false
 local originalData = { parts = {} }
 
-createSwitchButton(MainFrame, "FPS Boost", getgenv().Fpsboost, function(isActive)
+createSwitchButton(Wrapper, "FPS Boost", getgenv().Fpsboost, function(isActive)
     getgenv().Fpsboost = isActive
     
     if isActive then
