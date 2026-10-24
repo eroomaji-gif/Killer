@@ -4477,3 +4477,96 @@ end
 
 
 
+-- ==========================================
+-- ☁️ Double Jump Air Platform (รองรับมือถือ - ตรวจจับการกระโดด)
+-- ==========================================
+pcall(function()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local lastJumpTime = 0
+local JUMP_TIME_THRESHOLD = 0.35 -- ระยะเวลาความเร็วต่อเนื่องระหว่างกระโดด 2 ครั้ง (วินาที)
+local currentPlatform = nil
+
+-- ฟังก์ชันสร้างบล็อกล่องหนใต้เท้า
+local function createAirPlatform(char)
+    local rootPart = char:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    -- ลบบล็อกเก่าออกก่อน (ถ้ามีค้างอยู่)
+    if currentPlatform and currentPlatform.Parent then
+        currentPlatform:Destroy()
+    end
+
+    -- สร้างพาร์ทบล็อกรองรับกลางอากาศ
+    local platform = Instance.new("Part")
+    platform.Name = "AirJumpPlatform"
+    platform.Size = Vector3.new(6, 1, 6) -- ขนาดฐานเหยียบ
+    platform.CFrame = rootPart.CFrame * CFrame.new(0, -3.2, 0) -- วางใต้เท้าพอดี
+    platform.Anchored = true
+    platform.CanCollide = true
+    platform.Transparency = 1 -- ล่องหนมองไม่เห็น
+    platform.Material = Enum.Material.SmoothPlastic
+    platform.Parent = workspace
+
+    currentPlatform = platform
+
+    -- ตรวจจับเมื่อตัวละครเดินหรือกระโดดออกจากบล็อก ให้ลบทิ้งทันที
+    task.spawn(function()
+        while currentPlatform == platform and platform.Parent do
+            task.wait(0.1)
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local currentPos = char.HumanoidRootPart.Position
+                local platPos = platform.Position
+                local horizontalDist = Vector2.new(currentPos.X - platPos.X, currentPos.Z - platPos.Z).Magnitude
+                local verticalDist = math.abs(currentPos.Y - (platPos.Y + 3.2))
+
+                -- ถ้าเดินออกนอกขอบบล็อก ให้ลบทิ้งทันที
+                if horizontalDist > 3.8 or verticalDist > 2.5 then
+                    pcall(function() platform:Destroy() end)
+                    if currentPlatform == platform then
+                        currentPlatform = nil
+                    end
+                    break
+                end
+            else
+                pcall(function() platform:Destroy() end)
+                break
+            end
+        end
+    end)
+end
+
+-- ฟังก์ชันผูกระบบเข้ากับตัวละคร
+local function setupCharacter(char)
+    local humanoid = char:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+
+    lastJumpTime = 0
+
+    -- ดักจับการกระโดดของตัวละครโดยตรง (ไม่ต้องสนว่ากดปุ่มไหน มือถือก็ใช้ได้)
+    humanoid.Jumping:Connect(function(isJumping)
+        if isJumping then
+            local currentTime = tick()
+            local timeDiff = currentTime - lastJumpTime
+
+            -- ถ้ากดกระโดดครั้งที่ 2 ติดต่อกันในเวลาที่กำหนด (Double Jump)
+            if timeDiff <= JUMP_TIME_THRESHOLD and timeDiff > 0.05 then
+                createAirPlatform(char)
+            end
+
+            lastJumpTime = currentTime
+        end
+    end)
+end
+
+-- ตรวจสอบตัวละครปัจจุบัน
+if LocalPlayer.Character then
+    setupCharacter(LocalPlayer.Character)
+end
+
+-- ตรวจสอบเมื่อตัวละครเกิดใหม่ (Respawn)
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+print("✅ [Air Platform Mobile] ระบบดับเบิ้ลจั๊มป์สำหรับมือถือทำงานแล้ว!")
+end)
