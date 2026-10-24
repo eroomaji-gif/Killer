@@ -4115,115 +4115,193 @@ createLivingScannerSwitch(ContentContainer)
 
 
 
-
-
-
 -- ==========================================
--- 📡 ปุ่ม Bubble Radar X-Ray & Item Scanner (สวิตช์แคปซูล)
+-- 📡 Bubble Radar X-Ray (Real-Time & Adjustable Range)
 -- ==========================================
 pcall(function()
 getgenv().RadarXRay = getgenv().RadarXRay or false
-local processedParts = {}
-local RADIUS = 100 -- รัศมี 100 เมตร
+getgenv().RadarRange = 50 -- ค่าเริ่มต้นระยะสแกน (ปรับได้สูงสุด 100 เมตร)
 
--- ฟังก์ชันตรวจสอบว่าเป็นไอเทมหรือไม่
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local processedParts = {}
+
+-- ฟังก์ชันตรวจสอบไอเทม
 local function isItem(obj)
     if obj:IsA("Tool") or obj:IsA("Accessory") then return true end
     local name = obj.Name:lower()
     if name:find("fruit") or name:find("item") or name:find("chest") or name:find("coin") or name:find("gem") or name:find("drop") then
-        if name:find("chest") or name:find("box") then 
-            return false 
-        end
+        if name:find("chest") or name:find("box") then return false end
         return true
     end
-    if obj.Parent and (obj.Parent:IsA("Tool") or obj.Parent.Name:lower():find("fruit") or obj.Parent.Name:lower():find("item")) then
+    if obj.Parent and (obj.Parent:IsA("Tool") or obj.Parent.Name:lower():find("fruit")) then
         return true
     end
     return false
 end
 
--- ฟังก์ชันเคลียร์คืนค่าพาร์ททั้งหมดเมื่อปิดสวิตช์
-local function clearRadarXRay()
-    for obj, data in pairs(processedParts) do
-        if obj and obj.Parent then
-            pcall(function()
-                obj.Transparency = data.Transparency
-                obj.Material = data.Material
-                local outline = obj:FindFirstChild("RadarOutline")
-                if outline then outline:Destroy() end
-            end)
-        end
+-- ฟังก์ชันคืนค่าพาร์ทกลับสู่ปกติ
+local function restorePart(obj)
+    if processedParts[obj] then
+        pcall(function()
+            obj.Transparency = processedParts[obj].Transparency
+            obj.Material = processedParts[obj].Material
+            local outline = obj:FindFirstChild("RadarOutline")
+            if outline then outline:Destroy() end
+        end)
+        processedParts[obj] = nil
     end
-    table.clear(processedParts)
 end
 
--- สร้างปุ่มแคปซูลเปิด-ปิด (ตรงช่องแรกเว้นไว้ให้ใส่คอนเทนเนอร์ของคุณ เช่น SettingsContainer)
-createSwitchButton(ESPContainer, "Radar X-Ray (สแกนวัตถุ/ไอเทม)", getgenv().RadarXRay, function(isActive)
+-- 1. สร้างปุ่มสวิตช์เปิด-ปิด Radar X-Ray ใน SettingsContainer
+createSwitchButton(ESPContainer, "Radar X-Ray (สแกนเรียลไทม์)", getgenv().RadarXRay, function(isActive)
     getgenv().RadarXRay = isActive
-    
     if not isActive then
-        clearRadarXRay() -- ถ้าปิด ให้คืนค่าสภาพเดิมของแมทันที
+        for obj, _ in pairs(processedParts) do
+            restorePart(obj)
+        end
     end
 end)
 
--- ลูปทำงานเบื้องหลังแบบปลอดภัย (ทำงานเฉพาะตอนเปิดสวิตช์)
+-- 2. สร้างฟังก์ชันและปุ่มสไลด์ (Slider) สำหรับปรับระยะ (สูงสุด 100 เมตร)
+local function createSlider(parent, title, min, max, default, callback)
+    local SliderHolder = Instance.new("Frame")
+    SliderHolder.Parent = parent
+    SliderHolder.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    SliderHolder.Size = UDim2.new(1, 0, 0, 50)
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = SliderHolder
+    
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Parent = SliderHolder
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Position = UDim2.new(0, 12, 0, 8)
+    TitleLabel.Size = UDim2.new(1, -24, 0, 20)
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.Text = title .. ": " .. default .. " เมตร"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextSize = 13
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local SliderBar = Instance.new("TextButton")
+    SliderBar.Parent = SliderHolder
+    SliderBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    SliderBar.Position = UDim2.new(0, 12, 0, 32)
+    SliderBar.Size = UDim2.new(1, -24, 0, 8)
+    SliderBar.Text = ""
+    SliderBar.AutoButtonColor = false
+    
+    local BarCorner = Instance.new("UICorner")
+    BarCorner.CornerRadius = UDim.new(1, 0)
+    BarCorner.Parent = SliderBar
+    
+    local Fill = Instance.new("Frame")
+    Fill.Parent = SliderBar
+    Fill.BackgroundColor3 = Color3.fromRGB(0, 240, 255)
+    Fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    Fill.BorderSizePixel = 0
+    
+    local FillCorner = Instance.new("UICorner")
+    FillCorner.CornerRadius = UDim.new(1, 0)
+    FillCorner.Parent = Fill
+    
+    local uis = game:GetService("UserInputService")
+    local dragging = false
+    
+    SliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+    
+    uis.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    
+    uis.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local pos = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
+            Fill.Size = UDim2.new(pos, 0, 1, 0)
+            local val = math.floor(min + (max - min) * pos)
+            TitleLabel.Text = title .. ": " .. val .. " เมตร"
+            callback(val)
+        end
+    end)
+end
+
+-- เพิ่ม Slider เข้าไปใน SettingsContainer สำหรับปรับระยะ 1 ถึง 100 เมตร
+createSlider(SettingsContainer, "ระยะเรดาร์ X-Ray", 1, 100, 50, function(value)
+    getgenv().RadarRange = value
+end)
+
+-- 3. ระบบสแกนพาร์ทแบบ Real-Time (รวดเร็วและแม่นยำด้วย GetPartBoundsInRadius)
+local overlapParams = OverlapParams.new()
+overlapParams.FilterType = Enum.RaycastFilterType.Exclude
+
 task.spawn(function()
     while true do
-        task.wait(0.4)
+        task.wait(0.05) -- ความเร็วในการกวาดหาแบบ Real-Time (20 ครั้งต่อวินาที)
         if getgenv().RadarXRay then
-            local localPlayer = game:GetService("Players").LocalPlayer
-            local char = localPlayer.Character
+            local char = LocalPlayer.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
-                local myPos = char.HumanoidRootPart.Position
+                local rootPart = char.HumanoidRootPart
+                overlapParams.FilterDescendantsInstances = {char}
                 
-                for _, obj in ipairs(workspace:GetDescendants()) do
-                    if not getgenv().RadarXRay then break end
-                    
-                    if obj:IsA("BasePart") and not obj:IsDescendantOf(char) then
-                        local dist = (obj.Position - myPos).Magnitude
+                local currentRange = getgenv().RadarRange or 50
+                -- ดึงพาร์ททั้งหมดในรัศมีรอบตัวทันที (ไม่ต้องวนลูปทั้ง Workspace ให้แลค)
+                local partsInRadius = workspace:GetPartBoundsInRadius(rootPart.Position, currentRange, overlapParams)
+                local newInRadius = {}
+                
+                for _, obj in ipairs(partsInRadius) do
+                    if obj:IsA("BasePart") then
+                        newInRadius[obj] = true
                         
-                        if dist <= RADIUS then
-                            if not processedParts[obj] then
-                                processedParts[obj] = {
-                                    Transparency = obj.Transparency,
-                                    Material = obj.Material
-                                }
-                            end
-                            
-                            if isItem(obj) then
-                                -- 🟢 ถ้าเป็นไอเทม: คงสภาพเดิม ไม่ลบ texture ให้มองเห็นชัดเจน
-                                obj.Transparency = 0
-                                obj.Material = Enum.Material.Neon
-                                local outline = obj:FindFirstChild("RadarOutline")
-                                if outline then outline:Destroy() end
-                            else
-                                -- 🔴 ถ้าเป็นกำแพง/กล่อง: ล่องหนเนื้อใน เหลือแค่เส้นขอบ
-                                obj.Transparency = 0.88
-                                obj.Material = Enum.Material.SmoothPlastic
-                                
-                                if not obj:FindFirstChild("RadarOutline") then
-                                    local outline = Instance.new("SelectionBox")
-                                    outline.Name = "RadarOutline"
-                                    outline.Adornee = obj
-                                    outline.LineThickness = 0.015
-                                    outline.Color3 = Color3.fromRGB(0, 240, 255)
-                                    outline.Parent = obj
-                                end
-                            end
+                        if not processedParts[obj] then
+                            processedParts[obj] = {
+                                Transparency = obj.Transparency,
+                                Material = obj.Material
+                            }
+                        end
+                        
+                        if isItem(obj) then
+                            -- 🟢 ถ้าเป็นไอเทม: คงสภาพเดิม เห็นชัดเจน ไม่ลบเนื้อใน
+                            obj.Transparency = 0
+                            obj.Material = Enum.Material.Neon
+                            local outline = obj:FindFirstChild("RadarOutline")
+                            if outline then outline:Destroy() end
                         else
-                            -- ถ้าเดินออกนอกระยะ 100 เมตร คืนค่าเดิม
-                            if processedParts[obj] then
-                                pcall(function()
-                                    obj.Transparency = processedParts[obj].Transparency
-                                    obj.Material = processedParts[obj].Material
-                                    local outline = obj:FindFirstChild("RadarOutline")
-                                    if outline then outline:Destroy() end
-                                end)
-                                processedParts[obj] = nil
+                            -- 🔴 ถ้าเป็นกำแพง/กล่อง/พื้น: เปิดโปร่งแสง และตีเส้นขอบ
+                            obj.Transparency = 0.88
+                            obj.Material = Enum.Material.SmoothPlastic
+                            
+                            if not obj:FindFirstChild("RadarOutline") then
+                                local outline = Instance.new("SelectionBox")
+                                outline.Name = "RadarOutline"
+                                outline.Adornee = obj
+                                outline.LineThickness = 0.015
+                                outline.Color3 = Color3.fromRGB(0, 240, 255)
+                                outline.Parent = obj
                             end
                         end
                     end
-                    task.wait(0.0005) -- หน่วงเวลาป้องกันเซิร์ฟเวอร์กระตุกและกันแอนตี้ชีท
+                end
+                
+                -- เมื่อเดินหนีห่างออกไปจากพาร์ทนั้น คืนค่าเดิมทันทีแบบ Real-Time
+                for obj, _ in pairs(processedParts) do
+                    if not newInRadius[obj] then
+                        restorePart(obj)
+                    end
+                end
+            end
+        else
+            -- ถ้าปิดสวิตช์ ให้คืนค่าพาร์ททั้งหมดที่ค้างอยู่
+            if next(processedParts) then
+                for obj, _ in pairs(processedParts) do
+                    restorePart(obj)
                 end
             end
         end
@@ -4231,6 +4309,8 @@ task.spawn(function()
 end)
 end)
 
+
+                            
 
 
 
