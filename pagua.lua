@@ -134,7 +134,7 @@ do
         local lp = Players.LocalPlayer
 
         -- ค่าปรับแต่ง
-        local LEVELS = 100          -- จำนวนชั้น
+        local LEVELS = 300          -- จำนวนชั้น
         local RISE = 3              -- ความสูงต่อชั้น (เกมที่กระโดดต่ำให้ลดเหลือ 2.5)
         local GAP_ARC = 15          -- ระยะห่างระหว่างศูนย์กลางแต่ละแท่น (ยิ่งมากยิ่งกระโดดไกล)
         local TOWER_RADIUS = 26     -- รัศมีวงเกลียวของหอ
