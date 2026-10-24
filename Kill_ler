@@ -4539,38 +4539,49 @@ end)
 
 
 -- ==========================================================
--- 🔗 วางไว้ท้ายสคริปต์หลัก (ใต้บล็อกออโต้และ ESP) เพื่อดึงหมวด "ของเล่น" มารัน
--- เปลี่ยน URL ให้ตรงกับ repo/ชื่อไฟล์ของคุณ
+-- 🔗 โหลดหมวด "ของเล่น" แล้วตามด้วยหมวด "ปากัวจำลอง" (ต้องโหลดตามลำดับนี้)
 -- ==========================================================
 local TOY_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/refs/heads/main/Toys_Category.lua"
+local PAGUA_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/refs/heads/main/pagua.lua"
 
+local ctx = {
+    SidebarFrame = SidebarFrame,
+    MainFrame = MainFrame,
+    createSwitchButton = createSwitchButton,
+
+    CatBtn1 = CatBtn1,
+    CatBtnAuto = CatBtnAuto,
+    CatBtnESP = CatBtnESP,
+    CatBtnTp = CatBtnTp,
+    CatBtnInfo = CatBtnInfo,
+    CatBtnSettings = CatBtnSettings,
+    CatBtnCreator = CatBtnCreator,
+
+    ContentContainer = ContentContainer,
+    TeleportContainer = TeleportContainer,
+    InfoContainer = InfoContainer,
+    SettingsContainer = SettingsContainer,
+    CreatorContainer = CreatorContainer,
+    AutoContainer = AutoContainer,
+    ESPContainer = ESPContainer,
+}
+
+-- 1) หมวดของเล่น (เก็บค่าที่ส่งกลับมาไว้ ให้หมวดถัดไปใช้)
 local ok, err = pcall(function()
-    local src = game:HttpGet(TOY_URL)
-    loadstring(src)()({
-        SidebarFrame = SidebarFrame,
-        MainFrame = MainFrame,
-        createSwitchButton = createSwitchButton,
-
-        CatBtn1 = CatBtn1,
-        CatBtnAuto = CatBtnAuto,   -- ไม่มีหมวดนี้ก็ปล่อยไว้ได้ (จะเป็น nil)
-        CatBtnESP = CatBtnESP,     -- ไม่มีหมวดนี้ก็ปล่อยไว้ได้
-        CatBtnTp = CatBtnTp,
-        CatBtnInfo = CatBtnInfo,
-        CatBtnSettings = CatBtnSettings,
-        CatBtnCreator = CatBtnCreator,
-
-        ContentContainer = ContentContainer,
-        TeleportContainer = TeleportContainer,
-        InfoContainer = InfoContainer,
-        SettingsContainer = SettingsContainer,
-        CreatorContainer = CreatorContainer,
-        AutoContainer = AutoContainer,
-        ESPContainer = ESPContainer,
-    })
+    local toy = loadstring(game:HttpGet(TOY_URL))()(ctx)
+    if toy then
+        ctx.ToyContainer = toy.Container
+        ctx.CatBtnToy = toy.Button
+    end
 end)
-
 if not ok then
     warn("โหลดหมวดของเล่นไม่สำเร็จ: ", err)
 end
 
-
+-- 2) หมวดปากัวจำลอง (ต่อท้ายปุ่มของเล่น)
+local ok2, err2 = pcall(function()
+    loadstring(game:HttpGet(PAGUA_URL))()(ctx)
+end)
+if not ok2 then
+    warn("โหลดหมวดปากัวจำลองไม่สำเร็จ: ", err2)
+end
