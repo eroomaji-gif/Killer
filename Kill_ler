@@ -2520,6 +2520,120 @@ end)
 
 
 
+-- ==========================================
+-- 🎬 ปุ่มเปิด-ปิดระบบข้ามคัตซีน (Universal Cutscene Blocker)
+-- ==========================================
+pcall(function()
+getgenv().CutsceneBlocker = getgenv().CutsceneBlocker or false
+
+createSwitchButton(SettingsContainer, "ข้ามคัตซีน (Cutscene Blocker)", getgenv().CutsceneBlocker, function(isActive)
+    getgenv().CutsceneBlocker = isActive
+end)
+
+-- ==========================================
+-- ⚙️ โค้ดระบบการทำงานเบื้องหลัง
+-- ==========================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- คำค้นหาเกี่ยวกับคัตซีนใน UI/Object
+local cutsceneKeywords = {
+    "cutscene", "cinematic", "movie", "blackbar", "intro", "dialogue", "letterbox"
+}
+
+-- ฟังก์ชันเช็คว่าชื่อตรงกับคัตซีนหรือไม่
+local function isCutsceneObject(obj)
+    local name = obj.Name:lower()
+    for _, keyword in ipairs(cutsceneKeywords) do
+        if name:find(keyword) then
+            return true
+        end
+    end
+    return false
+end
+
+-- 1. 🚫 ดักจับและลบ UI คัตซีนทั้งหมด
+local function scanAndDestroyCutsceneUI(gui)
+    if isCutsceneObject(gui) then
+        pcall(function() gui:Destroy() end)
+        return
+    end
+    
+    for _, child in ipairs(gui:GetDescendants()) do
+        if isCutsceneObject(child) then
+            pcall(function() child:Destroy() end)
+        end
+    end
+end
+
+-- เฝ้าดู PlayerGui ตลอดเวลา (ทำงานเฉพาะตอนเปิดสวิตช์)
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+playerGui.ChildAdded:Connect(function(child)
+    if getgenv().CutsceneBlocker then
+        task.wait(0.05)
+        scanAndDestroyCutsceneUI(child)
+    end
+end)
+
+-- 2. 🎥 บังคับมุมกล้องให้อยู่ที่ตัวละครเสมอ
+RunService.RenderStepped:Connect(function()
+    if not getgenv().CutsceneBlocker then return end
+    
+    if Camera.CameraType ~= Enum.CameraType.Custom then
+        Camera.CameraType = Enum.CameraType.Custom
+    end
+    
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        local humanoid = char.Humanoid
+        if Camera.CameraSubject ~= humanoid then
+            Camera.CameraSubject = humanoid
+        end
+    end
+    
+    for _, effect in ipairs(Lighting:GetChildren()) do
+        if effect:IsA("BlurEffect") or (effect:IsA("ColorCorrectionEffect") and isCutsceneObject(effect)) then
+            pcall(function() effect:Destroy() end)
+        end
+    end
+end)
+
+-- 3. 🏃 ปลดล็อกการเคลื่อนที่ของตัวละคร (Unfreeze)
+RunService.Stepped:Connect(function()
+    if not getgenv().CutsceneBlocker then return end
+    
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Anchored then
+                part.Anchored = false
+            end
+        end
+        
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            if humanoid.WalkSpeed == 0 then
+                humanoid.WalkSpeed = 16
+            end
+            if humanoid.JumpPower == 0 then
+                humanoid.JumpPower = 50
+            end
+            if humanoid.PlatformStand then
+                humanoid.PlatformStand = false
+            end
+        end
+    end
+end)
+end)
+
+
+
+
+
 
 
 
