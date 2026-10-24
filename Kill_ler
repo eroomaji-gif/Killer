@@ -4355,7 +4355,7 @@ local function clearDoorRadar()
 end
 
 -- 1. สร้างปุ่มสวิตช์แคปซูลเปิด-ปิด (เว้นช่องคอนเทนเนอร์ไว้ตรงพารามิเตอร์แรก)
-createSwitchButton(---[ใส่ชื่อคอนเทนเนอร์ของคุณตรงนี้]---, "Door Hazard Scanner (เตือนภัยประตูอันตราย)", getgenv().DoorRadar, function(isActive)
+createSwitchButton(ESPContainer, "Door Hazard Scanner (เตือนภัยประตูอันตราย)", getgenv().DoorRadar, function(isActive)
     getgenv().DoorRadar = isActive
     if not isActive then
         clearDoorRadar()
