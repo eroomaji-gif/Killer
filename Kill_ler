@@ -2178,6 +2178,45 @@ end)
 
 
 -- ==========================================
+-- 🔄 ปุ่มรีเซ็ตตัวละคร (ทะลุบล็อกห้ามรีเซ็ตของแมพ)
+-- ==========================================
+local ResetButton = Instance.new("TextButton")
+ResetButton.Name = "ResetButton"
+ResetButton.Parent = SettingsContainer
+ResetButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50) -- สีแดงเข้มให้รู้ว่าเป็นปุ่มรีเซ็ต/ออก
+ResetButton.Size = UDim2.new(1, 0, 0, 40)
+ResetButton.Font = Enum.Font.GothamBold
+ResetButton.Text = "🔄 รีเซ็ตตัวละคร (บังคับตาย)"
+ResetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ResetButton.TextSize = 13
+ResetButton.AutoButtonColor = true
+
+local ResetCorner = Instance.new("UICorner")
+ResetCorner.CornerRadius = UDim.new(0, 6)
+ResetCorner.Parent = ResetButton
+
+-- เมื่อกดปุ่ม จะทำการสลายร่างตัวละครทันทีแม้แมพจะล็อคไว้
+ResetButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        local localPlayer = game:GetService("Players").LocalPlayer
+        if localPlayer.Character then
+            -- คำสั่งนี้จะทำการตัดข้อต่อทั้งหมด ทำให้ตัวละครตายและเกิดใหม่ได้ทันที
+            localPlayer.Character:BreakJoints()
+        end
+    end)
+end)
+
+
+
+
+
+
+
+
+
+
+
+-- ==========================================
 -- 📌 [ปุ่มตั้งค่า] ลบหมอกและปรับกลางวัน + ระบบจำค่า (Auto-Save)
 -- ==========================================
 getgenv().FullBright_Active = false
