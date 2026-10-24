@@ -1,0 +1,124 @@
+-- ==========================================================
+-- 🐟 โมดูลหมวดหมู่ "ปลากั้วจำลอง" (ไฟล์แยก ให้สคริปต์หลักดึงมารัน)
+-- ชื่อไฟล์ใน GitHub: modules/fish_sim.lua
+-- สคริปต์หลักเรียกแบบ: loadstring(game:HttpGet(URL))()(ctx)
+-- ⚠️ ต้องเรียก "หลัง" toys.lua เสมอ (เพราะ toys.lua จัดลำดับปุ่มซ้ายไว้ก่อน
+--    แล้วไฟล์นี้จะแทรกตัวเองต่อท้ายปุ่มของเล่น และดันปุ่มที่เหลือลงไป)
+-- ==========================================================
+return function(ctx)
+    -- รับของที่ต้องใช้จากสคริปต์หลัก
+    local SidebarFrame = ctx.SidebarFrame
+    local MainFrame = ctx.MainFrame
+    local createSwitchButton = ctx.createSwitchButton
+
+    local CatBtn1 = ctx.CatBtn1
+    local CatBtnAuto = ctx.CatBtnAuto          -- อาจเป็น nil
+    local CatBtnESP = ctx.CatBtnESP            -- อาจเป็น nil
+    local CatBtnTp = ctx.CatBtnTp
+    local CatBtnInfo = ctx.CatBtnInfo
+    local CatBtnSettings = ctx.CatBtnSettings
+    local CatBtnCreator = ctx.CatBtnCreator
+    -- ปุ่มหมวดของเล่น (ถ้าสคริปต์หลักไม่ได้ส่งมา ก็หาจากชื่อในแถบซ้าย)
+    local CatBtnToy = ctx.CatBtnToy or SidebarFrame:FindFirstChild("CategoryToy")
+
+    -- 1) ปุ่มหมวดหมู่ "ปลากั้วจำลอง" ที่แถบซ้าย
+    local CatBtnFish = Instance.new("TextButton")
+    CatBtnFish.Name = "CategoryFishSim"
+    CatBtnFish.Parent = SidebarFrame
+    CatBtnFish.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    CatBtnFish.Size = UDim2.new(1, 0, 0, 40)
+    CatBtnFish.Font = Enum.Font.GothamBold
+    CatBtnFish.Text = "🐟 ปลากั้วจำลอง"
+    CatBtnFish.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CatBtnFish.TextSize = 13
+
+    local CatCornerFish = Instance.new("UICorner")
+    CatCornerFish.CornerRadius = UDim.new(0, 6)
+    CatCornerFish.Parent = CatBtnFish
+
+    -- 2) จัดลำดับปุ่มซ้าย (แทรกต่อท้ายของเล่น):
+    --    ฆ่า+วาป -> ออโต้ -> ESP -> ของเล่น -> ปลากั้วจำลอง -> วาป+ฟาม -> ข้อมูล -> ตั้งค่า -> ผู้สร้าง
+    CatBtn1.LayoutOrder = 1
+    if CatBtnAuto then CatBtnAuto.LayoutOrder = 2 end
+    if CatBtnESP then CatBtnESP.LayoutOrder = 3 end
+    if CatBtnToy then CatBtnToy.LayoutOrder = 4 end
+    CatBtnFish.LayoutOrder = 5
+    CatBtnTp.LayoutOrder = 6
+    CatBtnInfo.LayoutOrder = 7
+    CatBtnSettings.LayoutOrder = 8
+    CatBtnCreator.LayoutOrder = 9
+    SidebarFrame.CanvasSize = UDim2.new(0, 0, 0, 530)
+
+    -- 3) หน้าต่างฝั่งขวาของหมวดปลากั้วจำลอง
+    local FishContainer = Instance.new("ScrollingFrame")
+    FishContainer.Name = "FishContainer"
+    FishContainer.Parent = MainFrame
+    FishContainer.BackgroundTransparency = 1
+    FishContainer.Position = UDim2.new(0, 160, 0, 50)
+    FishContainer.Size = UDim2.new(1, -170, 1, -60)
+    FishContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
+    FishContainer.ScrollBarThickness = 6
+    FishContainer.Visible = false
+
+    local FishContainerLayout = Instance.new("UIListLayout")
+    FishContainerLayout.Parent = FishContainer
+    FishContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    FishContainerLayout.Padding = UDim.new(0, 8)
+
+    -- ข้อความบอกว่ายังว่าง (หายเองทันทีที่ใส่ปุ่มแรกเข้ามา)
+    local FishEmptyHint = Instance.new("TextLabel")
+    FishEmptyHint.Name = "EmptyHint"
+    FishEmptyHint.Parent = FishContainer
+    FishEmptyHint.BackgroundTransparency = 1
+    FishEmptyHint.Size = UDim2.new(1, -10, 0, 40)
+    FishEmptyHint.Font = Enum.Font.Gotham
+    FishEmptyHint.Text = "🐟 หมวดปลากั้วจำลอง — ยังไม่มีฟังก์ชัน"
+    FishEmptyHint.TextColor3 = Color3.fromRGB(180, 180, 190)
+    FishEmptyHint.TextSize = 14
+
+    FishContainer.ChildAdded:Connect(function(child)
+        if child ~= FishEmptyHint and not child:IsA("UIListLayout") then
+            FishEmptyHint.Visible = false
+        end
+    end)
+
+    -- 4) ระบบกดสลับหน้าต่าง
+    -- กดปุ่มปลากั้วจำลอง -> ซ่อนทุกหน้า (รวมหน้าของเล่น) แล้วโชว์หน้านี้
+    CatBtnFish.MouseButton1Click:Connect(function()
+        ctx.ContentContainer.Visible = false
+        ctx.TeleportContainer.Visible = false
+        ctx.InfoContainer.Visible = false
+        ctx.SettingsContainer.Visible = false
+        ctx.CreatorContainer.Visible = false
+        if ctx.AutoContainer then ctx.AutoContainer.Visible = false end
+        if ctx.ESPContainer then ctx.ESPContainer.Visible = false end
+        local toyPage = ctx.ToyContainer or MainFrame:FindFirstChild("ToyContainer")
+        if toyPage then toyPage.Visible = false end
+        FishContainer.Visible = true
+    end)
+
+    -- กดหมวดอื่น (รวมของเล่น) -> ซ่อนหน้าปลากั้วจำลอง
+    local otherButtons = { CatBtn1, CatBtnTp, CatBtnInfo, CatBtnSettings, CatBtnCreator }
+    if CatBtnAuto then table.insert(otherButtons, CatBtnAuto) end
+    if CatBtnESP then table.insert(otherButtons, CatBtnESP) end
+    if CatBtnToy then table.insert(otherButtons, CatBtnToy) end
+    for _, btn in ipairs(otherButtons) do
+        btn.MouseButton1Click:Connect(function()
+            FishContainer.Visible = false
+        end)
+    end
+
+    -- ==========================================================
+    -- 👇 วางปุ่มฟังก์ชันปลากั้วจำลองตรงนี้ (ข้างใน return function) โดยใช้ FishContainer เป็น Parent
+    -- ตัวอย่าง:
+    -- createSwitchButton(FishContainer, "🐟 ชื่อฟังก์ชัน", false, function(isActive)
+    --     -- โค้ด
+    -- end)
+    -- ==========================================================
+
+
+
+
+
+    return { Container = FishContainer, Button = CatBtnFish }
+end
