@@ -2095,6 +2095,87 @@ createHandTrailSwitch(SettingsContainer)
 
 
 
+getgenv().Fpsboost = getgenv().Fpsboost or false
+local originalData = { parts = {} }
+
+createSwitchButton(MainFrame, "FPS Boost", getgenv().Fpsboost, function(isActive)
+    getgenv().Fpsboost = isActive
+    
+    if isActive then
+        -- 🟢 เมื่อเปิด: บันทึกค่าเดิมแล้วปรับแต่งให้ลื่น
+        task.spawn(function()
+            pcall(function()
+                local Lighting = game:GetService("Lighting")
+                originalData.GlobalShadows = Lighting.GlobalShadows
+                originalData.FogEnd = Lighting.FogEnd
+                originalData.Brightness = Lighting.Brightness
+                
+                Lighting.GlobalShadows = false
+                Lighting.FogEnd = 9e9
+                Lighting.Brightness = 2
+                
+                table.clear(originalData.parts)
+                
+                for _, v in ipairs(workspace:GetDescendants()) do
+                    pcall(function()
+                        if v:IsA("BasePart") then
+                            originalData.parts[v] = {
+                                Material = v.Material,
+                                CastShadow = v.CastShadow
+                            }
+                            v.CastShadow = false
+                            v.Material = Enum.Material.SmoothPlastic
+                        elseif v:IsA("Texture") or v:IsA("Decal") then
+                            originalData.parts[v] = {
+                                Transparency = v.Transparency
+                            }
+                            v.Transparency = 1
+                        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") then
+                            originalData.parts[v] = {
+                                Enabled = v.Enabled
+                            }
+                            v.Enabled = false
+                        end
+                    end)
+                end
+            end)
+        end)
+    else
+        -- 🔴 เมื่อปิด: คืนค่าเดิมต้นฉบับทั้งหมด
+        task.spawn(function()
+            pcall(function()
+                local Lighting = game:GetService("Lighting")
+                if originalData.GlobalShadows ~= nil then
+                    Lighting.GlobalShadows = originalData.GlobalShadows
+                    Lighting.FogEnd = originalData.FogEnd
+                    Lighting.Brightness = originalData.Brightness
+                end
+                
+                for obj, props in pairs(originalData.parts) do
+                    pcall(function()
+                        if obj and obj.Parent then
+                            if obj:IsA("BasePart") then
+                                obj.Material = props.Material
+                                obj.CastShadow = props.CastShadow
+                            elseif obj:IsA("Texture") or obj:IsA("Decal") then
+                                obj.Transparency = props.Transparency
+                            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+                                obj.Enabled = props.Enabled
+                            end
+                        end
+                    end)
+                end
+            end)
+        end)
+    end
+end)
+
+
+
+
+
+
+
 
 -- ==========================================
 -- 📌 [ปุ่มตั้งค่า] ลบหมอกและปรับกลางวัน + ระบบจำค่า (Auto-Save)
