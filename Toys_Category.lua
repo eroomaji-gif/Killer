@@ -283,6 +283,327 @@ end
 
 
 
+
+
+
+
+do
+    -- ==========================================================
+    -- 👥 ของเล่นที่ 2: ดึงโมเดลผู้เล่นมาวิ่งตามตัวเรา
+    -- (ช่องชื่อ + ช่องจำนวน + ปุ่มซัมมอน + ปุ่มลบ)
+    -- ใช้ ToyContainer เป็น Parent / ลบทั้งบล็อกนี้ได้ ส่วนอื่นไม่พัง
+    -- ==========================================================
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local lp = Players.LocalPlayer
+
+    local MAX_CLONES = 20     -- จำนวนสูงสุดต่อครั้ง
+    local SPACING = 3.5       -- ระยะห่างระหว่างตัว
+    local COLUMNS = 4         -- จำนวนตัวต่อแถว (เรียงต่อท้ายตัวเรา)
+    local FOLLOW_SPEED = 14   -- ยิ่งมากยิ่งตามติด
+
+    local clones = {}         -- { model, root, motors, offset }
+    local conn
+    local summonId = 0
+    local cachedChar, cachedMotors = nil, {}
+
+    -- ---------- UI สไตล์เดียวกับ createSwitchButton ----------
+    local function styleCapsule(obj)
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = obj
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.fromRGB(0, 0, 0)
+        stroke.Thickness = 2
+        stroke.Parent = obj
+    end
+
+    local function createInput(parent, order, placeholder, defaultText)
+        local box = Instance.new("TextBox")
+        box.Parent = parent
+        box.LayoutOrder = order
+        box.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        box.Size = UDim2.new(1, 0, 0, 45)
+        box.Font = Enum.Font.GothamBold
+        box.PlaceholderText = placeholder
+        box.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+        box.Text = defaultText or ""
+        box.TextColor3 = Color3.fromRGB(0, 0, 0)
+        box.TextSize = 14
+        box.ClearTextOnFocus = false
+        styleCapsule(box)
+        return box
+    end
+
+    local function createActionButton(parent, order, text, color, callback)
+        local btn = Instance.new("TextButton")
+        btn.Parent = parent
+        btn.LayoutOrder = order
+        btn.BackgroundColor3 = color
+        btn.Size = UDim2.new(1, 0, 0, 45)
+        btn.Font = Enum.Font.GothamBold
+        btn.Text = text
+        btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+        btn.TextSize = 14
+        styleCapsule(btn)
+        btn.MouseButton1Click:Connect(callback)
+        return btn
+    end
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Parent = ToyContainer
+    TitleLabel.LayoutOrder = 10
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Size = UDim2.new(1, -10, 0, 24)
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.Text = "👥 ดึงโมเดลผู้เล่นมาวิ่งตาม"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextSize = 14
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local NameBox = createInput(ToyContainer, 11, "ชื่อผู้เล่น (เว้นว่าง = ตัวเราเอง)", "")
+    local CountBox = createInput(ToyContainer, 12, "จำนวน (1-" .. MAX_CLONES .. ")", "1")
+
+    -- รับเฉพาะตัวเลข
+    CountBox:GetPropertyChangedSignal("Text"):Connect(function()
+        local filtered = (CountBox.Text:gsub("%D", ""))
+        if filtered ~= CountBox.Text then
+            CountBox.Text = filtered
+        end
+    end)
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Parent = ToyContainer
+    StatusLabel.LayoutOrder = 15
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Size = UDim2.new(1, -10, 0, 24)
+    StatusLabel.Font = Enum.Font.Gotham
+    StatusLabel.Text = ""
+    StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+    StatusLabel.TextSize = 13
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local function setStatus(text)
+        StatusLabel.Text = text
+    end
+
+    -- ---------- ดึงโมเดล ----------
+    local function findPlayer(name)
+        local lower = string.lower(name)
+        for _, p in ipairs(Players:GetPlayers()) do
+            if string.lower(p.Name) == lower or string.lower(p.DisplayName) == lower then
+                return p
+            end
+        end
+    end
+
+    local function prepare(model)
+        for _, d in ipairs(model:GetDescendants()) do
+            if d:IsA("LuaSourceContainer") or d:IsA("Tool") or d:IsA("ForceField") then
+                d:Destroy()
+            end
+        end
+        for _, d in ipairs(model:GetDescendants()) do
+            if d:IsA("BasePart") then
+                d.CanCollide = false
+                d.CanTouch = false
+                d.CanQuery = false
+                d.Massless = true
+            end
+        end
+        local hum = model:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+            hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+            hum.BreakJointsOnDeath = false
+        end
+        local root = model:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.Anchored = true
+        end
+    end
+
+    local function getTemplate(name)
+        local model
+
+        -- 1) ผู้เล่นที่อยู่ในเซิร์ฟเวอร์ -> ก๊อปตัวละครจริง
+        local p = findPlayer(name)
+        if p and p.Character then
+            local src = p.Character
+            src.Archivable = true
+            for _, d in ipairs(src:GetDescendants()) do
+                pcall(function() d.Archivable = true end)
+            end
+            model = src:Clone()
+        end
+
+        -- 2) ไม่อยู่ในเซิร์ฟเวอร์ -> สร้างจากบัญชี Roblox ตามชื่อ
+        if not model then
+            local ok, userId = pcall(function()
+                return Players:GetUserIdFromNameAsync(name)
+            end)
+            if not ok or not userId then
+                return nil, "ไม่พบชื่อผู้เล่นนี้"
+            end
+            local ok2, built = pcall(function()
+                return Players:CreateHumanoidModelFromUserId(userId)
+            end)
+            if not ok2 or not built then
+                return nil, "ดึงโมเดลจากบัญชีไม่สำเร็จ"
+            end
+            model = built
+        end
+
+        prepare(model)
+        if not model:FindFirstChild("HumanoidRootPart") then
+            model:Destroy()
+            return nil, "โมเดลนี้ไม่มี HumanoidRootPart"
+        end
+        return model
+    end
+
+    -- ---------- วิ่งตาม + ก๊อปท่าทางตัวเรา ----------
+    local function offsetFor(i, total)
+        local row = math.floor((i - 1) / COLUMNS)
+        local col = (i - 1) % COLUMNS
+        local inRow = math.min(COLUMNS, total - row * COLUMNS)
+        local x = (col - (inRow - 1) / 2) * SPACING
+        local z = SPACING * (row + 1) -- +Z = ด้านหลังตัวเรา
+        return CFrame.new(x, 0, z)
+    end
+
+    local function step(dt)
+        local char = lp.Character
+        local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+        if not myRoot then return end
+
+        if cachedChar ~= char then
+            cachedChar = char
+            cachedMotors = {}
+            for _, d in ipairs(char:GetDescendants()) do
+                if d:IsA("Motor6D") then
+                    cachedMotors[d.Name] = d
+                end
+            end
+        end
+
+        local alpha = math.clamp(dt * FOLLOW_SPEED, 0, 1)
+        for _, c in ipairs(clones) do
+            if c.root.Parent then
+                local target = myRoot.CFrame * c.offset
+                local cur = c.root.CFrame
+                if (cur.Position - target.Position).Magnitude > 60 then
+                    c.root.CFrame = target -- ไกลเกิน (วาป) ให้ตามทันที
+                else
+                    c.root.CFrame = cur:Lerp(target, alpha)
+                end
+                -- ก๊อปท่าทางทุกข้อต่อ (วิ่ง กระโดด นั่ง ท่าเต้น ฯลฯ)
+                for name, motor in pairs(c.motors) do
+                    local src = cachedMotors[name]
+                    if src then
+                        motor.Transform = src.Transform
+                    end
+                end
+            end
+        end
+    end
+
+    local function destroyAll()
+        if conn then
+            conn:Disconnect()
+            conn = nil
+        end
+        for _, c in ipairs(clones) do
+            pcall(function() c.model:Destroy() end)
+        end
+        clones = {}
+    end
+
+    local function summon()
+        destroyAll()
+        summonId = summonId + 1
+        local myId = summonId
+
+        local name = NameBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+        if name == "" then name = lp.Name end
+        local n = math.clamp(math.floor(tonumber(CountBox.Text) or 1), 1, MAX_CLONES)
+
+        setStatus("⏳ กำลังดึงโมเดล " .. name .. " ...")
+
+        task.spawn(function()
+            local template, err = getTemplate(name)
+            if myId ~= summonId then
+                if template then template:Destroy() end
+                return
+            end
+            if not template then
+                setStatus("❌ " .. tostring(err))
+                return
+            end
+
+            local char = lp.Character
+            local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+            if not myRoot then
+                template:Destroy()
+                setStatus("❌ ตัวละครเรายังไม่พร้อม")
+                return
+            end
+
+            local matched, totalMotors = 0, 0
+            for i = 1, n do
+                local m = template:Clone()
+                m.Name = "Clone_" .. name .. "_" .. i
+                local root = m:FindFirstChild("HumanoidRootPart")
+                local motors = {}
+                for _, d in ipairs(m:GetDescendants()) do
+                    if d:IsA("Motor6D") then
+                        motors[d.Name] = d
+                    end
+                end
+                if i == 1 then
+                    for mname in pairs(motors) do
+                        totalMotors = totalMotors + 1
+                        if char:FindFirstChild(mname, true) then
+                            matched = matched + 1
+                        end
+                    end
+                end
+                local offset = offsetFor(i, n)
+                root.CFrame = myRoot.CFrame * offset
+                m.Parent = workspace
+                table.insert(clones, { model = m, root = root, motors = motors, offset = offset })
+            end
+            template:Destroy()
+
+            conn = RunService.RenderStepped:Connect(step)
+
+            if totalMotors > 0 and matched < totalMotors / 2 then
+                setStatus("⚠️ ดึง " .. n .. " ตัว แต่ rig ไม่เหมือนเรา ท่าทางอาจไม่ตรง")
+            else
+                setStatus("✅ ดึง " .. name .. " จำนวน " .. n .. " ตัว")
+            end
+        end)
+    end
+
+    createActionButton(ToyContainer, 13, "✨ ซัมมอน", Color3.fromRGB(190, 255, 190), summon)
+    createActionButton(ToyContainer, 14, "🗑️ เดสทอย", Color3.fromRGB(255, 190, 190), function()
+        summonId = summonId + 1
+        destroyAll()
+        setStatus("🗑️ ลบโมเดลทั้งหมดแล้ว")
+    end)
+
+    -- ล้างตอนรันสคริปต์ซ้ำ (ต่อสายกับตัวล้างของแม่เหล็ก)
+    local prevCleanup = getgenv().MainScript_Cleanup
+    getgenv().MainScript_Cleanup = function()
+        summonId = summonId + 1
+        destroyAll()
+        if prevCleanup then prevCleanup() end
+    end
+    end
+
+
+
+    
                             
         return { Container = FishContainer, Button = CatBtnFish }
 end
