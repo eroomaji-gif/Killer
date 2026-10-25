@@ -148,6 +148,12 @@ do
         local SKILL_COOLDOWN = 0.12 -- กันฮุกซ้ำหลายทางพร้อมกัน
         local RETREAT_MODE = true    -- ตีเสร็จแล้ววาร์ปกลับจุดเดิม
         local RETREAT_ON_HIT = true  -- โดนตีกลับระหว่างอยู่ใกล้เป้าหมาย -> ถอยทันที
+        local ACQUIRE_ANGLE = 15     -- หันกล้องให้ใครอยู่ในมุมกี่องศาจากกลางจอ ถึงจะเริ่มล็อกคนนั้น
+        local RELEASE_ANGLE = 35     -- ดึงกล้องห่างจากเป้าเกินกี่องศา ถึงหลุดล็อก
+        local STICK_STRENGTH = 0.85  -- ความเหนียว (1 = ล็อกตายใกล้กลางจอ, น้อยลง = เหนียวน้อยลง)
+        local FLICK_ANGLE = 7        -- สะบัดกล้องเร็วเกินกี่องศาต่อเฟรม = ดึงแรง หลุดล็อกทันที
+        local FLICK_COOLDOWN = 0.3   -- หลังสะบัดหลุด รออีกกี่วินาทีถึงล็อกคนใหม่
+        local VISIBLE_CHECK = true   -- ไม่ล็อกคนที่อยู่หลังกำแพง
 
         getgenv().EmbedPlayer_Active = false
         getgenv().EmbedPlayer_AimPart = nil
@@ -159,6 +165,30 @@ do
         local stickUntil, stickTarget = 0, nil
         local lastSkill = 0
         local originCF = nil         -- จุดที่เรายืนก่อนวาร์ปเข้าไปตี
+        local lockedPlayer, lastIntent, breakUntil = nil, nil, 0
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+        local function angleBetween(a, b)
+            return math.deg(math.acos(math.clamp(a.Unit:Dot(b.Unit), -1, 1)))
+        end
+
+        -- ส่วนที่เล็งของผู้เล่น (nil ถ้าเป็นเรา/ตายแล้ว/ทีมเดียวกัน)
+        local function aimPartOf(p)
+            if p == lp then return nil end
+            local ch = p.Character
+            local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health <= 0 then return nil end
+            if TEAM_CHECK and p.Team ~= nil and p.Team == lp.Team then return nil end
+            return ch:FindFirstChild(AIM_PART) or ch:FindFirstChild("HumanoidRootPart")
+        end
+
+        local function visible(cam, part)
+            if not VISIBLE_CHECK then return true end
+            rayParams.FilterDescendantsInstances = { lp.Character, part.Parent }
+            local origin = cam.CFrame.Position
+            return workspace:Raycast(origin, part.Position - origin, rayParams) == nil
+            end
 
         local SKILL_KEYS = {}
         for _, k in ipairs({
@@ -240,20 +270,6 @@ do
             if not root then return end
 
             if mode == "far" then
-                -- ล็อกกล้องใส่เป้าหมายใกล้สุดทุกเฟรม
-                local target = nearestPlayer()
-                local tchar = target and target.Character
-                local part = tchar and (tchar:FindFirstChild(AIM_PART) or tchar:FindFirstChild("HumanoidRootPart"))
-                local cam = workspace.CurrentCamera
-                if part and cam then
-                    local pos = part.Position + part.AssemblyLinearVelocity * PREDICT
-                    getgenv().EmbedPlayer_AimPart = part
-                    getgenv().EmbedPlayer_AimPos = pos
-                    local goal = CFrame.lookAt(cam.CFrame.Position, pos)
-                    cam.CFrame = (AIM_SMOOTH >= 1) and goal or cam.CFrame:Lerp(goal, AIM_SMOOTH)
-                else
-                    getgenv().EmbedPlayer_AimPart = nil
-                end
             else
                 getgenv().EmbedPlayer_AimPart = nil
                 -- โหมดใกล้: ตามติด+หันหน้าใส่เป้าหมายช่วงสั้นๆ หลังฮุกสกิล
