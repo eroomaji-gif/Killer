@@ -1708,6 +1708,7 @@ end)
 -- วางหลัง createSwitchButton และ SettingsContainer ถูกสร้างแล้ว
 -- เรียกใช้: createHandTrailSwitch(SettingsContainer)
 -- ==========================================================
+pcall(function()
 local function createHandTrailSwitch(parent)
     local Players = game:GetService("Players")
     local lp = Players.LocalPlayer
@@ -1727,7 +1728,6 @@ local function createHandTrailSwitch(parent)
         { id = "Rainbow", label = "รุ้ง",   color = nil },
     }
 
-
     local RAINBOW = ColorSequence.new({
         ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
         ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 150, 0)),
@@ -1737,6 +1737,7 @@ local function createHandTrailSwitch(parent)
         ColorSequenceKeypoint.new(0.85, Color3.fromRGB(150, 60, 255)),
         ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 200)),
     })
+
 
     -- ===== ระบบจำค่า เปิด/ปิด + สี (บันทึกลงไฟล์ ข้ามเกม/ข้ามการรันได้) =====
     local HttpService = game:GetService("HttpService")
@@ -2033,14 +2034,6 @@ local function createHandTrailSwitch(parent)
     UIPadding.PaddingRight = UDim.new(0, 12)
     UIPadding.Parent = Dropdown
 
-
-    local DropLayout = Instance.new("UIListLayout")
-    DropLayout.FillDirection = Enum.FillDirection.Horizontal
-    DropLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    DropLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-    DropLayout.Padding = UDim.new(0, 12)
-    DropLayout.Parent = Dropdown
-
     local chips = {}
     local function refreshChips()
         for id, chip in pairs(chips) do
@@ -2082,6 +2075,7 @@ local function createHandTrailSwitch(parent)
             refreshChips()
         end)
     end
+
     refreshChips()
 
     local open = false
@@ -2092,6 +2086,7 @@ local function createHandTrailSwitch(parent)
         Wrapper.Size = UDim2.new(1, 0, 0, open and EXPANDED or COLLAPSED)
     end)
 
+
     -- ถ้าครั้งก่อนเปิดค้างไว้ ให้เริ่มทำงานเลยตอนรันสคริปต์
     if getgenv().HandTrail_Active then
         start()
@@ -2100,8 +2095,10 @@ local function createHandTrailSwitch(parent)
     return Wrapper
 end
 
+
 -- 👇 เรียกใช้ในหมวดตั้งค่า
 createHandTrailSwitch(SettingsContainer)
+
 
             
 
