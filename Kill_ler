@@ -4400,7 +4400,7 @@ end)
 -- ==========================================================
 local TOY_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/refs/heads/main/Toys_Category.lua"
 local PAGUA_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/refs/heads/main/pagua.lua"
-
+local PVP_URL = "https://raw.githubusercontent.com/eroomaji-gif/Killer/refs/heads/main/PVP.lua"
 local ctx = {
     SidebarFrame = SidebarFrame,
     MainFrame = MainFrame,
