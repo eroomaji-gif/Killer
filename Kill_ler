@@ -361,6 +361,9 @@ local ContentLayout = Instance.new("UIListLayout")
 ContentLayout.Parent = ContentContainer
 ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 ContentLayout.Padding = UDim.new(0, 8)
+SettingsContainerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    SettingsContainer.CanvasSize = UDim2.new(0, 0, 0, SettingsContainerLayout.AbsoluteContentSize.Y + 10)
+end)
 
 
 
