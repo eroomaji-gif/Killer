@@ -1991,18 +1991,13 @@ local function createHandTrailSwitch(parent)
     -- ... (ปล่อยโค้ดปุ่ม Switch ไว้เหมือนเดิม จนถึงส่วน Dropdown ให้เปลี่ยนมาใช้ชุดนี้) ...
 
     -- เปลี่ยนเป็น ScrollingFrame เพื่อให้เลื่อนซ้าย-ขวาได้
-    local Dropdown = Instance.new("ScrollingFrame")
+    local Dropdown = Instance.new("Frame")
     Dropdown.Name = "ColorDropdown"
     Dropdown.Parent = Wrapper
     Dropdown.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Dropdown.Position = UDim2.new(0, 12, 0, 51)
     Dropdown.Size = UDim2.new(1, -24, 0, 46)
     Dropdown.Visible = false
-    Dropdown.CanvasSize = UDim2.new(0, 0, 0, 0)
-    Dropdown.AutomaticCanvasSize = Enum.AutomaticCanvasSize.X -- ขยายความยาวอัตโนมัติตามจำนวนสี
-    Dropdown.ScrollingDirection = Enum.ScrollingDirection.X  -- ลื่นไหลแนวนอน
-    Dropdown.ScrollBarThickness = 0                          -- ซ่อนแถบเลื่อนให้ดูคลีนๆ
-    Dropdown.BorderSizePixel = 0
 
     local DropCorner = Instance.new("UICorner")
     DropCorner.CornerRadius = UDim.new(0, 14)
@@ -2013,18 +2008,15 @@ local function createHandTrailSwitch(parent)
     DropStroke.Thickness = 2
     DropStroke.Parent = Dropdown
 
-    -- จัดเรียงเป็นแถวเดียวแนวนอน (UIListLayout)
     local DropLayout = Instance.new("UIListLayout")
     DropLayout.FillDirection = Enum.FillDirection.Horizontal
+    DropLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     DropLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-    DropLayout.Padding = UDim.new(0, 10)
+    DropLayout.Padding = UDim.new(0, 12)
     DropLayout.Parent = Dropdown
 
-    -- เว้นขอบซ้าย-ขวาด้านในนิดหน่อยให้สวยงาม
-    local UIPadding = Instance.new("UIPadding")
-    UIPadding.PaddingLeft = UDim.new(0, 12)
-    UIPadding.PaddingRight = UDim.new(0, 12)
-    UIPadding.Parent = Dropdown
+
+
 
     local chips = {}
     local function refreshChips()
