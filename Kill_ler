@@ -1708,7 +1708,6 @@ end)
 -- วางหลัง createSwitchButton และ SettingsContainer ถูกสร้างแล้ว
 -- เรียกใช้: createHandTrailSwitch(SettingsContainer)
 -- ==========================================================
-pcall(function()
 local function createHandTrailSwitch(parent)
     local Players = game:GetService("Players")
     local lp = Players.LocalPlayer
