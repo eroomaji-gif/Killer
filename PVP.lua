@@ -146,6 +146,8 @@ do
         local TP_BEHIND = 3         -- ระยะที่วาร์ปไปอยู่หลังเป้าหมาย
         local STICK_TIME = 0.8      -- ตามติด+หันหน้าใส่เป้าหมายหลังฮุกสกิลกี่วินาที (โหมดใกล้)
         local SKILL_COOLDOWN = 0.12 -- กันฮุกซ้ำหลายทางพร้อมกัน
+        local RETREAT_MODE = true    -- ตีเสร็จแล้ววาร์ปกลับจุดเดิม
+        local RETREAT_ON_HIT = true  -- โดนตีกลับระหว่างอยู่ใกล้เป้าหมาย -> ถอยทันที
 
         getgenv().EmbedPlayer_Active = false
         getgenv().EmbedPlayer_AimPart = nil
@@ -156,6 +158,7 @@ do
         local conns = {}
         local stickUntil, stickTarget = 0, nil
         local lastSkill = 0
+        local originCF = nil         -- จุดที่เรายืนก่อนวาร์ปเข้าไปตี
 
         local SKILL_KEYS = {}
         for _, k in ipairs({
@@ -195,6 +198,22 @@ do
             root.AssemblyLinearVelocity = Vector3.zero
         end
 
+
+
+                    local function retreat()
+            local char = lp.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root and originCF then
+                root.CFrame = originCF
+                root.AssemblyLinearVelocity = Vector3.zero
+            end
+            originCF = nil
+            stickTarget = nil
+            stickUntil = 0
+            end
+
+
+            
         -- โหมดใกล้: ถูกเรียกเมื่อฮุกเจอว่าเรากำลังใช้สกิล
         local function onSkill()
             if not getgenv().EmbedPlayer_Active or mode ~= "near" then return end
@@ -207,6 +226,7 @@ do
             local target = nearestPlayer()
             local tr = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
             if not (root and tr) then return end
+        if not originCF then originCF = root.CFrame end
             stickTarget = target
             stickUntil = now + STICK_TIME
             teleportBehind(root, tr)
@@ -292,9 +312,19 @@ do
             end))
 
             -- ฮุกสกิลทางที่ 3: ตัวละครเริ่มเล่นแอนิเมชันสกิล (Priority Action ขึ้นไป)
-            task.spawn(function()
+             task.spawn(function()
                 local hum = char:WaitForChild("Humanoid", 5)
+                if hum then
+                    local last = hum.Health
+                    table.insert(conns, hum.HealthChanged:Connect(function(h)
+                        if RETREAT_ON_HIT and stickTarget and h < last then
+                            retreat()
+                        end
+                        last = h
+                    end))
+                end
                 local animator = hum and (hum:FindFirstChildOfClass("Animator") or hum:WaitForChild("Animator", 5))
+                -- ...ส่วน animator เดิมต่อด้านล่างเหมือนเดิม
                 if animator then
                     table.insert(conns, animator.AnimationPlayed:Connect(function(track)
                         local pr = track.Priority
@@ -323,6 +353,7 @@ do
             for _, c in pairs(toolConns) do c:Disconnect() end
             toolConns = {}
             stickTarget = nil
+            originCF = nil
             getgenv().EmbedPlayer_AimPart = nil
             getgenv().EmbedPlayer_AimPos = nil
         end
