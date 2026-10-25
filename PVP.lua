@@ -375,6 +375,7 @@ do
             toolConns = {}
             stickTarget = nil
             originCF = nil
+            lockedPlayer, lastIntent = nil, nil
             getgenv().EmbedPlayer_AimPart = nil
             getgenv().EmbedPlayer_AimPos = nil
         end
