@@ -1694,6 +1694,124 @@ end)
 
 
 
+
+
+-- ==========================================
+-- ☁️ Double Jump Air Platform (มีปุ่มสวิตช์ + จำค่าครั้งก่อน)
+-- ต้องมีฟังก์ชัน createSwitchButton อยู่ในสคริปต์หลักก่อน
+-- ==========================================
+
+-- 💾 จำสถานะสวิตช์จากการรันครั้งก่อน (เก็บในไฟล์ + getgenv)
+local SAVE_FILE = "DoubleJumpAir_Active.txt"
+
+if getgenv().DoubleJumpAir_Active == nil then
+	local saved = false
+	pcall(function()
+		if isfile and readfile and isfile(SAVE_FILE) then
+			saved = (readfile(SAVE_FILE) == "true")
+		end
+	end)
+	getgenv().DoubleJumpAir_Active = saved
+end
+
+pcall(function()
+	-- ==========================================
+	-- 📦 ช่องประกาศตัวแปร
+	-- ==========================================
+	local Players = game:GetService("Players")
+	local UserInputService = game:GetService("UserInputService")
+
+	local player = Players.LocalPlayer
+
+	-- 👉 ประกาศตัวแปร SwitchParent (คอนเทนเนอร์ที่จะวางปุ่ม) ตรงนี้ เช่น
+	-- local SwitchParent = <เฟรมเมนูของคุณ>
+
+	-- ==========================================
+	-- ☁️ ระบบ Double Jump
+	-- ==========================================
+	local function setupDoubleJump(char)
+		local humanoid = char:WaitForChild("Humanoid")
+		local rootPart = char:WaitForChild("HumanoidRootPart")
+
+		local hasDoubleJumped = false
+		local airPart = nil
+
+		local function createAirPlatform()
+			if airPart then airPart:Destroy() end
+
+			airPart = Instance.new("Part")
+			airPart.Size = Vector3.new(4, 0.5, 4)
+			airPart.Position = rootPart.Position - Vector3.new(0, 3.5, 0)
+			airPart.Anchored = true
+			airPart.CanCollide = true
+			airPart.Transparency = 1 -- ล่องหนมองไม่เห็น
+			airPart.Parent = workspace
+
+			task.delay(0.3, function()
+				if airPart then
+					airPart:Destroy()
+					airPart = nil
+				end
+			end)
+		end
+
+		-- ดักจับจังหวะการกระโดดกลางอากาศเงียบๆ
+		humanoid.StateChanged:Connect(function(oldState, newState)
+			if newState == Enum.HumanoidStateType.Jumping then
+				hasDoubleJumped = false
+			elseif newState == Enum.HumanoidStateType.Freefall then
+				local connection
+				connection = UserInputService.JumpRequest:Connect(function()
+					if not getgenv().DoubleJumpAir_Active then return end -- ⭐ สวิตช์ปิดอยู่ ไม่ทำงาน
+					if not hasDoubleJumped and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+						hasDoubleJumped = true
+						createAirPlatform()
+						humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+						if connection then connection:Disconnect() end
+					end
+				end)
+
+				local landedConn
+				landedConn = humanoid.StateChanged:Connect(function(_, currState)
+					if currState == Enum.HumanoidStateType.Running then
+						hasDoubleJumped = false
+						if connection then connection:Disconnect() end
+						if landedConn then landedConn:Disconnect() end
+					end
+				end)
+			end
+		end)
+	end
+
+	-- รองรับกรณีตัวละครตายแล้วเกิดใหม่ (รีเซ็ตระบบให้อัตโนมัติ)
+	if player.Character then
+		setupDoubleJump(player.Character)
+	end
+	player.CharacterAdded:Connect(setupDoubleJump)
+
+	-- ==========================================
+	-- 🔘 ปุ่มสวิตช์ เปิด/ปิด
+	-- ==========================================
+	createSwitchButton(SettingsContainer, "🦶 กระโดดไม่จำกัด", getgenv().DoubleJumpAir_Active, function(isActive)
+		getgenv().DoubleJumpAir_Active = isActive
+		pcall(function()
+			if writefile then
+				writefile(SAVE_FILE, tostring(isActive)) -- 💾 บันทึกสถานะ
+			end
+		end)
+	end)
+end)
+
+
+
+
+
+
+
+
+
+
+
 -- ==========================================
 -- ☁️ Double Jump Air Platform (มีปุ่มสวิตช์ในตัว)
 -- กดกระโดด 2 ครั้งติดกัน -> สร้างบล็อกล่องหนรองใต้เท้า
@@ -1800,7 +1918,7 @@ pcall(function()
 	-- ==========================================
 	-- 🔘 ปุ่มสวิตช์ เปิด/ปิด
 	-- ==========================================
-	createSwitchButton(SwitchParent, "☁️ Air Platform", getgenv().AirPlatform_Active, function(isActive)
+	createSwitchButton(SettingsContainer, "☁️ ยืนบนฟ้า (กดกระโดดอีกครั้งบนฟ้า)", getgenv().AirPlatform_Active, function(isActive)
 		getgenv().AirPlatform_Active = isActive
 		lastJumpTime = 0
 		if not isActive then
