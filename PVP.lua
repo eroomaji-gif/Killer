@@ -261,8 +261,13 @@ do
                 local tr = tp and tp.Character and tp.Character:FindFirstChild("HumanoidRootPart")
                 if os.clock() < stickUntil and tr then
                     teleportBehind(root, tr)
-                else
-                    stickTarget = nil
+                                elseif stickTarget then
+                    if RETREAT_MODE then
+                        retreat()
+                    else
+                        stickTarget = nil
+                        originCF = nil
+                        end
                 end
             end
         end
