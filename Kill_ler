@@ -1700,7 +1700,18 @@ end)
 -- ต้องมีฟังก์ชัน createSwitchButton อยู่ในสคริปต์หลักก่อน
 -- ==========================================
 
-getgenv().AirPlatform_Active = false
+-- 💾 จำสถานะสวิตช์จากการรันครั้งก่อน (เก็บในไฟล์ + getgenv)
+local SAVE_FILE = "AirPlatform_Active.txt"
+
+if getgenv().AirPlatform_Active == nil then
+	local saved = false
+	pcall(function()
+		if isfile and readfile and isfile(SAVE_FILE) then
+			saved = (readfile(SAVE_FILE) == "true")
+		end
+	end)
+	getgenv().AirPlatform_Active = saved
+end
 
 pcall(function()
 	-- ==========================================
@@ -1789,7 +1800,7 @@ pcall(function()
 	-- ==========================================
 	-- 🔘 ปุ่มสวิตช์ เปิด/ปิด
 	-- ==========================================
-	createSwitchButton(SettingsContainer, "☁️ Air Platform", getgenv().AirPlatform_Active, function(isActive)
+	createSwitchButton(SwitchParent, "☁️ Air Platform", getgenv().AirPlatform_Active, function(isActive)
 		getgenv().AirPlatform_Active = isActive
 		lastJumpTime = 0
 		if not isActive then
@@ -1799,6 +1810,7 @@ pcall(function()
 
 	print("✅ [Air Platform] พร้อมใช้งาน!")
 end)
+
 
 
 
