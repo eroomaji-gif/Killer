@@ -124,361 +124,426 @@ return function(ctx)
 
 
                 
--- ==========================================================
--- 🎯 ฟังก์ชันเดี่ยว: เอมบอดผู้เล่นใกล้สุด (ไม่มีส่วนของหมวดหมู่ปนอยู่)
--- วางไว้ "ใต้" ตัวแปร PvpContainer (ในไฟล์ pvp.lua ตรงจุดที่เว้นไว้ให้วางปุ่ม)
--- โหมดไกล = ล็อกกล้องใส่หัวผู้เล่นใกล้สุดทุกเฟรม + ดักเมาส์ให้ชี้ไปที่หัว (ถ้า executor รองรับ)
--- โหมดใกล้ = ฮุกสกิล (Tool / คลิก / ปุ่มสกิล / แอนิเมชันสกิล) แล้ววาร์ปไปหลังเป้าหมายและหันหน้าใส่
--- ลบทั้งบล็อกนี้ทิ้งได้เลย ส่วนอื่นไม่พัง
--- ==========================================================
-do
-    local function createEmbedPlayer(parent)
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        local UserInputService = game:GetService("UserInputService")
-        local lp = Players.LocalPlayer
 
-        -- ค่าปรับแต่ง
-        local TEAM_CHECK = true     -- ไม่ล็อกเพื่อนร่วมทีม
-        local AIM_PART = "Head"     -- ส่วนที่เล็ง (ไม่เจอจะใช้ HumanoidRootPart)
-        local AIM_SMOOTH = 1        -- 1 = ล็อกแน่นทุกเฟรม, น้อยลง = นุ่มลง (เช่น 0.3)
-        local PREDICT = 0.05        -- เล็งนำหน้าเป้าที่กำลังวิ่ง (วินาที) 0 = ปิด
-        local TP_BEHIND = 3         -- ระยะที่วาร์ปไปอยู่หลังเป้าหมาย
-        local STICK_TIME = 0.8      -- ตามติด+หันหน้าใส่เป้าหมายหลังฮุกสกิลกี่วินาที (โหมดใกล้)
-        local SKILL_COOLDOWN = 0.12 -- กันฮุกซ้ำหลายทางพร้อมกัน
-        local RETREAT_MODE = true    -- ตีเสร็จแล้ววาร์ปกลับจุดเดิม
-        local RETREAT_ON_HIT = true  -- โดนตีกลับระหว่างอยู่ใกล้เป้าหมาย -> ถอยทันที
-        local ACQUIRE_ANGLE = 15     -- หันกล้องให้ใครอยู่ในมุมกี่องศาจากกลางจอ ถึงจะเริ่มล็อกคนนั้น
-        local RELEASE_ANGLE = 35     -- ดึงกล้องห่างจากเป้าเกินกี่องศา ถึงหลุดล็อก
-        local STICK_STRENGTH = 0.85  -- ความเหนียว (1 = ล็อกตายใกล้กลางจอ, น้อยลง = เหนียวน้อยลง)
-        local FLICK_ANGLE = 7        -- สะบัดกล้องเร็วเกินกี่องศาต่อเฟรม = ดึงแรง หลุดล็อกทันที
-        local FLICK_COOLDOWN = 0.3   -- หลังสะบัดหลุด รออีกกี่วินาทีถึงล็อกคนใหม่
-        local VISIBLE_CHECK = true   -- ไม่ล็อกคนที่อยู่หลังกำแพง
 
-        getgenv().EmbedPlayer_Active = false
-        getgenv().EmbedPlayer_AimPart = nil
-        getgenv().EmbedPlayer_AimPos = nil
 
-        local mode = "far"          -- "far" = ไกล, "near" = ใกล้
-        local toolConns = {}
-        local conns = {}
-        local stickUntil, stickTarget = 0, nil
-        local lastSkill = 0
-        local originCF = nil         -- จุดที่เรายืนก่อนวาร์ปเข้าไปตี
-        local lockedPlayer, lastIntent, breakUntil = nil, nil, 0
-        local rayParams = RaycastParams.new()
-        rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-        local function angleBetween(a, b)
-            return math.deg(math.acos(math.clamp(a.Unit:Dot(b.Unit), -1, 1)))
-        end
 
-        -- ส่วนที่เล็งของผู้เล่น (nil ถ้าเป็นเรา/ตายแล้ว/ทีมเดียวกัน)
-        local function aimPartOf(p)
-            if p == lp then return nil end
-            local ch = p.Character
-            local hum = ch and ch:FindFirstChildOfClass("Humanoid")
-            if not hum or hum.Health <= 0 then return nil end
-            if TEAM_CHECK and p.Team ~= nil and p.Team == lp.Team then return nil end
-            return ch:FindFirstChild(AIM_PART) or ch:FindFirstChild("HumanoidRootPart")
-        end
+    -- ==========================================================
+    -- 🎯 ฟังก์ชันเดี่ยว: เอมบอดผู้เล่น (ไม่มีส่วนของหมวดหมู่ปนอยู่)
+    -- โหมดไกล = ล็อกหัวตามทิศที่เราหันกล้อง + ดักเมาส์ให้ชี้ไปที่หัว (ถ้า executor รองรับ)
+    -- โหมดใกล้ = ฮุกสกิล (Tool / คลิก / ปุ่มสกิล / แอนิเมชันสกิล) แล้ววาร์ปไปหลังเป้าหมาย
+    --            หันหน้าใส่ ตีเสร็จวาร์ปกลับจุดเดิม (หรือถอยทันทีถ้าโดนตีกลับ)
+    -- ลบทั้งบล็อกนี้ทิ้งได้เลย ส่วนอื่นไม่พัง
+    -- ==========================================================
+    do
+        local function createEmbedPlayer(parent)
+            local Players = game:GetService("Players")
+            local RunService = game:GetService("RunService")
+            local UserInputService = game:GetService("UserInputService")
+            local lp = Players.LocalPlayer
 
-        local function visible(cam, part)
-            if not VISIBLE_CHECK then return true end
-            rayParams.FilterDescendantsInstances = { lp.Character, part.Parent }
-            local origin = cam.CFrame.Position
-            return workspace:Raycast(origin, part.Position - origin, rayParams) == nil
+            -- ---------- ค่าปรับแต่ง ----------
+            local TEAM_CHECK = true      -- ไม่ล็อกเพื่อนร่วมทีม
+            local AIM_PART = "Head"      -- ส่วนที่เล็ง (ไม่เจอจะใช้ HumanoidRootPart)
+            local PREDICT = 0.05         -- เล็งนำหน้าเป้าที่กำลังวิ่ง (วินาที) 0 = ปิด
+
+            -- โหมดไกล
+            local HARD_LOCK = true       -- true = ล็อกหัวเต็มแรงทุกเฟรม, false = ล็อกเหนียวนุ่ม
+            local ACQUIRE_ANGLE = 30     -- หันกล้องให้ใครอยู่ในมุมกี่องศาจากกลางจอ ถึงจะเริ่มล็อกคนนั้น
+            local RELEASE_ANGLE = 60     -- ดึงกล้องห่างจากเป้าเกินกี่องศา ถึงหลุดล็อก
+            local STICK_STRENGTH = 0.85  -- ความเหนียว (ใช้เมื่อ HARD_LOCK = false)
+            local FLICK_ANGLE = 20       -- สะบัดกล้องเร็วเกินกี่องศาต่อเฟรม = หลุดล็อก
+            local FLICK_COOLDOWN = 0.3   -- หลังสะบัดหลุด รออีกกี่วินาทีถึงล็อกคนใหม่
+            local VISIBLE_CHECK = false  -- true = ไม่ล็อกคนที่อยู่หลังกำแพง
+
+            -- โหมดใกล้
+            local TP_BEHIND = 3          -- ระยะที่วาร์ปไปอยู่หลังเป้าหมาย
+            local STICK_TIME = 0.8       -- ตามติด+หันหน้าใส่เป้าหมายหลังฮุกสกิลกี่วินาที
+            local SKILL_COOLDOWN = 0.12  -- กันฮุกซ้ำหลายทางพร้อมกัน
+            local RETREAT_MODE = true    -- ตีเสร็จแล้ววาร์ปกลับจุดเดิม
+            local RETREAT_ON_HIT = true  -- โดนตีกลับระหว่างอยู่ใกล้เป้าหมาย -> ถอยทันที
+
+            getgenv().EmbedPlayer_Active = false
+            getgenv().EmbedPlayer_AimPart = nil
+            getgenv().EmbedPlayer_AimPos = nil
+
+            local mode = "far"           -- "far" = ไกล, "near" = ใกล้
+            local toolConns = {}
+            local conns = {}
+            local stickUntil, stickTarget = 0, nil
+            local lastSkill = 0
+            local originCF = nil         -- จุดที่เรายืนก่อนวาร์ปเข้าไปตี
+            local lockedPlayer, lastIntent, breakUntil = nil, nil, 0
+
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+            local SKILL_KEYS = {}
+            for _, k in ipairs({
+                Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F, Enum.KeyCode.Z,
+                Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V, Enum.KeyCode.G, Enum.KeyCode.T,
+                Enum.KeyCode.Y, Enum.KeyCode.H, Enum.KeyCode.B, Enum.KeyCode.N,
+            }) do
+                SKILL_KEYS[k] = true
             end
 
-        local SKILL_KEYS = {}
-        for _, k in ipairs({
-            Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F, Enum.KeyCode.Z,
-            Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V, Enum.KeyCode.G, Enum.KeyCode.T,
-            Enum.KeyCode.Y, Enum.KeyCode.H, Enum.KeyCode.B, Enum.KeyCode.N,
-        }) do
-            SKILL_KEYS[k] = true
-        end
-
-        -- หาผู้เล่นที่อยู่ใกล้เราที่สุด
-        local function nearestPlayer()
-            local char = lp.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if not root then return nil end
-            local best, bestDist = nil, math.huge
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= lp and p.Character then
-                    local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                    local r = p.Character:FindFirstChild("HumanoidRootPart")
-                    local sameTeam = TEAM_CHECK and p.Team ~= nil and p.Team == lp.Team
-                    if hum and r and hum.Health > 0 and not sameTeam then
-                        local d = (r.Position - root.Position).Magnitude
-                        if d < bestDist then
-                            best, bestDist = p, d
-                        end
-                    end
-                end
-            end
-            return best
-        end
-
-        -- วาร์ปไปหลังเป้าหมาย + หันหน้าใส่
-        local function teleportBehind(root, targetRoot)
-            local pos = (targetRoot.CFrame * CFrame.new(0, 0, TP_BEHIND)).Position
-            root.CFrame = CFrame.lookAt(pos, Vector3.new(targetRoot.Position.X, pos.Y, targetRoot.Position.Z))
-            root.AssemblyLinearVelocity = Vector3.zero
-        end
-
-
-
-                    local function retreat()
-            local char = lp.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if root and originCF then
-                root.CFrame = originCF
-                root.AssemblyLinearVelocity = Vector3.zero
-            end
-            originCF = nil
-            stickTarget = nil
-            stickUntil = 0
+            -- ---------- ฟังก์ชันช่วย ----------
+            local function angleBetween(a, b)
+                return math.deg(math.acos(math.clamp(a.Unit:Dot(b.Unit), -1, 1)))
             end
 
-
-            
-        -- โหมดใกล้: ถูกเรียกเมื่อฮุกเจอว่าเรากำลังใช้สกิล
-        local function onSkill()
-            if not getgenv().EmbedPlayer_Active or mode ~= "near" then return end
-            local now = os.clock()
-            if now - lastSkill < SKILL_COOLDOWN then return end
-            lastSkill = now
-
-            local char = lp.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            local target = nearestPlayer()
-            local tr = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-            if not (root and tr) then return end
-        if not originCF then originCF = root.CFrame end
-            stickTarget = target
-            stickUntil = now + STICK_TIME
-            teleportBehind(root, tr)
-        end
-
-        -- ทำงานทุกเฟรม (หลังกล้องอัปเดต)
-        local function onFrame()
-            if not getgenv().EmbedPlayer_Active then return end
-            local char = lp.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if not root then return end
-
-            if mode == "far" then
-            else
-                getgenv().EmbedPlayer_AimPart = nil
-                -- โหมดใกล้: ตามติด+หันหน้าใส่เป้าหมายช่วงสั้นๆ หลังฮุกสกิล
-                local tp = stickTarget
-                local tr = tp and tp.Character and tp.Character:FindFirstChild("HumanoidRootPart")
-                if os.clock() < stickUntil and tr then
-                    teleportBehind(root, tr)
-                                elseif stickTarget then
-                    if RETREAT_MODE then
-                        retreat()
-                    else
-                        stickTarget = nil
-                        originCF = nil
-                        end
-                end
+            -- ส่วนที่เล็งของผู้เล่น (nil ถ้าเป็นเรา/ตายแล้ว/ทีมเดียวกัน)
+            local function aimPartOf(p)
+                if p == lp then return nil end
+                local ch = p.Character
+                local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+                if not hum or hum.Health <= 0 then return nil end
+                if TEAM_CHECK and p.Team ~= nil and p.Team == lp.Team then return nil end
+                return ch:FindFirstChild(AIM_PART) or ch:FindFirstChild("HumanoidRootPart")
             end
-        end
 
-        -- ดักเมาส์ (Hit/Target/UnitRay) ให้ชี้ไปที่หัวเป้าหมาย (ติดตั้งครั้งเดียวต่อเซสชัน)
-        local function installSilentAim()
-            if getgenv().EmbedPlayer_HookInstalled then return end
-            if not (hookmetamethod and newcclosure and checkcaller) then return end
-            local mouse = lp:GetMouse()
-            local ok = pcall(function()
-                local old
-                old = hookmetamethod(game, "__index", newcclosure(function(self, key)
-                    local part = getgenv().EmbedPlayer_AimPart
-                    if part and self == mouse and not checkcaller() then
-                        local pos = getgenv().EmbedPlayer_AimPos
-                        if pos then
-                            if key == "Hit" then
-                                return CFrame.new(pos)
-                            elseif key == "Target" then
-                                return part
-                            elseif key == "UnitRay" then
-                                local origin = workspace.CurrentCamera.CFrame.Position
-                                return Ray.new(origin, (pos - origin).Unit)
+            local function visible(cam, part)
+                if not VISIBLE_CHECK then return true end
+                rayParams.FilterDescendantsInstances = { lp.Character, part.Parent }
+                local origin = cam.CFrame.Position
+                return workspace:Raycast(origin, part.Position - origin, rayParams) == nil
+            end
+
+            -- หาผู้เล่นที่อยู่ใกล้เราที่สุด (ใช้ในโหมดใกล้)
+            local function nearestPlayer()
+                local char = lp.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if not root then return nil end
+                local best, bestDist = nil, math.huge
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= lp and p.Character then
+                        local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                        local r = p.Character:FindFirstChild("HumanoidRootPart")
+                        local sameTeam = TEAM_CHECK and p.Team ~= nil and p.Team == lp.Team
+                        if hum and r and hum.Health > 0 and not sameTeam then
+                            local d = (r.Position - root.Position).Magnitude
+                            if d < bestDist then
+                                best, bestDist = p, d
                             end
                         end
                     end
-                    return old(self, key)
-                end))
-            end)
-            if ok then
-                getgenv().EmbedPlayer_HookInstalled = true
+                end
+                return best
             end
-        end
 
-        -- ฮุกสกิลทางที่ 1: Tool.Activated
-        local function hookTool(tool)
-            if toolConns[tool] then return end
-            toolConns[tool] = tool.Activated:Connect(onSkill)
-        end
-
-        local function hookCharacter(char)
-            for _, c in ipairs(char:GetChildren()) do
-                if c:IsA("Tool") then hookTool(c) end
+            -- วาร์ปไปหลังเป้าหมาย + หันหน้าใส่
+            local function teleportBehind(root, targetRoot)
+                local pos = (targetRoot.CFrame * CFrame.new(0, 0, TP_BEHIND)).Position
+                root.CFrame = CFrame.lookAt(pos, Vector3.new(targetRoot.Position.X, pos.Y, targetRoot.Position.Z))
+                root.AssemblyLinearVelocity = Vector3.zero
             end
-            table.insert(conns, char.ChildAdded:Connect(function(c)
-                if c:IsA("Tool") then hookTool(c) end
-            end))
 
-            -- ฮุกสกิลทางที่ 3: ตัวละครเริ่มเล่นแอนิเมชันสกิล (Priority Action ขึ้นไป)
-             task.spawn(function()
-                local hum = char:WaitForChild("Humanoid", 5)
-                if hum then
-                    local last = hum.Health
-                    table.insert(conns, hum.HealthChanged:Connect(function(h)
-                        if RETREAT_ON_HIT and stickTarget and h < last then
+            -- วาร์ปกลับจุดเดิม
+            local function retreat()
+                local char = lp.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root and originCF then
+                    root.CFrame = originCF
+                    root.AssemblyLinearVelocity = Vector3.zero
+                end
+                originCF = nil
+                stickTarget = nil
+                stickUntil = 0
+            end
+
+            -- โหมดใกล้: ถูกเรียกเมื่อฮุกเจอว่าเรากำลังใช้สกิล
+            local function onSkill()
+                if not getgenv().EmbedPlayer_Active or mode ~= "near" then return end
+                local now = os.clock()
+                if now - lastSkill < SKILL_COOLDOWN then return end
+                lastSkill = now
+
+                local char = lp.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local target = nearestPlayer()
+                local tr = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+                if not (root and tr) then return end
+
+                if not stickTarget then originCF = root.CFrame end -- จำจุดเริ่มเฉพาะครั้งแรกของคอมโบ
+                stickTarget = target
+                stickUntil = now + STICK_TIME
+                teleportBehind(root, tr)
+            end
+
+            -- ---------- ทำงานทุกเฟรม (หลังกล้องอัปเดต) ----------
+            local function onFrame()
+                if not getgenv().EmbedPlayer_Active then return end
+                local char = lp.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if not root then return end
+
+                if mode == "far" then
+                    -- โหมดไกล: ล็อกหัวตามทิศที่เราหันกล้อง
+                    local cam = workspace.CurrentCamera
+                    if not cam then return end
+                    local now = os.clock()
+                    local camPos = cam.CFrame.Position
+                    local intent = cam.CFrame.LookVector -- ทิศที่เราหมุนกล้องเอง (ก่อนเราดึง)
+
+                    -- สะบัดกล้องแรงมาก -> หลุดล็อก
+                    if lastIntent and angleBetween(lastIntent, intent) > FLICK_ANGLE then
+                        lockedPlayer = nil
+                        breakUntil = now + FLICK_COOLDOWN
+                    end
+                    lastIntent = intent
+
+                    -- ตรวจเป้าที่ล็อกอยู่
+                    local part, ang
+                    if lockedPlayer then
+                        part = aimPartOf(lockedPlayer)
+                        if part then
+                            ang = angleBetween(intent, part.Position - camPos)
+                            if ang > RELEASE_ANGLE or not visible(cam, part) then
+                                part = nil
+                            end
+                        end
+                        if not part then lockedPlayer = nil end
+                    end
+
+                    -- ยังไม่ล็อกใคร -> หาคนที่เราหันไปใกล้กลางจอที่สุด
+                    if not lockedPlayer and now >= breakUntil then
+                        local bestAng = ACQUIRE_ANGLE
+                        for _, p in ipairs(Players:GetPlayers()) do
+                            local cand = aimPartOf(p)
+                            if cand then
+                                local a = angleBetween(intent, cand.Position - camPos)
+                                if a < bestAng and visible(cam, cand) then
+                                    bestAng, lockedPlayer, part, ang = a, p, cand, a
+                                end
+                            end
+                        end
+                    end
+
+                    if lockedPlayer and part then
+                        local pos = part.Position + part.AssemblyLinearVelocity * PREDICT
+                        getgenv().EmbedPlayer_AimPart = part
+                        getgenv().EmbedPlayer_AimPos = pos
+                        local blend = HARD_LOCK and 1 or math.clamp(STICK_STRENGTH * (1 - ang / RELEASE_ANGLE), 0, 1)
+                        cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(camPos, pos), blend)
+                    else
+                        getgenv().EmbedPlayer_AimPart = nil
+                    end
+                else
+                    getgenv().EmbedPlayer_AimPart = nil
+                    -- โหมดใกล้: ตามติด+หันหน้าใส่เป้าหมายช่วงสั้นๆ หลังฮุกสกิล แล้วถอยกลับ
+                    local tp = stickTarget
+                    local tr = tp and tp.Character and tp.Character:FindFirstChild("HumanoidRootPart")
+                    if os.clock() < stickUntil and tr then
+                        teleportBehind(root, tr)
+                    elseif stickTarget then
+                        if RETREAT_MODE then
                             retreat()
+                        else
+                            stickTarget = nil
+                            originCF = nil
                         end
-                        last = h
-                    end))
+                    end
                 end
-                local animator = hum and (hum:FindFirstChildOfClass("Animator") or hum:WaitForChild("Animator", 5))
-                -- ...ส่วน animator เดิมต่อด้านล่างเหมือนเดิม
-                if animator then
-                    table.insert(conns, animator.AnimationPlayed:Connect(function(track)
-                        local pr = track.Priority
-                        if pr ~= Enum.AnimationPriority.Core and pr.Value >= Enum.AnimationPriority.Action.Value then
-                            onSkill()
+            end
+
+            -- ---------- ดักเมาส์ (Hit/Target/UnitRay) ให้ชี้ไปที่หัวเป้าหมาย ----------
+            -- ติดตั้งครั้งเดียวต่อเซสชัน (ต้องใช้ executor ที่รองรับ hookmetamethod)
+            local function installSilentAim()
+                if getgenv().EmbedPlayer_HookInstalled then return end
+                if not (hookmetamethod and newcclosure and checkcaller) then return end
+                local mouse = lp:GetMouse()
+                local ok = pcall(function()
+                    local old
+                    old = hookmetamethod(game, "__index", newcclosure(function(self, key)
+                        local part = getgenv().EmbedPlayer_AimPart
+                        if part and self == mouse and not checkcaller() then
+                            local pos = getgenv().EmbedPlayer_AimPos
+                            if pos then
+                                if key == "Hit" then
+                                    return CFrame.new(pos)
+                                elseif key == "Target" then
+                                    return part
+                                elseif key == "UnitRay" then
+                                    local origin = workspace.CurrentCamera.CFrame.Position
+                                    return Ray.new(origin, (pos - origin).Unit)
+                                end
+                            end
                         end
+                        return old(self, key)
                     end))
+                end)
+                if ok then
+                    getgenv().EmbedPlayer_HookInstalled = true
+                end
+            end
+
+            -- ---------- ฮุกสกิล ----------
+            -- ทางที่ 1: Tool.Activated
+            local function hookTool(tool)
+                if toolConns[tool] then return end
+                toolConns[tool] = tool.Activated:Connect(onSkill)
+            end
+
+            local function hookCharacter(char)
+                for _, c in ipairs(char:GetChildren()) do
+                    if c:IsA("Tool") then hookTool(c) end
+                end
+                table.insert(conns, char.ChildAdded:Connect(function(c)
+                    if c:IsA("Tool") then hookTool(c) end
+                end))
+
+                task.spawn(function()
+                    local hum = char:WaitForChild("Humanoid", 5)
+
+                    -- โดนตีกลับระหว่างอยู่ใกล้เป้าหมาย -> ถอยทันที
+                    if hum then
+                        local last = hum.Health
+                        table.insert(conns, hum.HealthChanged:Connect(function(h)
+                            if RETREAT_ON_HIT and stickTarget and h < last then
+                                retreat()
+                            end
+                            last = h
+                        end))
+                    end
+
+                    -- ทางที่ 3: ตัวละครเริ่มเล่นแอนิเมชันสกิล (Priority Action ขึ้นไป)
+                    local animator = hum and (hum:FindFirstChildOfClass("Animator") or hum:WaitForChild("Animator", 5))
+                    if animator then
+                        table.insert(conns, animator.AnimationPlayed:Connect(function(track)
+                            local pr = track.Priority
+                            if pr ~= Enum.AnimationPriority.Core and pr.Value >= Enum.AnimationPriority.Action.Value then
+                                onSkill()
+                            end
+                        end))
+                    end
+                end)
+            end
+
+            -- ทางที่ 2: คลิกซ้าย / ปุ่มสกิลบนคีย์บอร์ด
+            local function onInput(input, processed)
+                if processed or UserInputService:GetFocusedTextBox() then return end
+                local t = input.UserInputType
+                if t == Enum.UserInputType.MouseButton1
+                    or (t == Enum.UserInputType.Keyboard and SKILL_KEYS[input.KeyCode]) then
+                    onSkill()
+                end
+            end
+
+            -- ---------- เริ่ม / หยุด ----------
+            local function stop()
+                pcall(function() RunService:UnbindFromRenderStep("EmbedPlayerAim") end)
+                for _, c in ipairs(conns) do c:Disconnect() end
+                conns = {}
+                for _, c in pairs(toolConns) do c:Disconnect() end
+                toolConns = {}
+                stickTarget = nil
+                originCF = nil
+                lockedPlayer, lastIntent = nil, nil
+                getgenv().EmbedPlayer_AimPart = nil
+                getgenv().EmbedPlayer_AimPos = nil
+            end
+
+            local function start()
+                stop()
+                installSilentAim()
+                if lp.Character then hookCharacter(lp.Character) end
+                table.insert(conns, lp.CharacterAdded:Connect(hookCharacter))
+                table.insert(conns, UserInputService.InputBegan:Connect(onInput))
+                RunService:BindToRenderStep("EmbedPlayerAim", Enum.RenderPriority.Camera.Value + 1, onFrame)
+            end
+
+            -- ล้างตอนรันสคริปต์ซ้ำ
+            local prevCleanup = getgenv().MainScript_Cleanup
+            getgenv().MainScript_Cleanup = function()
+                getgenv().EmbedPlayer_Active = false
+                stop()
+                if prevCleanup then prevCleanup() end
+            end
+
+            -- ---------- ปุ่มเปิด/ปิด ----------
+            local switch = createSwitchButton(parent, "🎯 เอมบอดผู้เล่น", false, function(isActive)
+                getgenv().EmbedPlayer_Active = isActive
+                if isActive then
+                    start()
+                else
+                    stop()
                 end
             end)
-        end
+            switch.LayoutOrder = 1
 
-        -- ฮุกสกิลทางที่ 2: คลิกซ้าย / ปุ่มสกิลบนคีย์บอร์ด
-        local function onInput(input, processed)
-            if processed or UserInputService:GetFocusedTextBox() then return end
-            local t = input.UserInputType
-            if t == Enum.UserInputType.MouseButton1
-                or (t == Enum.UserInputType.Keyboard and SKILL_KEYS[input.KeyCode]) then
-                onSkill()
+            -- ---------- แคปซูลเลือกโหมด ไกล / ใกล้ ----------
+            local function styleCapsule(obj)
+                local corner = Instance.new("UICorner")
+                corner.CornerRadius = UDim.new(1, 0)
+                corner.Parent = obj
+                local stroke = Instance.new("UIStroke")
+                stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- ตีขอบกรอบ ไม่ตีขอบตัวหนังสือ
+                stroke.Color = Color3.fromRGB(0, 0, 0)
+                stroke.Thickness = 2
+                stroke.Parent = obj
             end
-        end
 
-        local function stop()
-            pcall(function() RunService:UnbindFromRenderStep("EmbedPlayerAim") end)
-            for _, c in ipairs(conns) do c:Disconnect() end
-            conns = {}
-            for _, c in pairs(toolConns) do c:Disconnect() end
-            toolConns = {}
-            stickTarget = nil
-            originCF = nil
-            lockedPlayer, lastIntent = nil, nil
-            getgenv().EmbedPlayer_AimPart = nil
-            getgenv().EmbedPlayer_AimPos = nil
-        end
+            local Capsule = Instance.new("Frame")
+            Capsule.Parent = parent
+            Capsule.LayoutOrder = 2
+            Capsule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            Capsule.Size = UDim2.new(1, 0, 0, 45)
+            styleCapsule(Capsule)
 
-        local function start()
-            stop()
-            installSilentAim()
-            if lp.Character then hookCharacter(lp.Character) end
-            table.insert(conns, lp.CharacterAdded:Connect(hookCharacter))
-            table.insert(conns, UserInputService.InputBegan:Connect(onInput))
-            RunService:BindToRenderStep("EmbedPlayerAim", Enum.RenderPriority.Camera.Value + 1, onFrame)
-        end
+            local ModeTitle = Instance.new("TextLabel")
+            ModeTitle.Parent = Capsule
+            ModeTitle.BackgroundTransparency = 1
+            ModeTitle.Position = UDim2.new(0, 15, 0, 0)
+            ModeTitle.Size = UDim2.new(1, -150, 1, 0)
+            ModeTitle.Font = Enum.Font.GothamBold
+            ModeTitle.Text = "🎯 โหมด"
+            ModeTitle.TextColor3 = Color3.fromRGB(0, 0, 0)
+            ModeTitle.TextSize = 13
+            ModeTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- ล้างตอนรันสคริปต์ซ้ำ
-        local prevCleanup = getgenv().MainScript_Cleanup
-        getgenv().MainScript_Cleanup = function()
-            getgenv().EmbedPlayer_Active = false
-            stop()
-            if prevCleanup then prevCleanup() end
-        end
-
-        -- ---------- ปุ่มเปิด/ปิด ----------
-        local switch = createSwitchButton(parent, "🎯 เอมบอดใกล้สุด", false, function(isActive)
-            getgenv().EmbedPlayer_Active = isActive
-            if isActive then
-                start()
-            else
-                stop()
+            local function createModeButton(xOffset, text)
+                local btn = Instance.new("TextButton")
+                btn.Parent = Capsule
+                btn.Position = UDim2.new(1, xOffset, 0.5, -16)
+                btn.Size = UDim2.new(0, 58, 0, 32)
+                btn.Font = Enum.Font.GothamBold
+                btn.Text = text
+                btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+                btn.TextSize = 12
+                styleCapsule(btn)
+                return btn
             end
-        end)
-        switch.LayoutOrder = 1
 
-        -- ---------- แคปซูลเลือกโหมด ไกล / ใกล้ ----------
-        local function styleCapsule(obj)
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(1, 0)
-            corner.Parent = obj
-            local stroke = Instance.new("UIStroke")
-            stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- ตีขอบกรอบ ไม่ตีขอบตัวหนังสือ
-            stroke.Color = Color3.fromRGB(0, 0, 0)
-            stroke.Thickness = 2
-            stroke.Parent = obj
-        end
+            local FarBtn = createModeButton(-131, "🔫 ไกล")
+            local NearBtn = createModeButton(-69, "⚔️ ใกล้")
 
-        local Capsule = Instance.new("Frame")
-        Capsule.Parent = parent
-        Capsule.LayoutOrder = 2
-        Capsule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        Capsule.Size = UDim2.new(1, 0, 0, 45)
-        styleCapsule(Capsule)
-
-        local ModeTitle = Instance.new("TextLabel")
-        ModeTitle.Parent = Capsule
-        ModeTitle.BackgroundTransparency = 1
-        ModeTitle.Position = UDim2.new(0, 15, 0, 0)
-        ModeTitle.Size = UDim2.new(1, -150, 1, 0)
-        ModeTitle.Font = Enum.Font.GothamBold
-        ModeTitle.Text = "🎯 โหมด"
-        ModeTitle.TextColor3 = Color3.fromRGB(0, 0, 0)
-        ModeTitle.TextSize = 13
-        ModeTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-        local function createModeButton(xOffset, text)
-            local btn = Instance.new("TextButton")
-            btn.Parent = Capsule
-            btn.Position = UDim2.new(1, xOffset, 0.5, -16)
-            btn.Size = UDim2.new(0, 58, 0, 32)
-            btn.Font = Enum.Font.GothamBold
-            btn.Text = text
-            btn.TextColor3 = Color3.fromRGB(0, 0, 0)
-            btn.TextSize = 12
-            styleCapsule(btn)
-            return btn
-        end
-
-        local FarBtn = createModeButton(-131, "🔫 ไกล")
-        local NearBtn = createModeButton(-69, "⚔️ ใกล้")
-
-        local function updateModeVisual()
-            FarBtn.BackgroundColor3 = (mode == "far") and Color3.fromRGB(120, 255, 120) or Color3.fromRGB(235, 235, 235)
-            NearBtn.BackgroundColor3 = (mode == "near") and Color3.fromRGB(120, 255, 120) or Color3.fromRGB(235, 235, 235)
-        end
-        updateModeVisual()
-
-        FarBtn.MouseButton1Click:Connect(function()
-            mode = "far"
-            stickTarget = nil
+            local function updateModeVisual()
+                FarBtn.BackgroundColor3 = (mode == "far") and Color3.fromRGB(120, 255, 120) or Color3.fromRGB(235, 235, 235)
+                NearBtn.BackgroundColor3 = (mode == "near") and Color3.fromRGB(120, 255, 120) or Color3.fromRGB(235, 235, 235)
+            end
             updateModeVisual()
-        end)
-        NearBtn.MouseButton1Click:Connect(function()
-            mode = "near"
-            getgenv().EmbedPlayer_AimPart = nil
-            updateModeVisual()
-        end)
 
-        return switch
+            FarBtn.MouseButton1Click:Connect(function()
+                mode = "far"
+                stickTarget = nil
+                originCF = nil
+                updateModeVisual()
+            end)
+            NearBtn.MouseButton1Click:Connect(function()
+                mode = "near"
+                lockedPlayer = nil
+                getgenv().EmbedPlayer_AimPart = nil
+                updateModeVisual()
+            end)
+
+            return switch
+        end
+
+        -- ห่อ pcall: ถ้าบล็อกนี้พัง ปุ่มอื่นในหมวดยังอยู่ครบ
+        local ok, err = pcall(createEmbedPlayer, PvpContainer)
+        if not ok then warn("[เอมบอด] error: " .. tostring(err)) end
     end
-
-    -- ห่อ pcall: ถ้าบล็อกนี้พัง ปุ่มอื่นในหมวดยังอยู่ครบ
-    local ok, err = pcall(createEmbedPlayer, PvpContainer)
-    if not ok then warn("[เอมบอด] error: " .. tostring(err)) end
-    end
-
 
     return { Container = PvpContainer, Button = CatBtnPvp }
 end
