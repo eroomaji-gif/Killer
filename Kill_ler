@@ -367,24 +367,7 @@ ContentLayout.Padding = UDim.new(0, 8)
 
 
 
--- ==========================================================
--- 👁️ [ใส่ก่อน] สร้างหน้าต่างหมวด ESP ไว้ต้นสคริปต์
--- วางไว้ใต้บรรทัด  ContentLayout.Padding = UDim.new(0, 8)  (ประมาณบรรทัด 484)
--- ==========================================================
-local ESPContainer = Instance.new("ScrollingFrame")
-ESPContainer.Name = "ESPContainer"
-ESPContainer.Parent = MainFrame
-ESPContainer.BackgroundTransparency = 1
-ESPContainer.Position = UDim2.new(0, 160, 0, 50)
-ESPContainer.Size = UDim2.new(1, -170, 1, -60)
-ESPContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
-ESPContainer.ScrollBarThickness = 6
-ESPContainer.Visible = false
 
-local ESPContainerLayout = Instance.new("UIListLayout")
-ESPContainerLayout.Parent = ESPContainer
-ESPContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ESPContainerLayout.Padding = UDim.new(0, 8)
 
 
 
