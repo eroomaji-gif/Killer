@@ -287,67 +287,52 @@ end
 
 
 
+    
 do
     -- ==========================================================
-    -- 👥 ของเล่นที่ 2: ดึงโมเดลผู้เล่นมาวิ่งตามตัวเรา
-    -- (ช่องชื่อ + ช่องจำนวน + ปุ่มซัมมอน + ปุ่มลบ)
+    -- 👥 ของเล่นที่ 2: ดึงโมเดลมาเดินตามเป็นแถวยาว (ตัวละครจริง มีแอนิเมชัน)
     -- ใช้ ToyContainer เป็น Parent / ลบทั้งบล็อกนี้ได้ ส่วนอื่นไม่พัง
     -- ==========================================================
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local lp = Players.LocalPlayer
 
-    local MAX_CLONES = 20     -- จำนวนสูงสุดต่อครั้ง
-    local SPACING = 3.5       -- ระยะห่างระหว่างตัว
-    local COLUMNS = 4         -- จำนวนตัวต่อแถว (เรียงต่อท้ายตัวเรา)
-    local FOLLOW_SPEED = 14   -- ยิ่งมากยิ่งตามติด
+    local MAX_CLONES = 20
+    local FOLLOW_DIST = 4.5     -- ระยะที่แต่ละตัวหยุดห่างจากตัวข้างหน้า
+    local TELEPORT_DIST = 70    -- ไกลเกินนี้ (เช่นเราวาป) ให้วาร์ปตามมา
+    local AI_INTERVAL = 0.1     -- คิดทางเดินทุกกี่วินาที
+    local JUMP_DELAY = 0.15     -- กระโดดตามตัวข้างหน้าช้ากี่วินาที
 
-    local clones = {}         -- { model, root, motors, offset }
+    -- แอนิเมชันสำรอง (ใช้เมื่อไม่มี Animate ของเรา หรือ rig ไม่ตรงกัน)
+    local DEFAULT_ANIMS = {
+        R15 = { idle = "rbxassetid://507766666", walk = "rbxassetid://507777826",
+                jump = "rbxassetid://507765000", fall = "rbxassetid://507767968",
+                climb = "rbxassetid://507765644", sit = "rbxassetid://507768133" },
+        R6 = { idle = "rbxassetid://180435571", walk = "rbxassetid://180426354",
+               jump = "rbxassetid://125750702", fall = "rbxassetid://180436148",
+               climb = "rbxassetid://180436334", sit = "rbxassetid://178130996" },
+    }
+    local COLLIDE_NAMES = { "HumanoidRootPart", "Head", "UpperTorso", "LowerTorso", "Torso" }
+
+    local clones = {}
     local conn
     local summonId = 0
-    local cachedChar, cachedMotors = nil, {}
+    local acc, emoteAcc = 0, 0
+    local emoteSet, coreKeys = {}, {}
+    local cachedChar
 
-    -- ---------- UI สไตล์เดียวกับ createSwitchButton ----------
+    -- ---------- UI (สไตล์แคปซูลเดียวกับ createSwitchButton) ----------
+    -- หมายเหตุ: UIStroke ที่อยู่ใน TextBox/TextButton จะไปตีขอบ "ตัวหนังสือ" (เลยดูเหมือนมีแสง)
+    -- จึงตั้ง ApplyStrokeMode = Border ให้ตีขอบกรอบแทน
     local function styleCapsule(obj)
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(1, 0)
         corner.Parent = obj
         local stroke = Instance.new("UIStroke")
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         stroke.Color = Color3.fromRGB(0, 0, 0)
         stroke.Thickness = 2
         stroke.Parent = obj
-    end
-
-    local function createInput(parent, order, placeholder, defaultText)
-        local box = Instance.new("TextBox")
-        box.Parent = parent
-        box.LayoutOrder = order
-        box.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        box.Size = UDim2.new(1, 0, 0, 45)
-        box.Font = Enum.Font.GothamBold
-        box.PlaceholderText = placeholder
-        box.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
-        box.Text = defaultText or ""
-        box.TextColor3 = Color3.fromRGB(0, 0, 0)
-        box.TextSize = 14
-        box.ClearTextOnFocus = false
-        styleCapsule(box)
-        return box
-    end
-
-    local function createActionButton(parent, order, text, color, callback)
-        local btn = Instance.new("TextButton")
-        btn.Parent = parent
-        btn.LayoutOrder = order
-        btn.BackgroundColor3 = color
-        btn.Size = UDim2.new(1, 0, 0, 45)
-        btn.Font = Enum.Font.GothamBold
-        btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(0, 0, 0)
-        btn.TextSize = 14
-        styleCapsule(btn)
-        btn.MouseButton1Click:Connect(callback)
-        return btn
     end
 
     local TitleLabel = Instance.new("TextLabel")
@@ -356,17 +341,77 @@ do
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Size = UDim2.new(1, -10, 0, 24)
     TitleLabel.Font = Enum.Font.GothamBold
-    TitleLabel.Text = "👥 ดึงโมเดลผู้เล่นมาวิ่งตาม"
+    TitleLabel.Text = "👥 ดึงโมเดลมาเดินตาม"
     TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     TitleLabel.TextSize = 14
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    local NameBox = createInput(ToyContainer, 11, "ชื่อผู้เล่น (เว้นว่าง = ตัวเราเอง)", "")
-    local CountBox = createInput(ToyContainer, 12, "จำนวน (1-" .. MAX_CLONES .. ")", "1")
+    -- แถว 1: แคปซูลช่องชื่อผู้เล่น
+    local NameCapsule = Instance.new("Frame")
+    NameCapsule.Parent = ToyContainer
+    NameCapsule.LayoutOrder = 11
+    NameCapsule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    NameCapsule.Size = UDim2.new(1, 0, 0, 45)
+    styleCapsule(NameCapsule)
 
-    -- รับเฉพาะตัวเลข
+    local NameBox = Instance.new("TextBox")
+    NameBox.Parent = NameCapsule
+    NameBox.BackgroundTransparency = 1
+    NameBox.Position = UDim2.new(0, 15, 0, 0)
+    NameBox.Size = UDim2.new(1, -30, 1, 0)
+    NameBox.Font = Enum.Font.GothamBold
+    NameBox.PlaceholderText = "👤 ชื่อผู้เล่น (เว้นว่าง = ตัวเรา)"
+    NameBox.PlaceholderColor3 = Color3.fromRGB(110, 110, 110)
+    NameBox.Text = ""
+    NameBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+    NameBox.TextSize = 14
+    NameBox.TextXAlignment = Enum.TextXAlignment.Left
+    NameBox.ClearTextOnFocus = false
+
+    -- แถว 2: แคปซูล "จำนวน" (ช่องตัวเลขอยู่ในแคปซูล) + ปุ่มซัมมอน/ลบอยู่ข้างๆ
+    local Row = Instance.new("Frame")
+    Row.Parent = ToyContainer
+    Row.LayoutOrder = 12
+    Row.BackgroundTransparency = 1
+    Row.Size = UDim2.new(1, 0, 0, 45)
+
+    local CountCapsule = Instance.new("Frame")
+    CountCapsule.Parent = Row
+    CountCapsule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    CountCapsule.Size = UDim2.new(1, -106, 1, 0)
+    styleCapsule(CountCapsule)
+
+    local CountTitle = Instance.new("TextLabel")
+    CountTitle.Parent = CountCapsule
+    CountTitle.BackgroundTransparency = 1
+    CountTitle.Position = UDim2.new(0, 15, 0, 0)
+    CountTitle.Size = UDim2.new(1, -75, 1, 0)
+    CountTitle.Font = Enum.Font.GothamBold
+    CountTitle.Text = "👥 จำนวน"
+    CountTitle.TextColor3 = Color3.fromRGB(0, 0, 0)
+    CountTitle.TextSize = 14
+    CountTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local CountTrack = Instance.new("Frame")
+    CountTrack.Parent = CountCapsule
+    CountTrack.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+    CountTrack.Position = UDim2.new(1, -57, 0.5, -16)
+    CountTrack.Size = UDim2.new(0, 44, 0, 32)
+    styleCapsule(CountTrack)
+
+    local CountBox = Instance.new("TextBox")
+    CountBox.Parent = CountTrack
+    CountBox.BackgroundTransparency = 1
+    CountBox.Size = UDim2.new(1, 0, 1, 0)
+    CountBox.Font = Enum.Font.GothamBold
+    CountBox.Text = "1"
+    CountBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+    CountBox.TextSize = 14
+    CountBox.ClearTextOnFocus = false
+
+    -- รับเฉพาะตัวเลข (สูงสุด 2 หลัก)
     CountBox:GetPropertyChangedSignal("Text"):Connect(function()
-        local filtered = (CountBox.Text:gsub("%D", ""))
+        local filtered = string.sub((CountBox.Text:gsub("%D", "")), 1, 2)
         if filtered ~= CountBox.Text then
             CountBox.Text = filtered
         end
@@ -387,6 +432,44 @@ do
         StatusLabel.Text = text
     end
 
+    local function createRoundButton(parent, xOffset, text, color, callback)
+        local btn = Instance.new("TextButton")
+        btn.Parent = parent
+        btn.BackgroundColor3 = color
+        btn.Position = UDim2.new(1, xOffset, 0, 0)
+        btn.Size = UDim2.new(0, 45, 0, 45)
+        btn.Font = Enum.Font.GothamBold
+        btn.Text = text
+        btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+        btn.TextSize = 20
+        styleCapsule(btn)
+        btn.MouseButton1Click:Connect(callback)
+        return btn
+    end
+
+    -- ---------- ชนกันไม่ได้ (กันโมเดลดันตัวเรา/ดันกันเอง) ----------
+    local function collidables(model)
+        local list = {}
+        for _, n in ipairs(COLLIDE_NAMES) do
+            local p = model:FindFirstChild(n)
+            if p and p:IsA("BasePart") then
+                table.insert(list, p)
+            end
+        end
+        return list
+    end
+
+    local function noCollide(modelA, modelB, holder)
+        for _, a in ipairs(collidables(modelA)) do
+            for _, b in ipairs(collidables(modelB)) do
+                local c = Instance.new("NoCollisionConstraint")
+                c.Part0 = a
+                c.Part1 = b
+                c.Parent = holder
+            end
+        end
+    end
+
     -- ---------- ดึงโมเดล ----------
     local function findPlayer(name)
         local lower = string.lower(name)
@@ -405,10 +488,7 @@ do
         end
         for _, d in ipairs(model:GetDescendants()) do
             if d:IsA("BasePart") then
-                d.CanCollide = false
                 d.CanTouch = false
-                d.CanQuery = false
-                d.Massless = true
             end
         end
         local hum = model:FindFirstChildOfClass("Humanoid")
@@ -417,16 +497,12 @@ do
             hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
             hum.BreakJointsOnDeath = false
         end
-        local root = model:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.Anchored = true
-        end
     end
 
     local function getTemplate(name)
         local model
 
-        -- 1) ผู้เล่นที่อยู่ในเซิร์ฟเวอร์ -> ก๊อปตัวละครจริง
+        -- 1) ผู้เล่นที่อยู่ในเซิร์ฟเวอร์ (รวมตัวเราเอง) -> ก๊อปตัวละครจริง
         local p = findPlayer(name)
         if p and p.Character then
             local src = p.Character
@@ -455,55 +531,242 @@ do
         end
 
         prepare(model)
-        if not model:FindFirstChild("HumanoidRootPart") then
+        if not model:FindFirstChild("HumanoidRootPart") or not model:FindFirstChildOfClass("Humanoid") then
             model:Destroy()
-            return nil, "โมเดลนี้ไม่มี HumanoidRootPart"
+            return nil, "โมเดลนี้ใช้ไม่ได้"
         end
         return model
     end
 
-    -- ---------- วิ่งตาม + ก๊อปท่าทางตัวเรา ----------
-    local function offsetFor(i, total)
-        local row = math.floor((i - 1) / COLUMNS)
-        local col = (i - 1) % COLUMNS
-        local inRow = math.min(COLUMNS, total - row * COLUMNS)
-        local x = (col - (inRow - 1) / 2) * SPACING
-        local z = SPACING * (row + 1) -- +Z = ด้านหลังตัวเรา
-        return CFrame.new(x, 0, z)
+    -- ---------- แอนิเมชัน (อ่านจาก Animate ของตัวเรา) ----------
+    local function ownAnimIds()
+        local char = lp.Character
+        local animate = char and char:FindFirstChild("Animate")
+        if not animate then return nil end
+        local function get(folder, child)
+            local f = animate:FindFirstChild(folder)
+            if not f then return nil end
+            local a = (child and f:FindFirstChild(child)) or f:FindFirstChildOfClass("Animation")
+            return a and a.AnimationId
+        end
+        return {
+            idle = get("idle", "Animation1"), walk = get("walk", "WalkAnim"),
+            jump = get("jump", "JumpAnim"), fall = get("fall", "FallAnim"),
+            climb = get("climb", "ClimbAnim"), sit = get("sit", "SitAnim"),
+        }
+    end
+
+    local function buildIds(rigType)
+        local rig = (rigType == Enum.HumanoidRigType.R6) and "R6" or "R15"
+        local ids = {}
+        for k, v in pairs(DEFAULT_ANIMS[rig]) do ids[k] = v end
+        local myHum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
+        if myHum and myHum.RigType == rigType then
+            local own = ownAnimIds()
+            if own then
+                for k, v in pairs(own) do
+                    if v and v ~= "" then ids[k] = v end
+                end
+            end
+        end
+        return ids
+    end
+
+    local function playTrack(c, name, scale)
+        local track = c.tracks[name]
+        if not track then return end
+        if c.curName ~= name then
+            if c.cur then c.cur:Stop(0.2) end
+            c.cur = track
+            c.curName = name
+            track:Play(0.2)
+        end
+        if name == "walk" then
+            track:AdjustSpeed(scale)
+        end
+    end
+
+    -- ท่าอีโมทที่ตัวเรากำลังเล่นตอนยืนนิ่ง -> ให้โมเดลที่ยืนอยู่เล่นตาม
+    local function syncEmotes(c, idle)
+        for key, id in pairs(emoteSet) do
+            local t = c.emotes[key]
+            if not t then
+                local a = Instance.new("Animation")
+                a.AnimationId = id
+                t = c.animator:LoadAnimation(a)
+                c.emotes[key] = t
+            end
+            if idle then
+                if not c.emotePlayed[key] then
+                    c.emotePlayed[key] = true
+                    t:Play(0.2)
+                end
+            elseif t.IsPlaying then
+                t:Stop(0.2)
+            end
+        end
+        for key, t in pairs(c.emotes) do
+            if not emoteSet[key] then
+                c.emotePlayed[key] = nil
+                if t.IsPlaying then t:Stop(0.2) end
+            end
+        end
+    end
+
+    local function animate(c, dt)
+        local hum, root = c.hum, c.root
+        local state = hum:GetState()
+        local speed = (root.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude
+
+        if state == Enum.HumanoidStateType.Freefall then
+            c.air = c.air + dt
+        else
+            c.air = 0
+        end
+
+        local name
+        if hum.Sit then
+            name = "sit"
+        elseif state == Enum.HumanoidStateType.Climbing then
+            name = "climb"
+        elseif state == Enum.HumanoidStateType.Jumping then
+            name = "jump"
+        elseif state == Enum.HumanoidStateType.Freefall then
+            name = (c.air > 0.25) and "fall" or (c.curName or "idle")
+        elseif speed > 0.75 then
+            name = "walk"
+        else
+            name = "idle"
+        end
+
+        playTrack(c, name, math.clamp(speed / 14.5, 0.5, 2.5))
+        syncEmotes(c, name == "idle")
+    end
+
+    -- ---------- สมองเดินตาม (แต่ละตัวเดินตามตัวข้างหน้า เป็นแถวยาว) ----------
+    local function think(c, i, char, myRoot, myHum)
+        local hum, root = c.hum, c.root
+
+        local leaderRoot, leaderHum = myRoot, myHum
+        if i > 1 then
+            local p = clones[i - 1]
+            leaderRoot, leaderHum = p.root, p.hum
+        end
+
+        -- ตัวละครเราเกิดใหม่ -> ตั้งค่าไม่ชนกับตัวใหม่
+        if c.mineChar ~= char then
+            c.mineChar = char
+            c.mine:ClearAllChildren()
+            noCollide(char, c.model, c.mine)
+        end
+
+        -- กระโดดตามตัวข้างหน้า
+        if c.wiredTo ~= leaderHum then
+            if c.jumpConn then c.jumpConn:Disconnect() end
+            c.wiredTo = leaderHum
+            c.jumpConn = leaderHum.StateChanged:Connect(function(_, new)
+                if new == Enum.HumanoidStateType.Jumping then
+                    task.delay(JUMP_DELAY, function()
+                        if hum.Parent and root.Parent and leaderRoot.Parent
+                            and hum.FloorMaterial ~= Enum.Material.Air
+                            and (root.Position - leaderRoot.Position).Magnitude < 15 then
+                            hum.Jump = true
+                        end
+                    end)
+                end
+            end)
+        end
+
+        local offset = leaderRoot.Position - root.Position
+        local flat = Vector3.new(offset.X, 0, offset.Z)
+        local dist = flat.Magnitude
+
+        -- ไกลเกิน/ตกแมป -> วาร์ปมาต่อท้ายตัวข้างหน้า
+        if dist > TELEPORT_DIST or math.abs(offset.Y) > 80 then
+            c.model:PivotTo(leaderRoot.CFrame * CFrame.new(0, 0, FOLLOW_DIST))
+            return
+        end
+
+        hum.WalkSpeed = myHum.WalkSpeed * (dist > 25 and 1.5 or 1)
+
+        -- นั่งตามตัวข้างหน้า (เมื่ออยู่ใกล้แล้ว)
+        if dist <= FOLLOW_DIST + 1 and hum.Sit ~= leaderHum.Sit then
+            hum.Sit = leaderHum.Sit
+        end
+
+        if dist > FOLLOW_DIST + 0.8 and not hum.Sit then
+            hum:MoveTo(leaderRoot.Position - flat.Unit * FOLLOW_DIST)
+            -- เดินแล้วไม่ขยับ (ติดสิ่งกีดขวาง) -> กระโดด
+            local speed = (root.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude
+            if speed < 1 then
+                c.stuck = c.stuck + AI_INTERVAL
+            else
+                c.stuck = 0
+            end
+            if c.stuck > 0.6 then
+                hum.Jump = true
+                c.stuck = 0
+            end
+        else
+            hum:MoveTo(root.Position) -- หยุดยืนรอ
+            c.stuck = 0
+        end
     end
 
     local function step(dt)
         local char = lp.Character
         local myRoot = char and char:FindFirstChild("HumanoidRootPart")
-        if not myRoot then return end
+        local myHum = char and char:FindFirstChildOfClass("Humanoid")
+        if not (myRoot and myHum) then return end
 
+        -- จำรหัสแอนิเมชันพื้นฐานของเรา (ไว้แยกออกจากท่าอีโมท)
         if cachedChar ~= char then
             cachedChar = char
-            cachedMotors = {}
-            for _, d in ipairs(char:GetDescendants()) do
-                if d:IsA("Motor6D") then
-                    cachedMotors[d.Name] = d
+            coreKeys = {}
+            for _, set in pairs(DEFAULT_ANIMS) do
+                for _, id in pairs(set) do
+                    coreKeys[id:match("%d+")] = true
+                end
+            end
+            local animateScript = char:FindFirstChild("Animate")
+            if animateScript then
+                for _, d in ipairs(animateScript:GetDescendants()) do
+                    if d:IsA("Animation") then
+                        local k = tostring(d.AnimationId):match("%d+")
+                        if k then coreKeys[k] = true end
+                    end
                 end
             end
         end
 
-        local alpha = math.clamp(dt * FOLLOW_SPEED, 0, 1)
-        for _, c in ipairs(clones) do
-            if c.root.Parent then
-                local target = myRoot.CFrame * c.offset
-                local cur = c.root.CFrame
-                if (cur.Position - target.Position).Magnitude > 60 then
-                    c.root.CFrame = target -- ไกลเกิน (วาป) ให้ตามทันที
-                else
-                    c.root.CFrame = cur:Lerp(target, alpha)
-                end
-                -- ก๊อปท่าทางทุกข้อต่อ (วิ่ง กระโดด นั่ง ท่าเต้น ฯลฯ)
-                for name, motor in pairs(c.motors) do
-                    local src = cachedMotors[name]
-                    if src then
-                        motor.Transform = src.Transform
+        -- ดูท่าอีโมทที่เรากำลังเล่น (เฉพาะตอนยืนนิ่ง)
+        emoteAcc = emoteAcc + dt
+        if emoteAcc >= 0.25 then
+            emoteAcc = 0
+            emoteSet = {}
+            local mySpeed = (myRoot.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude
+            if mySpeed < 1 then
+                local animator = myHum:FindFirstChildOfClass("Animator")
+                if animator then
+                    for _, t in ipairs(animator:GetPlayingAnimationTracks()) do
+                        local id = t.Animation and t.Animation.AnimationId
+                        local key = id and tostring(id):match("%d+")
+                        if key and not coreKeys[key] then
+                            emoteSet[key] = id
+                        end
                     end
                 end
+            end
+        end
+
+        acc = acc + dt
+        local aiTick = acc >= AI_INTERVAL
+        if aiTick then acc = 0 end
+
+        for i, c in ipairs(clones) do
+            if c.root.Parent and c.hum.Parent then
+                if aiTick then think(c, i, char, myRoot, myHum) end
+                animate(c, dt)
             end
         end
     end
@@ -514,9 +777,12 @@ do
             conn = nil
         end
         for _, c in ipairs(clones) do
+            if c.jumpConn then c.jumpConn:Disconnect() end
             pcall(function() c.model:Destroy() end)
         end
         clones = {}
+        emoteSet = {}
+        cachedChar = nil
     end
 
     local function summon()
@@ -543,50 +809,72 @@ do
 
             local char = lp.Character
             local myRoot = char and char:FindFirstChild("HumanoidRootPart")
-            if not myRoot then
+            local myHum = char and char:FindFirstChildOfClass("Humanoid")
+            if not (myRoot and myHum) then
                 template:Destroy()
                 setStatus("❌ ตัวละครเรายังไม่พร้อม")
                 return
             end
 
-            local matched, totalMotors = 0, 0
             for i = 1, n do
                 local m = template:Clone()
                 m.Name = "Clone_" .. name .. "_" .. i
+                local hum = m:FindFirstChildOfClass("Humanoid")
                 local root = m:FindFirstChild("HumanoidRootPart")
-                local motors = {}
-                for _, d in ipairs(m:GetDescendants()) do
-                    if d:IsA("Motor6D") then
-                        motors[d.Name] = d
+                if hum and root then
+                    hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                    hum.WalkSpeed = myHum.WalkSpeed
+                    hum.UseJumpPower = myHum.UseJumpPower
+                    hum.JumpPower = myHum.JumpPower
+                    hum.JumpHeight = myHum.JumpHeight
+
+                    local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
+                    local mine = Instance.new("Folder")
+                    mine.Name = "NoCollideMine"
+                    mine.Parent = m
+
+                    m.Parent = workspace
+                    m:PivotTo(myRoot.CFrame * CFrame.new(0, 0, FOLLOW_DIST * i)) -- เรียงต่อท้ายเรา
+
+                      -- ไม่ชนกับตัวข้างหน้า
+                    if #clones > 0 then
+                        noCollide(clones[#clones].model, m, root)
                     end
-                end
-                if i == 1 then
-                    for mname in pairs(motors) do
-                        totalMotors = totalMotors + 1
-                        if char:FindFirstChild(mname, true) then
-                            matched = matched + 1
-                        end
+
+                    local tracks = {}
+                    for key, id in pairs(buildIds(hum.RigType)) do
+                        local a = Instance.new("Animation")
+                        a.AnimationId = id
+                        local t = animator:LoadAnimation(a)
+                        t.Looped = (key ~= "jump")
+                        tracks[key] = t
                     end
+
+                    table.insert(clones, {
+                        model = m, root = root, hum = hum, animator = animator, mine = mine,
+                        tracks = tracks, emotes = {}, emotePlayed = {},
+                        stuck = 0, air = 0,
+                    })
+                else
+                    m:Destroy()
                 end
-                local offset = offsetFor(i, n)
-                root.CFrame = myRoot.CFrame * offset
-                m.Parent = workspace
-                table.insert(clones, { model = m, root = root, motors = motors, offset = offset })
             end
             template:Destroy()
 
-            conn = RunService.RenderStepped:Connect(step)
-
-            if totalMotors > 0 and matched < totalMotors / 2 then
-                setStatus("⚠️ ดึง " .. n .. " ตัว แต่ rig ไม่เหมือนเรา ท่าทางอาจไม่ตรง")
-            else
-                setStatus("✅ ดึง " .. name .. " จำนวน " .. n .. " ตัว")
+            if #clones == 0 then
+                setStatus("❌ สร้างโมเดลไม่สำเร็จ")
+                return
             end
+
+            acc, emoteAcc = 0, 0
+            conn = RunService.Heartbeat:Connect(step)
+            setStatus("✅ ดึง " .. name .. " จำนวน " .. #clones .. " ตัว")
         end)
     end
 
-    createActionButton(ToyContainer, 13, "✨ ซัมมอน", Color3.fromRGB(190, 255, 190), summon)
-    createActionButton(ToyContainer, 14, "🗑️ เดสทอย", Color3.fromRGB(255, 190, 190), function()
+    -- ปุ่มข้างแคปซูล: ✨ ซัมมอน / 🗑️ ลบ
+    createRoundButton(Row, -98, "✨", Color3.fromRGB(190, 255, 190), summon)
+    createRoundButton(Row, -45, "🗑️", Color3.fromRGB(255, 190, 190), function()
         summonId = summonId + 1
         destroyAll()
         setStatus("🗑️ ลบโมเดลทั้งหมดแล้ว")
