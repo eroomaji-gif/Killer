@@ -1712,13 +1712,21 @@ local function createHandTrailSwitch(parent)
     local Players = game:GetService("Players")
     local lp = Players.LocalPlayer
 
-    local COLORS = {
+        local COLORS = {
         { id = "Red",     label = "แดง",    color = Color3.fromRGB(255, 50, 50) },
         { id = "Orange",  label = "ส้ม",    color = Color3.fromRGB(255, 150, 30) },
         { id = "Yellow",  label = "เหลือง", color = Color3.fromRGB(255, 235, 40) },
         { id = "Green",   label = "เขียว",  color = Color3.fromRGB(60, 255, 100) },
+        { id = "Cyan",    label = "ฟ้า",    color = Color3.fromRGB(0, 255, 255) },
+        { id = "Blue",    label = "น้ำเงิน", color = Color3.fromRGB(50, 100, 255) },
+        { id = "Purple",  label = "ม่วง",   color = Color3.fromRGB(150, 50, 255) },
+        { id = "Pink",    label = "ชมพู",   color = Color3.fromRGB(255, 100, 200) },
+        { id = "Gold",    label = "ทอง",    color = Color3.fromRGB(255, 215, 0) },
+        { id = "White",   label = "ขาว",    color = Color3.fromRGB(255, 255, 255) },
+        { id = "Silver",  label = "เงิน",   color = Color3.fromRGB(190, 190, 190) },
         { id = "Rainbow", label = "รุ้ง",   color = nil },
     }
+
 
     local RAINBOW = ColorSequence.new({
         ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
