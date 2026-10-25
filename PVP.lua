@@ -151,7 +151,7 @@ return function(ctx)
             -- โหมดไกล
             local HARD_LOCK = false       -- true = ล็อกหัวเต็มแรงทุกเฟรม, false = ล็อกเหนียวนุ่ม
             local ACQUIRE_ANGLE = 25     -- หันกล้องให้ใครอยู่ในมุมกี่องศาจากกลางจอ ถึงจะเริ่มล็อกคนนั้น
-            local RELEASE_ANGLE = 35     -- ดึงกล้องห่างจากเป้าเกินกี่องศา ถึงหลุดล็อก
+            local RELEASE_ANGLE = 25     -- ดึงกล้องห่างจากเป้าเกินกี่องศา ถึงหลุดล็อก
             local STICK_STRENGTH = 0.7  -- ความเหนียว (ใช้เมื่อ HARD_LOCK = false)
             local FLICK_ANGLE = 9       -- สะบัดกล้องเร็วเกินกี่องศาต่อเฟรม = หลุดล็อก
             local FLICK_COOLDOWN = 0.25   -- หลังสะบัดหลุด รออีกกี่วินาทีถึงล็อกคนใหม่
