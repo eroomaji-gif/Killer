@@ -4442,3 +4442,20 @@ end)
 if not ok2 then
     warn("โหลดหมวดปากัวจำลองไม่สำเร็จ: ", err2)
 end
+
+
+
+
+
+
+-- 3) หมวด PVP (ต่อท้ายปุ่มปากัว ต้องโหลดหลังปากัวเสมอ)
+local ok3, err3 = pcall(function()
+    local pvp = loadstring(game:HttpGet(PVP_URL))()(ctx)
+    if pvp then
+        ctx.PvpContainer = pvp.Container
+        ctx.CatBtnPvp = pvp.Button
+    end
+end)
+if not ok3 then
+    warn("โหลดหมวด PVP ไม่สำเร็จ: ", err3)
+end
