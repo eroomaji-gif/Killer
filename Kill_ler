@@ -2510,7 +2510,7 @@ end)
 -- ==========================================
 pcall(function()
 local bgConfigFile = "CustomBackgroundConfig.txt"
-local defaultImage = "rbxassetid://75925823414835" -- รูปภาพเริ่มต้นเดิมของคุณ
+local defaultImage = "rbxassetid://129526073700722" -- รูปภาพเริ่มต้นเดิมของคุณ
 
 -- 1. โหลดค่าที่เคยเซฟไว้ตอนเปิดสคริปต์
 local savedAssetNumber = ""
