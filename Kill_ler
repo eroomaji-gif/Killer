@@ -1479,8 +1479,6 @@ SettingsContainer.Position = UDim2.new(0, 160, 0, 50)
 SettingsContainer.Size = UDim2.new(1, -170, 1, -60)
 SettingsContainer.CanvasSize = UDim2.new(0, 0, 0, 600)
 SettingsContainer.ScrollBarThickness = 6
-SettingsContainer.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
-
 SettingsContainer.Visible = false -- ซ่อนไว้ก่อน
 
 local SettingsContainerLayout = Instance.new("UIListLayout")
